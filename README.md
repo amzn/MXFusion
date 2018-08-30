@@ -1,5 +1,5 @@
-![MXFusion](docs/images/blender-small.png)
 # MXFusion
+![MXFusion](docs/images/logo/blender-small.png)
 
 [Website](https://github.com/amzn/MXFusion) |
 [Documentation](https://github.com/amzn/MXFusion/docs) |
