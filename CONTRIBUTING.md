@@ -106,7 +106,7 @@ You'll need to have MXFusion's dependencies as well as some Sphinx dependencies 
 
 ## Licensing
 
-See the [LICENSE](https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/blob/master/LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+See the [LICENSE](https://github.com/amzn/mxfusion/blob/master/LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
 
 We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.
 

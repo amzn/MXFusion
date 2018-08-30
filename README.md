@@ -46,7 +46,7 @@ pip install .
 
 ## Where to go from here?
 
-[Documentation](docs link TODO)
+[Documentation](https://github.com/amzn/MXFusion/docs)
 
 [Contributions](CONTRIBUTING.md)
 
