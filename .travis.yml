@@ -23,6 +23,7 @@ before_install: |
 install:
   - pip install --upgrade pip
   - pip install -r requirements/requirements.txt
+  - pip install -r requirements/test_requirements.txt
   - pip freeze
 script:
   - pytest
@@ -32,7 +33,7 @@ jobs:
   include:
     - os: osx
       language: generic
-     # Full version number required 
+     # Full version number required
       env: PYTHON=3.4.4
     - os: osx
       language: generic
@@ -40,3 +41,13 @@ jobs:
     - os: osx
       language: generic
       env: PYTHON=3.6.6
+    - stage: release
+      python: '3.6' # Official supported Python dist.
+      deploy:
+        provider: pypi
+        server: https://test.pypi.org/legacy/ # Remove for deployment to official PyPi repo
+        user: meissnereric
+        password:
+          secure: encrypted_pypi_password_REPLACEME
+        on:
+          branch: ci
