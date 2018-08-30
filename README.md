@@ -1,4 +1,4 @@
-![MXFusion](docs/image/blender-small.png)
+![MXFusion](docs/images/blender-small.png)
 # MXFusion
 
 [Website](https://github.com/amzn/MXFusion) |
