@@ -1,4 +1,3 @@
-![MXFusion](docs/images/blender-small.png)
 # MXFusion
 [![Build Status](https://travis-ci.org/amzn/MXFusion.svg?branch=master)](https://travis-ci.org/amzn/MXFusion) |
 [![codecov](https://codecov.io/gh/amzn/MXFusion/branch/master/graph/badge.svg)](https://codecov.io/gh/amzn/MXFusion) |
