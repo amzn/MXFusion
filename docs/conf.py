@@ -9,19 +9,8 @@ import recommonmark
 from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
 
-from unittest.mock import MagicMock
-
 sys.path.insert(0, os.path.abspath('../mxfusion'))
 sys.path.insert(1, dirname(dirname(abspath(__file__))))
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return MagicMock()
-
-MOCK_MODULES = ['numpy', 'GPy', 'mxnet', 'networkx']
-
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 version = '1.0'
 project = 'MXFusion'
@@ -89,8 +78,8 @@ html_theme_options = {
     'titles_only': True
 }
 
-# html_logo = 'img/xfer.png'
-# html_favicon = 'img/xfer_favi.ico'
+html_logo = 'images/logos/blender-small.png'
+html_favicon = 'images/logos/Favicon.png'
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
