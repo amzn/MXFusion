@@ -15,11 +15,9 @@ EXAMPLES_DST = "examples"
 if os.path.isdir(EXAMPLES_DST):
     shutil.rmtree(EXAMPLES_DST)
 shutil.copytree(EXAMPLES_SRC, EXAMPLES_DST)
-top_level = dirname(dirname(abspath(__file__)))
-mxfusion_source = os.path.abspath('../mxfusion')
-sys.path.insert(0, mxfusion_source)
-sys.path.insert(1, top_level)
 
+sys.path.insert(0, os.path.abspath('../mxfusion'))
+sys.path.insert(1, dirname(dirname(abspath(__file__))))
 
 version = '1.0'
 project = 'MXFusion'
