@@ -40,13 +40,3 @@ jobs:
   - os: osx
     language: generic
     env: PYTHON=3.6.6
-  - stage: release
-    python: '3.6'
-    deploy:
-      provider: pypi
-      server: https://test.pypi.org/legacy/
-      user: meissnereric
-      password:
-        secure: pAWvyarB5bpa1LoeuJUtoAsMizuZbA6maPqfzQ9pcAVZDZJgnx7pZ7uMu/Vu+TfKts7+k0cTW3jNlNnK3ro2FNCD4wGfyqnnCD7eyWpNHrxdl0Pk50z/I6VAVzgMdt7biHopPvP+Dn3ttXJd/SmzDoaEKslYHcIrb4S2/jM+ydqTDwPvBDir/uDT88iMWkIkQ0MTmyTwwsROdLdylDjSpJLlc6I/5+e9jEx6chJRFm2OIoK64zmsfFnF8xA0fdKHDJSDwWQGHpDjw9veC2bBvXEIUsXgHdMuNKK74/8ZaB4gYsl0i8LLKWgL9n43jZKvl7AEK771Kb93IWDpMIiZcV/ae+TgGVatDIVVZ08ubMwj+VrQ59IpB5TnUoEqEjvR6fMbAtrzDvolerJWsigOt/2bebWfZD3tgLhW7jt3G5MbZY1ujawayfEPufV1VyNWCXhM5c0TIFyA/uNnlPf10K1rUhuaa9+dCtnAxlevTSMXqq65+B1oynGFLzeCAJchZQ1SHSs8PG3lysYa9L+EffUGebqJT+YdDEE1t/BvPpGL3bm1ILS9MH3D0OTJUW5TJMSXMcgzi19cdLTfXD/zkHvAA0FksgXug8qsUdJatqXZelAvdv7NjAshcRqgdQcAf36TqzasQOFm7EUcwB1Whl1Fa20yZtcQir8nNmdzano=
-      on:
-        branch: ci
