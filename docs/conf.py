@@ -2,12 +2,19 @@
 from datetime import datetime
 
 import pkg_resources
-import sys, os
+import sys, os, shutil
 from os.path import dirname, abspath
 
 import recommonmark
 from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
+
+# copy over examples folder for notebook docs
+EXAMPLES_SRC = "../examples"
+EXAMPLES_DST = "examples"
+if os.path.isdir(EXAMPLES_DST):
+    shutil.rmtree(EXAMPLES_DST)
+shutil.copytree(EXAMPLES_SRC, EXAMPLES_DST)
 
 sys.path.insert(0, os.path.abspath('../mxfusion'))
 sys.path.insert(1, dirname(dirname(abspath(__file__))))
