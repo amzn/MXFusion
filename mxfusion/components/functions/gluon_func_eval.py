@@ -14,8 +14,8 @@ class GluonFunctionEvaluation(FunctionEvaluation):
     :type input_variables: {variable name : Variable}
     :param block_variables: the parameters in the Gluon block.
     :type block_variables: {variable name : Variable}
-    :param nOutputs: the number of outputs of the function.
-    :type nOutputs: int
+    :param num_outputs: the number of outputs of the function.
+    :type num_outputs: int
     :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
     :type: boolean
     """

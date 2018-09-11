@@ -143,7 +143,7 @@ class TestMXFusionGluonFunctionTests(object):
 
     def test_success(self):
         self.setUp()
-        f = MXFusionGluonFunction(self.net, nOutputs=1)
+        f = MXFusionGluonFunction(self.net, num_outputs=1)
         x = Variable()
         y = f(x)
         #z = y.value.eval({'x' : mx.nd.ones(self.D)})
