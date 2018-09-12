@@ -28,7 +28,7 @@ where $y_i|z \sim q(y|z)$, $x_j|y_i,z \sim q(x|y_i,z)$ and $N$ is the number of 
 Let's look at a simple model and then see how we apply stochastic variational inference to it in practice using MXFusion.
 
 ###  Creating a Posterior
-
+ TODO
 
 
 ## Examples

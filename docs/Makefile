@@ -19,12 +19,4 @@ help:
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
-	rm -rf _build generated examples || true
-
-	# copy over the examples folder so notebooks get compiled into the docs
-	cp -r $(EXAMPLES_BASE_DIR) $(EXAMPLES_SYM_DIR)
-
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-
-
-# @$(SPHINXAPIDOC) $(SPHINXAPIDOC_ARGS) -o "$(GENERATED_DIR)" "$(PROJECT_DIR)"  $(O)

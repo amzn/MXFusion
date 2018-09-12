@@ -2,15 +2,24 @@
 from datetime import datetime
 
 import pkg_resources
-import sys, os
+import sys, os, shutil
 from os.path import dirname, abspath
 
 import recommonmark
 from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
 
-sys.path.insert(0, os.path.abspath('../mxfusion'))
-sys.path.insert(1, dirname(dirname(abspath(__file__))))
+# copy over examples folder for notebook docs
+EXAMPLES_SRC = "../examples"
+EXAMPLES_DST = "examples"
+if os.path.isdir(EXAMPLES_DST):
+    shutil.rmtree(EXAMPLES_DST)
+shutil.copytree(EXAMPLES_SRC, EXAMPLES_DST)
+top_level = dirname(dirname(abspath(__file__)))
+mxfusion_source = os.path.abspath('../mxfusion')
+sys.path.insert(0, mxfusion_source)
+sys.path.insert(1, top_level)
+
 
 version = '1.0'
 project = 'MXFusion'
@@ -26,6 +35,7 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints', '_templates', '**.cfg']
 
 # Allow notebooks to have errors when generating docs
 nbsphinx_allow_errors = True
+nbsphinx_execute = 'never'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -78,8 +88,8 @@ html_theme_options = {
     'titles_only': True
 }
 
-# html_logo = 'img/xfer.png'
-# html_favicon = 'img/xfer_favi.ico'
+html_logo = 'images/logos/blender-small.png'
+html_favicon = 'images/logos/Favicon.png'
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
