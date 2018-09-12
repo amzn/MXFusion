@@ -1,5 +1,6 @@
 # MXFusion
 [![Build Status](https://travis-ci.org/amzn/MXFusion.svg?branch=master)](https://travis-ci.org/amzn/MXFusion) |
+[![Build Status](https://travis-ci.org/amzn/MXFusion.svg?branch=develop)](https://travis-ci.org/amzn/MXFusion/branches) |
 [![codecov](https://codecov.io/gh/amzn/MXFusion/branch/master/graph/badge.svg)](https://codecov.io/gh/amzn/MXFusion) |
 [![pypi](https://img.shields.io/pypi/v/mxfusion.svg?style=flat)](https://pypi.org/project/mxfusion/) |
 [![Documentation Status](https://readthedocs.org/projects/mxfusion/badge/?version=latest)](https://mxfusion.readthedocs.io/en/latest/?badge=latest) |
