@@ -41,13 +41,13 @@ jobs:
     language: generic
     env: PYTHON=3.6.6
 
-	- stage: release
-		python: '3.6' # Official supported Python dist.
-		deploy:
-			provider: pypi
-			server: https://test.pypi.org/legacy/ # Remove for deployment to official PyPi repo
-			user: meissnereric
-			password:
-				secure: "pvH54PItPIqYBF3x+aFTf/hsc1/77mLxfbIs+swM9LZjFnYLi9XZaIKx+N8XXQwOijDuoj4C6TQqYbmfi2sv1NOZOaHd9AINxL14hzZ3tEgEEJiXmDzo4vKldZp8ISDMRnO2BvYRBxzxhyAY/JaK0Ma5UcPBNumjNbuRft+ZMDTGsHc6Cr6Ibfl3r+ps5Tnjw0Eu9gMkiH8mxYZS5tU+yt3Y9pfwU+GOzhrwdaoM/AMKYdeMHb3XTt5VZK0YKG3x5VzSoUOSQaKUGgLCdKs7eIJM5wXeIqvcwkXuYqcMuyQ1GX+C07DWjpYIF1tEA8rdo7AkvpRz9Ip0DX9UiiRE1LmVYNZK0KUs3XM2hi+XquCq9bUMWB2B7PizD44RVboexQwTKU74zWSvFkoe7KC1t8hYmKsr4REy4qHJF3j78NWQZECca95rdlR0NClsqN2KdyJXm/uKSGE8SxpKeeDJB9STGObbQhIU+xabkTxd/cxMkMs9HZGnyf6wv6pIc1udg3HD8APHX974YNvQz0rMgApNw+6ufVWqARYuuyqftknhUhIdx5sN+4q5/Wr5AgccTjpRig47fayYEUOk5DCwOb8vOjc5jYWFwKd48XeWZ+5ITjb/TGfLdGHWB9YNtdndMZOE0ogCBHYPW1vfyS/KA9r/VObGCHu++746uQnP2Ks="
-			on:
-				branch: master
+  - stage: release
+    python: '3.6' # Official supported Python dist.
+    deploy:
+      provider: pypi
+      server: https://test.pypi.org/legacy/ # Remove for deployment to official PyPi repo
+      user: meissnereric
+      password:
+        secure: "pvH54PItPIqYBF3x+aFTf/hsc1/77mLxfbIs+swM9LZjFnYLi9XZaIKx+N8XXQwOijDuoj4C6TQqYbmfi2sv1NOZOaHd9AINxL14hzZ3tEgEEJiXmDzo4vKldZp8ISDMRnO2BvYRBxzxhyAY/JaK0Ma5UcPBNumjNbuRft+ZMDTGsHc6Cr6Ibfl3r+ps5Tnjw0Eu9gMkiH8mxYZS5tU+yt3Y9pfwU+GOzhrwdaoM/AMKYdeMHb3XTt5VZK0YKG3x5VzSoUOSQaKUGgLCdKs7eIJM5wXeIqvcwkXuYqcMuyQ1GX+C07DWjpYIF1tEA8rdo7AkvpRz9Ip0DX9UiiRE1LmVYNZK0KUs3XM2hi+XquCq9bUMWB2B7PizD44RVboexQwTKU74zWSvFkoe7KC1t8hYmKsr4REy4qHJF3j78NWQZECca95rdlR0NClsqN2KdyJXm/uKSGE8SxpKeeDJB9STGObbQhIU+xabkTxd/cxMkMs9HZGnyf6wv6pIc1udg3HD8APHX974YNvQz0rMgApNw+6ufVWqARYuuyqftknhUhIdx5sN+4q5/Wr5AgccTjpRig47fayYEUOk5DCwOb8vOjc5jYWFwKd48XeWZ+5ITjb/TGfLdGHWB9YNtdndMZOE0ogCBHYPW1vfyS/KA9r/VObGCHu++746uQnP2Ks="
+      on:
+        branch: master
