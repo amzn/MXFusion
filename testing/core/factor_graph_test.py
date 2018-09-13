@@ -179,7 +179,7 @@ class FactorGraphTests(unittest.TestCase):
         variance2 = m.v3.factor.variance
         variance_rt = add_sample_dimension(mx.nd, variance.constant)
         variance2_rt = add_sample_dimension(mx.nd, variance2.constant)
-        log_pdf = m.compute_log_prob(F=mx.nd, targets={m.v2.uuid: v2_rt, m.v3.uuid:v3_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt}, conditionals={v.uuid: v_rt}).asscalar()
+        log_pdf = m.compute_log_prob(F=mx.nd, variables={m.v2.uuid: v2_rt, m.v3.uuid:v3_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt, v.uuid: v_rt}).asscalar()
 
         variables = {m.v2.factor.mean.uuid: v_rt, m.v2.factor.variance.uuid: variance_rt, m.v2.factor.random_variable.uuid: v2_rt}
         log_pdf_1 = mx.nd.sum(m.v2.factor.log_pdf(F=mx.nd, variables=variables))
@@ -208,7 +208,7 @@ class FactorGraphTests(unittest.TestCase):
         variance_rt = add_sample_dimension(mx.nd, variance.constant)
         variance2_rt = add_sample_dimension(mx.nd, variance2.constant)
         samples = m.draw_samples(F=mx.nd, num_samples=5, targets=[m.v3.uuid],
-        conditionals={v.uuid: v_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt})[m.v3.uuid]
+        variables={v.uuid: v_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt})[m.v3.uuid]
 
         samples_np = v_np + samples_1_np[:, None] + np.sqrt(0.1)*samples_2_np.reshape(5,10)
 

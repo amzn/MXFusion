@@ -26,7 +26,7 @@ class ForwardSamplingAlgorithm(InferenceAlgorithm):
         self.num_samples = num_samples
         self._target_variables = target_variables
 
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The method for the computation of the inference algorithm
 
@@ -44,12 +44,9 @@ class ForwardSamplingAlgorithm(InferenceAlgorithm):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(parameters)
-        knowns.update(constants)
         samples = self.model.draw_samples(
-            F=F, targets=self._target_variables, conditionals=knowns,
-            num_samples=self.num_samples, constants=constants)
+            F=F, variables=variables, targets=self._target_variables,
+            num_samples=self.num_samples)
         if self._target_variables is not None:
             samples = {v: samples[v] for v in self._target_variables}
         samples = {k: v for k, v in samples.items()}

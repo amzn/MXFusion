@@ -27,7 +27,7 @@ class StochasticVariationalInference(InferenceAlgorithm):
         """
         return self._extra_graphs[0]
 
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The method for the computation of the inference algorithm
 
@@ -45,16 +45,10 @@ class StochasticVariationalInference(InferenceAlgorithm):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(parameters)
-        knowns.update(constants)
 
         samples = self.posterior.draw_samples(
-            F=F, conditionals=knowns, num_samples=self.num_samples,
-            constants=constants)
-        knowns.update(samples)
-        logL = self.model.compute_log_prob(
-            F=F, targets=knowns, constants=constants)
-        logL = logL - self.posterior.compute_log_prob(
-            F=F, targets=knowns, constants=constants)
+            F=F, variables=variables, num_samples=self.num_samples)
+        variables.update(samples)
+        logL = self.model.compute_log_prob(F=F, variables=variables)
+        logL = logL - self.posterior.compute_log_prob(F=F, variables=variables)
         return -logL

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
 from ..components.variables import VariableType
-from ..components.variables import add_sample_dimension_arrays
+from ..components.variables import add_sample_dimension_to_arrays
 from ..util.inference import variables_to_UUID
 
 
@@ -43,13 +43,12 @@ class ObjectiveBlock(HybridBlock):
         for to_uuid, from_uuid in self._var_ties.items():
             kw[to_uuid] = kw[from_uuid]
         data = {k: v for k, v in zip(self._data_def, args)}
-        data = add_sample_dimension_arrays(F, data)
+        variables = add_sample_dimension_to_arrays(F, data)
         for k, v in self._var_trans.items():
             kw[k] = v.transform(kw[k], F=F)
-        kw = add_sample_dimension_arrays(F, kw)
-        constants = add_sample_dimension_arrays(F, self._constants)
-        obj = self._infr_method.compute(F=F, data=data, parameters=kw,
-                                        constants=constants)
+        add_sample_dimension_to_arrays(F, kw, out=variables)
+        add_sample_dimension_to_arrays(F, self._constants, out=variables)
+        obj = self._infr_method.compute(F=F, variables=variables)
         return obj
 
 
@@ -73,7 +72,7 @@ class InferenceAlgorithm(ABC):
         self._extra_graphs = extra_graphs if extra_graphs is not None else []
         self._graphs = [model] if extra_graphs is None else \
             [model] + extra_graphs
-        self._observed = observed
+        self._observed = set(observed)
         self._observed_uuid = variables_to_UUID(observed)
         self._observed_names = [v.name for v in observed]
 
@@ -138,7 +137,7 @@ class InferenceAlgorithm(ABC):
         return block
 
     @abstractmethod
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The abstract method for the computation of the inference algorithm
 
