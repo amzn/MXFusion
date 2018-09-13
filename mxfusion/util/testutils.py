@@ -87,7 +87,7 @@ def make_bnn_model(finalize=True, verbose=True):
     net = make_net()
     m = mf.models.Model(verbose=verbose)
     m.N = mf.components.Variable()
-    m.f = mf.components.MXFusionGluonFunction(net, nOutputs=1)
+    m.f = mf.components.MXFusionGluonFunction(net, num_outputs=1)
     m.x = mf.components.Variable(shape=(m.N,))
     m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
     m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())

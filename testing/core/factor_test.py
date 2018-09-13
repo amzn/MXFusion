@@ -29,7 +29,7 @@ class FactorTests(unittest.TestCase):
             self.net.add(nn.Dense(self.D, activation="relu"))
 
         m = mf.models.Model(verbose=False)
-        f = MXFusionGluonFunction(self.net, nOutputs=1)
+        f = MXFusionGluonFunction(self.net, num_outputs=1)
         m.x = mfc.Variable()
         m.y = f(m.x)
 

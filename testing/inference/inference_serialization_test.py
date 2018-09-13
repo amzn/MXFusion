@@ -24,7 +24,7 @@ class InferenceSerializationTests(unittest.TestCase):
     def make_model(self, net):
         m = mf.models.Model(verbose=True)
         m.N = mf.components.Variable()
-        m.f = MXFusionGluonFunction(net, nOutputs=1)
+        m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mf.components.Variable(shape=(m.N,1))
         m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=mx.nd.array([0.01]))
         m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
