@@ -373,9 +373,9 @@ class FactorGraph(object):
                 setattr(new_model, v.name, new_leaf)
             else:
                 v.graph = new_model.graph
-        for v in new_model.variables.values():
+        for v in self.variables.values():
             if v.name is not None:
-                setattr(new_model, v.name, v)
+                setattr(new_model, v.name, new_model[v.uuid])
         return new_model, var_map
 
     def get_parameters(self, excluded=None, include_inherited=False):
