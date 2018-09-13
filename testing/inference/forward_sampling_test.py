@@ -15,7 +15,7 @@ class InferenceTests(unittest.TestCase):
     def make_model(self, net):
         m = mf.models.Model(verbose=False)
         m.N = mf.components.Variable()
-        m.f = MXFusionGluonFunction(net, nOutputs=1)
+        m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mf.components.Variable(shape=(m.N, 1))
         m.r = m.f(m.x)
         for k, v in m.r.factor.block_variables:

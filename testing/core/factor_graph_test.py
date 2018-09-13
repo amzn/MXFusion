@@ -34,7 +34,7 @@ class FactorGraphTests(unittest.TestCase):
         component_set = set()
         m = mf.models.Model(verbose=False)
         m.N = mfc.Variable()
-        m.f = MXFusionGluonFunction(net, nOutputs=1)
+        m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mfc.Variable(shape=(m.N,))
         m.r = m.f(m.x)
         for k, v in m.r.factor.block_variables:
@@ -91,7 +91,7 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(set((v.uuid, m.uuid, f.uuid)) <= self.fg.components.keys(), "Variable is added to _components dict. {} {}".format(v.uuid, self.fg.components))
 
     def test_add_unresolved_components_function(self):
-        f = MXFusionGluonFunction(self.basic_net, nOutputs=1)
+        f = MXFusionGluonFunction(self.basic_net, num_outputs=1)
         x = mfc.Variable()
         y = f(x)
         component_set = set((x, y))
