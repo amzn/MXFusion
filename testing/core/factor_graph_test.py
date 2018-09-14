@@ -34,7 +34,7 @@ class FactorGraphTests(unittest.TestCase):
         component_set = set()
         m = mf.models.Model(verbose=False)
         m.N = mfc.Variable()
-        m.f = MXFusionGluonFunction(net, nOutputs=1)
+        m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mfc.Variable(shape=(m.N,))
         m.r = m.f(m.x)
         for k, v in m.r.factor.block_variables:
@@ -91,7 +91,7 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(set((v.uuid, m.uuid, f.uuid)) <= self.fg.components.keys(), "Variable is added to _components dict. {} {}".format(v.uuid, self.fg.components))
 
     def test_add_unresolved_components_function(self):
-        f = MXFusionGluonFunction(self.basic_net, nOutputs=1)
+        f = MXFusionGluonFunction(self.basic_net, num_outputs=1)
         x = mfc.Variable()
         y = f(x)
         component_set = set((x, y))
@@ -137,19 +137,21 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_replicate_simple_model(self):
         m = mf.models.Model(verbose=False)
-        m.x = mfc.Variable()
-        d = mf.components.distributions.Normal(mean=mx.nd.array([0]), variance=mx.nd.array([1e6]))
+        m.x = mfc.Variable(shape=(2,))
+        m.x_mean = mfc.Variable(value=mx.nd.array([0, 1]), shape=(2,))
+        m.x_var = mfc.Variable(value=mx.nd.array([1e6]))
+        d = mf.components.distributions.Normal(mean=m.x_mean, variance=m.x_var)
         m.x.set_prior(d)
         m2, var_map = m.clone()
         # compare m and m2 components and such for exactness.
         self.assertTrue(all([k.uuid == v.uuid for k, v in var_map.items()]))
-        self.assertTrue(all([k.uuid == v.uuid for k, v in
-                        zip(m.components.values(), m2.components.values())]))
+        self.assertTrue(set([v.uuid for v in m.components.values()]) ==
+                        set([v.uuid for v in m2.components.values()]))
         self.assertTrue(all([v in m.components for v in m2.components]), (set(m2.components) - set(m.components)))
         self.assertTrue(all([v in m2.components for v in m.components]), (set(m.components) - set(m2.components)))
-        self.assertTrue(all([self.shape_match(old.shape, new.shape, var_map)
-                        for old, new in
-                        zip(m.variables.values(), m2.variables.values())]))
+        self.assertTrue(all([m.x.shape == m2.x.shape,
+                             m.x_mean.shape == m2.x_mean.shape,
+                             m.x_var.shape == m2.x_var.shape]))
 
     def test_set_prior_after_factor_attach(self):
         fg = mf.models.Model()

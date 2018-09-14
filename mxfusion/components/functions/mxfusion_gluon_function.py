@@ -11,15 +11,15 @@ class MXFusionGluonFunction(object):
 
     :param block: The MXNet Gluon block to be wrapped.
     :type block: mxnet.gluon.Blockk or mxnet.gluon.HybridBlock
-    :param nOutputs: The number of output variables of the Gluon block.
-    :type nOutputs: int
+    :param num_outputs: The number of output variables of the Gluon block.
+    :type num_outputs: int
     :param dtype: the data type of float point numbers used in the Gluon block.
     :type dtype: numpy.float32 or numpy.float64
     :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
     :type broadcastable: boolean
     """
 
-    def __init__(self, block, nOutputs, dtype=None, broadcastable=False):
+    def __init__(self, block, num_outputs, dtype=None, broadcastable=False):
 
         if not isinstance(block, (Block, HybridBlock)):
             raise ModelSpecificationError('The block argument must be of type Block or HybridBlock from MXNet Gluon.')
@@ -28,7 +28,7 @@ class MXFusionGluonFunction(object):
         self.broadcastable = broadcastable
         self.block = block
         self._name = block.name
-        self.nOutputs = nOutputs
+        self.num_outputs = num_outputs
         self._gluon_parameters = self._create_variables_from_gluon_block(block)
 
     def __call__(self, *args, **kwargs):
@@ -53,7 +53,7 @@ class MXFusionGluonFunction(object):
         input_variables = [(self.block.name + "_input_" + str(i), variable) for i, variable in enumerate(args)]
 
         outputs = []
-        for i in range(self.nOutputs):
+        for i in range(self.num_outputs):
             output = Variable()
             outputs.append((self.name + "_output_" + str(i), output))
 
