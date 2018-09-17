@@ -1,6 +1,7 @@
 import numpy as np
 import mxnet as mx
 from ...common.config import get_default_MXNet_mode
+from ...common.exceptions import InferenceError
 from ..variables import Variable
 from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
@@ -78,6 +79,7 @@ class Normal(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
         out_shape = (num_samples,) + rv_shape
+        print("regular normal:",out_shape)
         return F.broadcast_add(F.broadcast_mul(self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx),
             F.sqrt(variance)), mean)
@@ -170,7 +172,13 @@ class MultivariateNormalDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            num_samples = max([get_num_samples(F, v) for v in variables.values()])
+            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            if isSamples:
+                num_samples_inferred = max([get_num_samples(F, v) for v in
+                                           variables.values()])
+                if num_samples_inferred != num_samples:
+                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Normal distribution must be the same as the number of samples given to the inputs. nSamples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
+
             shapes_map = {}
             shapes_map['mean'] = (num_samples,) + rv_shape
             shapes_map['covariance'] = (num_samples,) + rv_shape + (rv_shape[-1],)
@@ -274,6 +282,7 @@ class MultivariateNormal(Distribution):
         """
         F = get_default_MXNet_mode() if F is None else F
         out_shape = (num_samples,) + rv_shape + (1,)
+        print("out_shape", out_shape)
         lmat = F.linalg.potrf(covariance)
         epsilon = self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx)
