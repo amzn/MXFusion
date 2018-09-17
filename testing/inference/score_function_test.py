@@ -37,7 +37,7 @@ class ScoreFunctionTests(unittest.TestCase):
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
 
-    def test_meanfield_batch(self):
+    def test_score_function_batch(self):
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
         x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
@@ -58,7 +58,7 @@ class ScoreFunctionTests(unittest.TestCase):
         infr.initialize(y=y_nd, x=x_nd)
         infr.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
 
-    def test_meanfield_minibatch(self):
+    def test_score_function_minibatch(self):
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
         x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
@@ -79,29 +79,3 @@ class ScoreFunctionTests(unittest.TestCase):
 
         infr.initialize(y=(100, 1), x=(100, 1))
         infr.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
-
-    def test_softplus_in_params(self):
-
-        m = make_basic_model()
-
-        x = np.random.rand(1000, 1)
-        y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
-
-        from mxfusion.inference.meanfield import create_Gaussian_meanfield
-        from mxfusion.inference import ScoreFunctionInference
-        from mxfusion.inference.grad_based_inference import GradBasedInference
-        from mxfusion.inference import BatchInferenceLoop
-        observed = [m.x]
-        q = create_Gaussian_meanfield(model=m, observed=observed)
-        alg = ScoreFunctionInference(num_samples=3, model=m, observed=observed, posterior=q)
-        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
-
-        infr.initialize(x=x_nd)
-        infr.run(max_iter=1, learning_rate=1e-2, x=x_nd)
-
-        uuid_of_pos_var = m.v.uuid
-        infr.params._params[uuid_of_pos_var]._data = mx.nd.array([-10])
-        raw_value = infr.params._params[uuid_of_pos_var].data()
-        transformed_value = infr.params[m.v]
-        assert raw_value.asnumpy()[0] < 0 and transformed_value.asnumpy()[0] > 0
