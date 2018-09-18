@@ -1,7 +1,33 @@
 from .inference_alg import InferenceAlgorithm
 
 
-class StochasticVariationalInference(InferenceAlgorithm):
+class VariationalInference(InferenceAlgorithm):
+    """
+    The class of the Stochastic Variational Inference (SVI) algorithm.
+
+    :param num_samples: the number of samples used in estimating the variational lower bound
+    :type num_samples: int
+    :param model: the definition of the probabilistic model
+    :type model: Model
+    :param posterior: the definition of the variational posterior of the probabilistic model
+    :param posterior: Posterior
+    :param observed: A list of observed variables
+    :type observed: [Variable]
+    """
+
+    def __init__(self, model, posterior, observed):
+        super(VariationalInference, self).__init__(
+            model=model, observed=observed, extra_graphs=[posterior])
+
+    @property
+    def posterior(self):
+        """
+        return the variational posterior.
+        """
+        return self._extra_graphs[0]
+
+
+class StochasticVariationalInference(VariationalInference):
     """
     The class of the Stochastic Variational Inference (SVI) algorithm.
 
@@ -17,15 +43,8 @@ class StochasticVariationalInference(InferenceAlgorithm):
 
     def __init__(self, num_samples, model, posterior, observed):
         super(StochasticVariationalInference, self).__init__(
-            model=model, observed=observed, extra_graphs=[posterior])
+            model=model, posterior=posterior, observed=observed)
         self.num_samples = num_samples
-
-    @property
-    def posterior(self):
-        """
-        return the variational posterior.
-        """
-        return self._extra_graphs[0]
 
     def compute(self, F, variables):
         """

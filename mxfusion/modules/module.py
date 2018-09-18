@@ -69,15 +69,16 @@ class Module(Factor):
             param_dict = ParameterDict()
         if constants is None:
             constants = {}
-        for var in self._module_graph.get_parameters(
-                excluded=set([v.uuid for k, v in self.inputs]).union(constants.keys()),
-                include_inherited=True):
+        for g in [self._module_graph]+self._extra_graphs:
+            for var in g.get_parameters(
+                    excluded=set([v.uuid for k, v in self.inputs]).union(constants.keys()),
+                    include_inherited=True):
 
-            var_shape = realize_shape(var.shape, constants)
-            init = initializer.Constant(var.initial_value_before_transformation) \
-                if var.initial_value is not None else None
-            param_dict.get(name=var.uuid, shape=var_shape, dtype=self.dtype,
-                           allow_deferred_init=True, init=init)
+                var_shape = realize_shape(var.shape, constants)
+                init = initializer.Constant(var.initial_value_before_transformation) \
+                    if var.initial_value is not None else None
+                param_dict.get(name=var.uuid, shape=var_shape, dtype=self.dtype,
+                               allow_deferred_init=True, init=init)
         return param_dict
 
     def get_names_from_uuid(self, uuids):
