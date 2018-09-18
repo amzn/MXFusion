@@ -3,21 +3,28 @@ from mxnet import autograd
 from ..module import Module
 from ...models import Model, Posterior
 from ...components.variables.variable import Variable
+from ...components.variables.var_trans import PositiveTransformation
 from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess, MultivariateNormal
-from ...inference.variational import VariationalInference
+from ...inference.variational import VariationalInference, VariationalSamplingAlgorithm
+from ...util.customop import make_diagonal
 
 
-class SparseGPRegr_log_pdf(VariationalInference):
+class SVGPRegr_log_pdf(VariationalInference):
     def __init__(self, model, posterior, observed, jitter=0.):
-        super(SparseGPRegr_log_pdf, self).__init__(
+        super(SVGPRegr_log_pdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
         self.jitter = jitter
+        self.log_pdf_scaling = 1
 
     def compute(self, F, variables):
         X = variables[self.model.X]
         Y = variables[self.model.Y]
         Z = variables[self.model.inducing_inputs]
         noise_var = variables[self.model.noise_var]
+        mu = variables[self.posterior.qU_mean]
+        S_W = variables[self.posterior.qU_cov_W]
+        S_diag = variables[self.posterior.qU_cov_diag]
+
         D = Y.shape[-1]
         M = Z.shape[-2]
         kern = self.model.kernel
@@ -29,36 +36,90 @@ class SparseGPRegr_log_pdf(VariationalInference):
         Kuf = kern.K(F, Z, X, **kern_params)
         Kff_diag = kern.Kdiag(F, X, **kern_params)
 
-        L = F.linalg.potrf(Kuu)
-        LinvKuf = F.linalg.trsm(L, Kuf)
-
-        A = F.eye(M, dtype=Z.dtype) + \
-            F.broadcast_div(F.linalg.syrk(LinvKuf), noise_var)
-        LA = F.linalg.potrf(A)
+        S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
 
         if self.model.mean_func is not None:
             mean = self.model.mean_func(F, X)
             Y = Y - mean
-        LAInvLinvKufY = F.linalg.trsm(LA, F.linalg.gemm2(LinvKuf, Y))
 
-        logL = - D*F.linalg.sumlogdiag(LA)
-        logL = logL - F.sum(F.sum(F.square(Y)/noise_var + (np.log(2. * np.pi) +
-                            F.log(noise_var)), axis=-1), axis=-1)/2
-        logL = logL + F.sum(F.sum(
-            F.square(LAInvLinvKufY)/(2*F.square(noise_var)), axis=-1), axis=-1)
-        logL = logL - D*F.sum(Kff_diag, axis=-1)/(2*noise_var)
-        logL = logL + F.sum(F.sum(F.square(LinvKuf)/(2.*noise_var),
-                            axis=-1), axis=-1)
+        psi1Y = F.linalg.gemm2(Kuf, Y, False, False)
+        L = F.linalg.potrf(Kuu)
+        Ls = F.linalg.potrf(S)
+        LinvLs = F.linalg.trsm(L, Ls)
+        Linvmu = F.linalg.trsm(L, mu)
+        LinvKuf = F.linalg.trsm(L, Kuf)
 
-        with autograd.pause():
-            wv = variables[self.graphs[1].wv]
-            wv[:] = F.broadcast_div(F.linalg.trsm(L, F.linalg.trsm(LA, LAInvLinvKufY, transpose=True), transpose=True), noise_var)[0]
+        LinvKufY = F.linalg.trsm(L, psi1Y)/noise_var
+        LmInvPsi2LmInvT = F.linalg.syrk(LinvKuf)/noise_var
+        LinvSLinvT = F.linalg.syrk(LinvLs)
+        LmInvSmuLmInvT = LinvSLinvT*D + F.linalg.syrk(Linvmu)
 
+        KL_u = (M/2. + F.linalg.sumlogdiag(Ls))*D - F.linalg.sumlogdiag(L)*D\
+            - F.sum(F.sum(F.square(LinvLs), axis=-1), axis=-1)/2.*D \
+            - F.sum(F.sum(F.square(Linvmu), axis=-1), axis=-1)/2.
+
+        logL = -F.sum(F.sum(F.square(Y)/noise_var + np.log(2. * np.pi) +
+                            F.log(noise_var), axis=-1), axis=-1)/2.
+        logL = logL - D/2.*F.sum(Kff_diag, axis=-1)/noise_var
+        logL = logL - F.sum(F.sum(LmInvSmuLmInvT*LmInvPsi2LmInvT, axis=-1),
+                            axis=-1)/2.
+        logL = logL + F.sum(F.sum(F.square(LinvKuf)/noise_var, axis=-1),
+                            axis=-1)*D/2.
+        logL = logL + F.sum(F.sum(Linvmu*LinvKufY, axis=-1), axis=-1)
+        logL = logL + self.model.U.factor.log_pdf_scaling*KL_u
         return logL
 
 
-class SparseGPRegression(Module):
+class SVGPRegr_draw_samples(VariationalSamplingAlgorithm):
+    def __init__(self, model, posterior, observed, num_samples=1,
+                 target_variables=None, jitter=0.):
+        super(SVGPRegr_draw_samples, self).__init__(
+            model=model, posterior=posterior, observed=observed,
+            num_samples=num_samples, target_variables=target_variables)
+        self.jitter = jitter
+
+    def compute(self, F, variables):
+        X = variables[self.model.X]
+        Z = variables[self.model.inducing_inputs]
+        noise_var = variables[self.model.noise_var]
+        mu = variables[self.posterior.qU_mean]
+        S_W = variables[self.posterior.qU_cov_W]
+        S_diag = variables[self.posterior.qU_cov_diag]
+        M = Z.shape[-2]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(variables)
+
+        S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
+
+        Kuu = kern.K(F, Z, **kern_params)
+        if self.jitter > 0.:
+            Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
+
+        L = F.linalg.potrf(Kuu)
+        Ls = F.linalg.potrf(S)
+        LinvLs = F.linalg.trsm(L, Ls)
+        Linvmu = F.linalg.trsm(L, mu)
+        LinvSLinvT = F.linalg.syrk(LinvLs)
+        wv = F.linalg.trsm(L, Linvmu, transpose=True)
+
+        Kxt = kern.K(F, Z, X, **kern_params)
+        Ktt_diag = kern.Kdiag(F, X, **kern_params)
+
+        mu = F.linalg.gemm2(Kxt, wv, True, False)
+
+        LinvKxt = F.linalg.trsm(L, Kxt)
+        tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
+        var = Ktt_diag - F.sum(F.square(LinvKxt), axis=0) + F.sum(tmp*LinvKxt, axis=0)
+
+        f_samples = F.random.normal(shape=mu.shape) * F.sqrt(var) + mu
+
+        y_samples = f_samples + F.random.normal(shape=f_samples.shape) * F.sqrt(noise_var)
+
+        return {self.model.Y.uuid: y_samples}
+
+class SVGPRegression(Module):
     """
+    Stochastic Variational Gaussian Process Regression module with Gaussian likelihood
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
@@ -74,7 +135,7 @@ class SparseGPRegression(Module):
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
-        super(SparseGPRegression, self).__init__(
+        super(SVGPRegression, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
             output_names=output_names, dtype=dtype, ctx=ctx)
         self.mean_func = mean_func
@@ -105,10 +166,10 @@ class SparseGPRegression(Module):
             shape=(graph.inducing_inputs.shape[0], Y.shape[-1]),
             mean_func=self.mean_func, rand_gen=self.rand_gen, dtype=self.dtype,
             ctx=self.ctx)
-        # graph.F = ConditionalGaussianProcess.define_variable(
-        #     X=graph.X, X_cond=graph.inducing_inputs, Y_cond=graph.U,
-        #     kernel=self.kernel, shape=Y.shape, mean_func=self.mean_func,
-        #     rand_gen=self.rand_gen, dtype=self.dtype, ctx=self.ctx)
+        graph.F = ConditionalGaussianProcess.define_variable(
+            X=graph.X, X_cond=graph.inducing_inputs, Y_cond=graph.U,
+            kernel=self.kernel, shape=Y.shape, mean_func=self.mean_func,
+            rand_gen=self.rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
             mean=0, variance=graph.noise_var, rand_gen=self.rand_gen,
@@ -116,15 +177,9 @@ class SparseGPRegression(Module):
         graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
         post = Posterior(graph)
-        # TODO: allow cloning kernel to be in both model and posterior.
-        # post.F.assign_factor(ConditionalGaussianProcess(
-        #     X=post.X, X_cond=post.inducing_inputs, Y_cond=post.U,
-        #     kernel=self.kernel, mean_func=self.mean_func,
-        #     rand_gen=self.rand_gen, dtype=self.dtype, ctx=self.ctx))
-        # post.U.assign_factor(MultivariateNormal())
-        post.L = Variable(shape=(M, M))
-        post.LA = Variable(shape=(M, M))
-        post.wv = Variable(shape=(M, Y.shape[-1]))
+        post.qU_cov_diag = Variable(shape=(M,), transformation=PositiveTransformation())
+        post.qU_cov_W = Variable(shape=(M, M))
+        post.qU_mean = Variable(shape=(M, Y.shape[-1]))
         return graph, [post]
 
     def _attach_default_inference_algorithms(self):
@@ -132,7 +187,14 @@ class SparseGPRegression(Module):
             [v for k, v in self.outputs]
         self.attach_log_prob_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed))
+            algorithm=SVGPRegr_log_pdf(
+                self._module_graph, self._extra_graphs[0], observed))
+
+        observed = [v for k, v in self.inputs]
+        self.attach_draw_samples_algorithms(
+            targets=self.output_names, conditionals=self.input_names,
+            algorithm=SVGPRegr_draw_samples(
+                self._module_graph, self._extra_graphs[0], observed))
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
@@ -159,7 +221,7 @@ class SparseGPRegression(Module):
         :param ctx: the mxnet context (default: None/current context)
         :type ctx: None or mxnet.cpu or mxnet.gpu
         """
-        gp = SparseGPRegression(
+        gp = SVGPRegression(
             X=X, kernel=kernel, noise_var=noise_var,
             inducing_inputs=inducing_inputs, inducing_num=inducing_num,
             mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)

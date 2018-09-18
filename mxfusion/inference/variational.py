@@ -1,4 +1,4 @@
-from .inference_alg import InferenceAlgorithm
+from .inference_alg import InferenceAlgorithm, SamplingAlgorithm
 
 
 class VariationalInference(InferenceAlgorithm):
@@ -18,6 +18,34 @@ class VariationalInference(InferenceAlgorithm):
     def __init__(self, model, posterior, observed):
         super(VariationalInference, self).__init__(
             model=model, observed=observed, extra_graphs=[posterior])
+
+    @property
+    def posterior(self):
+        """
+        return the variational posterior.
+        """
+        return self._extra_graphs[0]
+
+
+class VariationalSamplingAlgorithm(SamplingAlgorithm):
+    """
+    The base class of sampling algorithms.
+
+    :param model_graph: the definition of the probabilistic model
+    :type model_graph: Model
+    :param observed: A list of observed variables
+    :type observed: [Variable]
+    :param num_samples: the number of samples used in estimating the variational lower bound
+    :type num_samples: int
+    :param target_variables: (optional) the target variables to sample
+    :type target_variables: [UUID]
+    """
+
+    def __init__(self, model, posterior, observed, num_samples=1,
+                 target_variables=None):
+        super(VariationalSamplingAlgorithm, self).__init__(
+            model=model, observed=observed, num_samples=num_samples,
+            target_variables=target_variables, extra_graphs=[posterior])
 
     @property
     def posterior(self):

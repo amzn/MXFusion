@@ -180,8 +180,10 @@ class SamplingAlgorithm(InferenceAlgorithm):
     :type target_variables: [UUID]
     """
 
-    def __init__(self, model, observed, num_samples=1, target_variables=None):
-        super(SamplingAlgorithm, self).__init__(model=model, observed=observed)
+    def __init__(self, model, observed, num_samples=1, target_variables=None,
+                 extra_graphs=None):
+        super(SamplingAlgorithm, self).__init__(
+            model=model, observed=observed, extra_graphs=extra_graphs)
         self.num_samples = num_samples
         self.target_variables = target_variables
 
