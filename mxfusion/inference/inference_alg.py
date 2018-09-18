@@ -99,6 +99,23 @@ class InferenceAlgorithm(ABC):
     def graphs(self):
         return self._graphs
 
+    def prepare_executor(self, rv_scaling=None):
+        excluded = set()
+        var_trans = {}
+        rv_scaling = {} if rv_scaling is None else rv_scaling
+        for g in self._graphs:
+            for v in g.variables.values():
+                if v.type == VariableType.PARAMETER and v.transformation is not None:
+                    var_trans[v.uuid] = v.transformation
+                if v.type == VariableType.PARAMETER and v.isInherited:
+                    excluded.add(v.uuid)
+                if v.type == VariableType.RANDVAR:
+                    if v.uuid in rv_scaling:
+                        v.factor.log_pdf_scaling = rv_scaling[v.uuid]
+                    else:
+                        v.factor.log_pdf_scaling = 1
+        return var_trans, excluded
+
     def create_executor(self, data_def, params, var_ties, rv_scaling=None):
         """
         Create a MXNet Gluon block to carry out the computation.
@@ -116,20 +133,11 @@ class InferenceAlgorithm(ABC):
         :returns: the Gluon block computing the outcome of inference
         :rtype: mxnet.gluon.HybridBlock
         """
-        excluded = set()
-        var_trans = {}
-        rv_scaling = {} if rv_scaling is None else rv_scaling
-        for g in self._graphs:
-            for v in g.variables.values():
-                if v.type == VariableType.PARAMETER and v.transformation is not None:
-                    var_trans[v.uuid] = v.transformation
-                if v.type == VariableType.PARAMETER and v.isInherited:
-                    excluded.add(v.uuid)
-                if v.type == VariableType.RANDVAR:
-                    if v.uuid in rv_scaling:
-                        v.factor.log_pdf_scaling = rv_scaling[v.uuid]
-                    else:
-                        v.factor.log_pdf_scaling = 1
+        var_trans, excluded = self.prepare_executor(rv_scaling=rv_scaling)
+        for m in self.model.modules.values():
+            var_trans_m, excluded_m = m.prepare_executor(rv_scaling=rv_scaling)
+            var_trans.update(var_trans_m)
+            excluded = excluded.union(excluded_m)
         block = ObjectiveBlock(infr_method=self, params=params.param_dict,
                                constants=params.constants,
                                data_def=data_def, var_trans=var_trans,
@@ -155,4 +163,27 @@ class InferenceAlgorithm(ABC):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
+        raise NotImplementedError
+
+
+class SamplingAlgorithm(InferenceAlgorithm):
+    """
+    The base class of sampling algorithms.
+
+    :param model_graph: the definition of the probabilistic model
+    :type model_graph: Model
+    :param observed: A list of observed variables
+    :type observed: [Variable]
+    :param num_samples: the number of samples used in estimating the variational lower bound
+    :type num_samples: int
+    :param target_variables: (optional) the target variables to sample
+    :type target_variables: [UUID]
+    """
+
+    def __init__(self, model, observed, num_samples=1, target_variables=None):
+        super(SamplingAlgorithm, self).__init__(model=model, observed=observed)
+        self.num_samples = num_samples
+        self.target_variables = target_variables
+
+    def compute(self, F, variables):
         raise NotImplementedError

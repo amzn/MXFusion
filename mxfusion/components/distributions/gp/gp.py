@@ -159,11 +159,10 @@ class GaussianProcess(Distribution):
         if self.mean_func is not None:
             mean = self.mean_func(F, X)
             random_variable = random_variable - mean
-        LinvY = F.sum(F.linalg.trsm(L, random_variable), axis=-1)
+        LinvY = F.linalg.trsm(L, random_variable)
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
 
-        return (- logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi),
-                axis=-1) / 2) * self.log_pdf_scaling
+        return (- logdet_l * D - F.sum(F.sum(F.square(LinvY) + np.log(2. * np.pi), axis=-1), axis=-1) / 2) * self.log_pdf_scaling
 
     @GaussianProcessDrawSamplesDecorator()
     def draw_samples(self, X, rv_shape, num_samples=1, F=None, **kernel_params):

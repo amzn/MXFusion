@@ -2,7 +2,8 @@ from future.utils import raise_from
 from uuid import uuid4
 import warnings
 import networkx as nx
-from ..components import Distribution, Factor, ModelComponent, Module, Variable, VariableType
+from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
+from ..modules.module import Module
 from ..common.exceptions import ModelSpecificationError, InferenceError
 from ..components.functions import FunctionEvaluation
 from ..components.variables.runtime_variable import expectation
@@ -202,7 +203,15 @@ class FactorGraph(object):
                     logL = logL + F.sum(expectation(F, f.log_pdf(
                         F=F, variables=variables)))
             elif isinstance(f, Module):
-                raise NotImplementedError("Modules aren't implemented yet!")
+                if targets is None:
+                    module_targets = [v.uuid for _, v in f.outputs
+                                      if v.uuid in variables]
+                else:
+                    module_targets = [v.uuid for _, v in f.outputs
+                                      if v.uuid in targets]
+                if len(module_targets) > 0:
+                    logL = logL + F.sum(expectation(F, f.compute_log_prob(
+                        F=F, variables=variables, targets=module_targets)))
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         return logL

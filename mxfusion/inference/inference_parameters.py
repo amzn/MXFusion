@@ -66,11 +66,13 @@ class InferenceParameters(object):
             for var in g.get_parameters(excluded=excluded,
                                         include_inherited=False):
                 var_shape = realize_shape(var.shape, self._constants)
-                init = initializer.Constant(var.initial_value) if var.initial_value is not None else None
+                init = initializer.Constant(var.initial_value_before_transformation) if var.initial_value is not None else None
 
                 self._params.get(name=var.uuid, shape=var_shape,
                                  dtype=self.dtype,
                                  allow_deferred_init=True, init=init)
+            for m in g.modules.values():
+                m.initialize_hidden_parameters(self._params, self._constants)
 
         self._params.initialize(ctx=self.mxnet_context)
 

@@ -47,6 +47,8 @@ class Variable(ModelComponent):
         self.isInherited = isInherited
         self._transformation = transformation
         self._value = None
+        if isinstance(initial_value, (int, float)):
+            initial_value = mx.nd.array([initial_value])
         self._initial_value = initial_value
         self.isConstant = False
         from ..distributions import Distribution
@@ -192,3 +194,10 @@ class Variable(ModelComponent):
     @property
     def initial_value(self):
         return self._initial_value
+
+    @property
+    def initial_value_before_transformation(self):
+        if self._transformation is None:
+            return self._initial_value
+        else:
+            return self._transformation.inverseTransform(self._initial_value, F=mx.nd)
