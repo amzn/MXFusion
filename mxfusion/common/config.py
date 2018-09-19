@@ -1,16 +1,11 @@
-try:
-    import configparser
-except:
-    import ConfigParser as configparser
-import os
 import mxnet
 
-config = configparser.ConfigParser()
-config.read(os.path.join(os.path.abspath(os.path.dirname(__file__)),
-            'config.cfg'))
+MXNET_DEFAULT_DTYPE = 'float32'
+MXNET_DEFAULT_MODE = mxnet.ndarray
+MXNET_DEFAULT_DEVICE = mxnet.cpu()
 
 def get_default_dtype():
-    return config['defaults']['mxnet_dtype']
+    return MXNET_DEFAULT_DTYPE
 
 
 def get_default_MXNet_mode():
@@ -20,10 +15,7 @@ def get_default_MXNet_mode():
     :returns: an MXNet ndarray or symbol, indicating the default mode.
     :rtype: :class:`mxnet.symbol` or :class:`mxnet.ndarray`
     """
-    if config['defaults']['mxnet_mode'] == 'mxnet_ndarray':
-        return mxnet.ndarray
-    elif config['defaults']['mxnet_mode'] == 'mxnet_symbol':
-        return mxnet.symbol
+    return MXNET_DEFAULT_MODE
 
 
 def get_default_device():
@@ -32,7 +24,4 @@ def get_default_device():
 
     :returns: an MXNet cpu or gpu, indicating the default device.
     """
-    if config['defaults']['mxnet_device'] == 'cpu':
-        return mxnet.cpu()
-    elif config['defaults']['mxnet_device'] == 'gpu':
-        return mxnet.gpu()
+    return MXNET_DEFAULT_DEVICE
