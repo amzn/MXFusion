@@ -79,7 +79,6 @@ class Normal(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
         out_shape = (num_samples,) + rv_shape
-        print("regular normal:",out_shape)
         return F.broadcast_add(F.broadcast_mul(self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx),
             F.sqrt(variance)), mean)
@@ -282,7 +281,6 @@ class MultivariateNormal(Distribution):
         """
         F = get_default_MXNet_mode() if F is None else F
         out_shape = (num_samples,) + rv_shape + (1,)
-        print("out_shape", out_shape)
         lmat = F.linalg.potrf(covariance)
         epsilon = self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx)
