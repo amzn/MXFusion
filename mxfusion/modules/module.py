@@ -60,18 +60,24 @@ class Module(Factor):
 
     @property
     def hidden_parameters(self):
-        vars = self._module_graph.get_parameters(
-            excluded=[v.uuid for k, v in self.inputs], include_inherited=True)
+        vars = []
+        for g in [self._module_graph]+self._extra_graphs:
+            vars.extend(g.get_parameters(
+                        excluded=set([v.uuid for k, v in self.inputs]),
+                        include_inherited=True))
         return [v.uuid for v in vars]
 
-    def initialize_hidden_parameters(self, param_dict=None, constants=None):
+    def initialize_hidden_parameters(self, param_dict=None, excluded=None,
+                                     constants=None):
         if param_dict is None:
             param_dict = ParameterDict()
         if constants is None:
             constants = {}
+        if excluded is None:
+            excluded = []
         for g in [self._module_graph]+self._extra_graphs:
             for var in g.get_parameters(
-                    excluded=set([v.uuid for k, v in self.inputs]).union(constants.keys()),
+                    excluded=set([v.uuid for k, v in self.inputs]).union(constants.keys()).union(excluded),
                     include_inherited=True):
 
                 var_shape = realize_shape(var.shape, constants)
@@ -124,9 +130,9 @@ class Module(Factor):
 
     def compute_log_prob(self, F, variables, targets=None):
         if targets is None:
-            target_names = self.get_names_from_uuid(targets)
-        else:
             target_names = tuple(sorted(self.output_names.copy()))
+        else:
+            target_names = self.get_names_from_uuid(targets)
         conditionals_names = self.get_names_from_uuid(variables.keys())
         conditionals_names = tuple(sorted(set(conditionals_names) - set(target_names)))
 
@@ -138,16 +144,16 @@ class Module(Factor):
 
     def draw_samples(self, F, variables, num_samples=1, targets=None):
         if targets is None:
-            target_names = self.get_names_from_uuid(targets)
-        else:
             target_names = tuple(sorted(self.output_names.copy()))
+        else:
+            target_names = self.get_names_from_uuid(targets)
         conditionals_names = self.get_names_from_uuid(variables.keys())
 
         if conditionals_names in self._draw_samples_methods:
             algs = self._draw_samples_methods[conditionals_names]
             target_names = set(target_names)
             for t, alg in algs:
-                if target_names <= t:
+                if target_names <= set(t):
                     alg.num_samples = num_samples
                     alg.target_variables = targets
                     return alg.compute(F, variables)

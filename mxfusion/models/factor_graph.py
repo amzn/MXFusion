@@ -38,7 +38,7 @@ class FactorGraph(object):
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' = '+str(f)+'\n'
-            elif isinstance(f, Distribution):
+            elif isinstance(f, (Distribution, Module)):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' ~ '+str(f)+'\n'
         return out_str[:-1]
 
@@ -258,7 +258,11 @@ class FactorGraph(object):
                     variables[uuid] = v
                     samples[uuid] = v
             elif isinstance(f, Module):
-                raise NotImplementedError("Modules aren't implemented yet!")
+                s = f.draw_samples(
+                    F=F, variables=variables, num_samples=num_samples,
+                    targets=None)
+                samples.update(s)
+                variables.update(s)
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         if targets:

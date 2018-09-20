@@ -70,7 +70,7 @@ class SVGPRegr_log_pdf(VariationalInference):
         return logL
 
 
-class SVGPRegr_draw_samples(VariationalSamplingAlgorithm):
+class SVGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
     def __init__(self, model, posterior, observed, num_samples=1,
                  target_variables=None, jitter=0.):
         super(SVGPRegr_draw_samples, self).__init__(
@@ -105,15 +105,15 @@ class SVGPRegr_draw_samples(VariationalSamplingAlgorithm):
         Kxt = kern.K(F, Z, X, **kern_params)
         Ktt_diag = kern.Kdiag(F, X, **kern_params)
 
-        mu = F.linalg.gemm2(Kxt, wv, True, False)
+        f_mean = F.linalg.gemm2(Kxt, wv, True, False)
 
         LinvKxt = F.linalg.trsm(L, Kxt)
         tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
-        var = Ktt_diag - F.sum(F.square(LinvKxt), axis=0) + F.sum(tmp*LinvKxt, axis=0)
+        var = F.expand_dims(Ktt_diag - F.sum(F.square(LinvKxt), axis=-2) + F.sum(tmp*LinvKxt, axis=-2), axis=-1)
 
-        f_samples = F.random.normal(shape=mu.shape) * F.sqrt(var) + mu
+        f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
 
-        y_samples = f_samples + F.random.normal(shape=f_samples.shape) * F.sqrt(noise_var)
+        y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
 
         return {self.model.Y.uuid: y_samples}
 
@@ -193,7 +193,7 @@ class SVGPRegression(Module):
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SVGPRegr_draw_samples(
+            algorithm=SVGPRegr_draw_samples_independent(
                 self._module_graph, self._extra_graphs[0], observed))
 
     @staticmethod

@@ -72,7 +72,8 @@ class InferenceParameters(object):
                                  dtype=self.dtype,
                                  allow_deferred_init=True, init=init)
             for m in g.modules.values():
-                m.initialize_hidden_parameters(self._params, self._constants)
+                m.initialize_hidden_parameters(self._params, excluded,
+                                               self._constants)
 
         self._params.initialize(ctx=self.mxnet_context)
 
@@ -93,6 +94,8 @@ class InferenceParameters(object):
         var_uuid = set()
         for g in graphs:
             var_uuid = var_uuid.union(set(g.variables.keys()))
+            for m in g.modules.values():
+                var_uuid = var_uuid.union(set(m.hidden_parameters))
 
         carryover_pairs = {}
         for carryover in carryover_params:

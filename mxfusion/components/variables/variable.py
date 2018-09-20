@@ -52,8 +52,9 @@ class Variable(ModelComponent):
         self._initial_value = initial_value
         self.isConstant = False
         from ..distributions import Distribution
+        from ...modules.module import Module
         from ..functions.function_evaluation import FunctionEvaluation
-        if isinstance(value, Distribution):
+        if isinstance(value, (Distribution, Module)):
             self._initialize_as_randvar(value, shape, transformation)
         elif isinstance(value, FunctionEvaluation):
             self._initialize_as_funcvar(value, shape, transformation)
@@ -64,12 +65,13 @@ class Variable(ModelComponent):
     def type(self):
         from ..distributions import Distribution
         from ..functions import FunctionEvaluation
+        from ...modules.module import Module
         if self.factor is None:
             if self.isConstant:
                 return VariableType.CONSTANT
             else:
                 return VariableType.PARAMETER
-        elif isinstance(self.factor, Distribution):
+        elif isinstance(self.factor, (Distribution, Module)):
             return VariableType.RANDVAR
         elif isinstance(self.factor, FunctionEvaluation):
             return VariableType.FUNCVAR
