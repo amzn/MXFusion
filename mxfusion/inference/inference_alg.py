@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
+from mxnet import autograd
 from ..components.variables import VariableType
 from ..components.variables import add_sample_dimension_to_arrays
 from ..util.inference import variables_to_UUID
@@ -28,15 +29,16 @@ class ObjectiveBlock(HybridBlock):
     """
     def __init__(self, infr_method, constants, data_def, var_trans, var_ties,
                  excluded, prefix='', params=None):
-        super(ObjectiveBlock, self).__init__(prefix=prefix, params=params)
+        super(ObjectiveBlock, self).__init__(prefix=prefix, params=params.param_dict)
         self._infr_method = infr_method
         self._constants = constants
         self._data_def = data_def
         self._var_trans = var_trans
         self._var_ties = var_ties
-        for name in params:
+        self._infr_params = params
+        for name in params.param_dict:
             if name not in excluded:
-                setattr(self, name, params.get(name))
+                setattr(self, name, params.param_dict.get(name))
 
     def hybrid_forward(self, F, x, *args, **kw):
 
@@ -49,6 +51,10 @@ class ObjectiveBlock(HybridBlock):
         add_sample_dimension_to_arrays(F, kw, out=variables)
         add_sample_dimension_to_arrays(F, self._constants, out=variables)
         obj = self._infr_method.compute(F=F, variables=variables)
+        with autograd.pause():
+            for k, v in variables.items():
+                if k.startswith('SET_'):
+                    self._infr_params[v[0]] = v[1]
         return obj
 
 
@@ -138,7 +144,7 @@ class InferenceAlgorithm(ABC):
             var_trans_m, excluded_m = m.prepare_executor(rv_scaling=rv_scaling)
             var_trans.update(var_trans_m)
             excluded = excluded.union(excluded_m)
-        block = ObjectiveBlock(infr_method=self, params=params.param_dict,
+        block = ObjectiveBlock(infr_method=self, params=params,
                                constants=params.constants,
                                data_def=data_def, var_trans=var_trans,
                                var_ties=var_ties, excluded=excluded)
@@ -164,6 +170,10 @@ class InferenceAlgorithm(ABC):
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
         raise NotImplementedError
+
+    def set_parameter(self, variables, variable, value):
+        variables[variable.uuid] = value
+        variables['SET_'+variable.uuid] = (variable, value)
 
 
 class SamplingAlgorithm(InferenceAlgorithm):

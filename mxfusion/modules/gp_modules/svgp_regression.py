@@ -73,7 +73,7 @@ class SVGPRegr_log_pdf(VariationalInference):
 class SVGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
     def __init__(self, model, posterior, observed, num_samples=1,
                  target_variables=None, jitter=0.):
-        super(SVGPRegr_draw_samples, self).__init__(
+        super(SVGPRegr_draw_samples_independent, self).__init__(
             model=model, posterior=posterior, observed=observed,
             num_samples=num_samples, target_variables=target_variables)
         self.jitter = jitter
@@ -113,9 +113,10 @@ class SVGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
 
         f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
 
-        y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
+        # y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
 
-        return {self.model.Y.uuid: y_samples}
+        return {self.model.Y.uuid: f_samples}
+
 
 class SVGPRegression(Module):
     """
