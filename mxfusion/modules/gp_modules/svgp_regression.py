@@ -131,7 +131,7 @@ class SVGPRegression(Module):
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         if inducing_inputs is None:
-            inducing_inputs = Variable(shape=(inducing_num, X.shape[-1]))
+            inducing_inputs = Variable(shape=(inducing_num, kernel.input_dim))
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
