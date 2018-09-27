@@ -117,6 +117,19 @@ class SparseGPRegression(Module):
             output_names=output_names, dtype=dtype, ctx=ctx)
         self.mean_func = mean_func
         self.kernel = kernel
+        self._jitter = 0.
+
+    @property
+    def jitter(self):
+        return self._jitter
+
+    @jitter.setter
+    def jitter(self, value):
+        self._jitter = value
+        for k, v in self._log_prob_methods.items():
+            v.jitter = value
+        for k, v in self._draw_samples_methods.items():
+            v[1].jitter = value
 
     def _generate_outputs(self, output_shapes=None):
         """
@@ -170,13 +183,13 @@ class SparseGPRegression(Module):
             [v for k, v in self.outputs]
         self.attach_log_prob_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed))
+            algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed, jitter=self._jitter))
 
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
             targets=self.output_names, conditionals=self.input_names,
             algorithm=SparseGPRegr_draw_samples_independent(
-                self._module_graph, self._extra_graphs[0], observed))
+                self._module_graph, self._extra_graphs[0], observed, jitter=self._jitter))
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
