@@ -128,8 +128,9 @@ class SparseGPRegression(Module):
         self._jitter = value
         for k, v in self._log_prob_methods.items():
             v.jitter = value
-        for k, v in self._draw_samples_methods.items():
-            v[1].jitter = value
+        for k, vs in self._draw_samples_methods.items():
+            for v in vs:
+                v[1].jitter = value
 
     def _generate_outputs(self, output_shapes=None):
         """
