@@ -77,8 +77,6 @@ class SparseGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        print(wv.shape, L.shape, LA.shape)
-
         Kxt = kern.K(F, Z, X, **kern_params)
         Ktt_diag = kern.Kdiag(F, X, **kern_params)
 
