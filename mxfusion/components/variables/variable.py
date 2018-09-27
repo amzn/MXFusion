@@ -133,11 +133,11 @@ class Variable(ModelComponent):
             self.isConstant = True
             if isinstance(value, np.ndarray):
                 if shape is not None and shape != value.shape:
-                    raise ModelSpecificationError("Shape mismatch in Variable creation. The numpy array shape " + str(value.shape) + " does not no match with the shape argument " + shape + ".")
+                    raise ModelSpecificationError("Shape mismatch in Variable creation. The numpy array shape " + str(value.shape) + " does not no match with the shape argument " + str(shape) + ".")
                 value = mx.nd.array(value)
             elif isinstance(value, mx.nd.NDArray):
                 if shape is not None and shape != value.shape:
-                    raise ModelSpecificationError("Shape mismatch in Variable creation. The MXNet array shape " + str(value.shape) + " does not no match with the shape argument " + shape + ".")
+                    raise ModelSpecificationError("Shape mismatch in Variable creation. The MXNet array shape " + str(value.shape) + " does not no match with the shape argument " + str(shape) + ".")
             elif isinstance(value, (float, int)):
                 self.shape = (1,)
             self._value = value

@@ -19,6 +19,7 @@ setup(
     url='https://github.com/amzn/MXFusion',
     packages=find_packages(exclude=['testing*']),
     include_package_data=True,
+    install_requires=requires,
     license='Apache License 2.0',
     classifiers=(
        # https://pypi.org/pypi?%3Aaction=list_classifiers
