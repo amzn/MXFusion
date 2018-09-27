@@ -115,7 +115,7 @@ class SVGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
 
         # y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
 
-        return {self.model.Y.uuid: f_samples}
+        return {self.model.Y.uuid: f_samples, 'F_mean': f_mean, 'F_var':var}
 
 
 class SVGPRegression(Module):
