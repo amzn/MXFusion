@@ -102,7 +102,7 @@ make html
 
 from the docs folder.
 
-You'll need to have MXFusion's dependencies as well as some Sphinx dependencies installed to generate the docs. Both are found in requirements files in the top level requirements folder.
+You'll need to have MXFusion's dependencies as well as some Sphinx dependencies installed to generate the docs. Both are found in requirements files in the top level requirements folder. You will also need to install Pandoc separately from [here](http://pandoc.org/installing.html).
 
 ## Licensing
 
