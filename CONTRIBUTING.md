@@ -26,7 +26,7 @@ If you're wishing for a feature that doesn't exist yet in MXFusion, there are pr
 
 If you're thinking about adding code to MXFusion, here are some guidelines to get you started.
 
-* If the change is a major feature, create a [CIP](link to CIP definition) in the docs/CIPs folder and post it as a PR, optionally with a prototype implementation of your proposed changes. This is to get community feedback on the changes  and document the design reasoning of MXFusion for future reference.
+* If the change is a major feature, create a [design document](design/design_documents/design_doc_guidelines) in the docs/design/design_documents folder and post it as a PR, optionally with a prototype implementation of your proposed changes. This is to get community feedback on the changes  and document the design reasoning of MXFusion for future reference.
 
 * Keep pull requests small, preferably one feature per pull request. This lowers the bar to entry for a reviewer, and keeps feedback focused for each feature.
 
@@ -73,7 +73,7 @@ Before submitting the pull request, please go through this checklist to make the
 * Do all public functions have docstrings including examples? If you added a new module, did you add it to the Sphinx docstring in the ```__init__.py``` file of the module's folder?
 * Is the code style correct (PEP8)?
 * Is the commit message formatted correctly?
-* If this is a large addition, is there a tutorial or more extensive module-level description? Did you discuss the addition in a [CIP](CIP)? Is there an issue related to the change? If so, please link the issue or CIP.
+* If this is a large addition, is there a tutorial or more extensive module-level description? Did you discuss the addition in a [design document](design/design_documents/design_doc_guidelines)? Is there an issue related to the change? If so, please link the issue or design doc.
 
 
 ## Setting up a development environment

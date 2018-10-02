@@ -8,4 +8,4 @@ Working in MXFusion breaks up into two primary phases. Model definition involves
 * [Inference](inference.md)
 
 ## Design Choices
-* [CIPs](CIPs/CIPs.md)
+* [Feature Submission](design_documents/design_doc_guidelines.md)
