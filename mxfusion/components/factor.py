@@ -143,6 +143,13 @@ class Factor(ModelComponent):
         variables = [variables] if not isinstance(variables, (list, tuple)) else variables
         self.successors = [(name, variable) for name, variable in zip(self.output_names, variables)]
 
+    def set_input_variable(self, key, value):
+        """
+        TODO We don't actually support multi-output.
+        """
+        inputs = [(k, value) if k == key else (k, v) for k, v in self.inputs]
+        self.predecessors = inputs
+
     @property
     def input_names(self):
         """
