@@ -7,7 +7,9 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
-    *
+    operators
+    operator_impl
 """
 
-from .operators import *
+from .operators import Operator, OperatorDecorator
+from .operator_impl import *
