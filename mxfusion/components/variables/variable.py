@@ -41,7 +41,8 @@ class Variable(ModelComponent):
     def __init__(self, value=None, shape=None, transformation=None, isInherited=False, initial_value=None):
         super(Variable, self).__init__()
 
-        self.shape = shape if shape is not None else (1,)
+        # TODO If no shape we assume a scalar but this could be incorrect if we really just mean the shape is unknown.
+        self.shape = shape if shape is not None else (1,) 
         self.attributes = [s for s in self.shape if isinstance(s, Variable)]
         # whether the variable is inherited from a Gluon block.
         self.isInherited = isInherited
