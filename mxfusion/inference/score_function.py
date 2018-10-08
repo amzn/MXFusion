@@ -80,6 +80,8 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
       Lambda - Posterior parameters
       Theta - Model parameters
 
+    Note: This is still in development and correctness is not fully tested.
+
     :param num_samples: the number of samples used in estimating the variational lower bound
     :type num_samples: int
     :param model: the definition of the probabilistic model
