@@ -176,8 +176,8 @@ class GaussianProcess(Distribution):
         :param num_samples: the number of drawn samples (default: one).
         :int num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """

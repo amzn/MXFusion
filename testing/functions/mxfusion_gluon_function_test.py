@@ -136,6 +136,7 @@ class TestMXFusionGluonFunctionTests(object):
         if not C_isSamples:
             C_mx = add_sample_dimension(mx.nd, C_mx)
         variables = {eval.dot_input_0.uuid: A_mx, eval.dot_input_1.uuid: B_mx, eval.dot_const.uuid: C_mx}
+        print(C_mx)
         res_rt = eval.eval(F=mx.nd, variables=variables)
 
         assert np_isSamples == is_sampled_array(mx.nd, res_rt)

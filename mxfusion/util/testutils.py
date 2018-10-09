@@ -92,7 +92,7 @@ def make_bnn_model(finalize=True, verbose=True):
     m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
     m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
     m.r = m.f(m.x)
-    for _, v in m.r.factor.block_variables:
+    for _, v in m.r.factor.parameters.items():
         v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0]), variance=m.prior_variance))
     m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=m.v, shape=(m.N,))
     return m
