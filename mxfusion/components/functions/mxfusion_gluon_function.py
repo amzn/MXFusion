@@ -48,7 +48,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         return self._output_names
 
     @property
-    def func_parameter_names(self):
+    def parameter_names(self):
         return self._gluon_parameter_names
 
     @property
@@ -60,7 +60,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         """
         return self._gluon_parameters
 
-    def eval(self, F, broadcastable, **input_kws):
+    def eval(self, F, **input_kws):
         """
         Invokes the MXNet Gluon block with the arguments passed in.
 
@@ -72,7 +72,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         inputs_func = [input_kws[k] for k in self._input_variable_names]
-        self._override_block_parameters(input_kws, broadcastable)
+        self._override_block_parameters(input_kws)
         return self._gluon_block(*inputs_func)
 
     def __call__(self, *args, **kwargs):
@@ -146,7 +146,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         # TODO: implement VariableSet
         raise NotImplementedError
 
-    def _override_block_parameters(self, input_kws, broadcastable):
+    def _override_block_parameters(self, input_kws):
         """
         When a probabilistic distribution is defined for the parameters of a Gluon block (in ParameterDict), a special treatment is necessary
         because otherwise these parameters will be directly exposed to a gradient optimizer as free parameters.
@@ -158,10 +158,8 @@ class MXFusionGluonFunction(MXFusionFunction):
             inputs of FunctionEvaluation.
         :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         """
-        for bn in self.func_parameter_names:
+        for bn in self.parameter_names:
             if bn in input_kws:
-                if broadcastable:
-                    raise InferenceError('Broadcasting function evaluation can not be applied to the Gluon block with gluon block parameters as random variables.')
                 val = input_kws[bn]
                 param = self._gluon_block.collect_params()[bn]
 

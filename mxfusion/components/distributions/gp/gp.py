@@ -146,8 +146,8 @@ class GaussianProcess(Distribution):
         :param random_variable: the random_variable of which log-PDF is computed.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """

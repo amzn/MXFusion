@@ -1,11 +1,7 @@
 from abc import abstractmethod
-from copy import copy
 from ...common.config import get_default_dtype
-from .gluon_func_eval import GluonFunctionEvaluation
+from ..variables import Variable
 from .function_evaluation import FunctionEvaluationWithParameters
-from ..variables import Variable, VariableType
-from mxnet.gluon import ParameterDict, Block, HybridBlock
-from ...common.exceptions import ModelSpecificationError
 
 
 class MXFusionFunction(object):
@@ -30,7 +26,7 @@ class MXFusionFunction(object):
         self.dtype = get_default_dtype() if dtype is None else dtype
 
     @abstractmethod
-    def eval(self, F, broadcastable, **input_kws):
+    def eval(self, F, **input_kws):
         """
         The method handling the execution of the function.
 
@@ -89,7 +85,7 @@ class MXFusionFunction(object):
         raise NotImplementedError
 
     @property
-    def func_parameter_names(self):
+    def parameter_names(self):
         raise NotImplementedError
 
     @property
@@ -116,7 +112,6 @@ class MXFusionFunction(object):
         :param outputs: new output variables of the factor.
         :type outputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
         """
-
         replicant = self.__class__.__new__(self.__class__)
 
         MXFusionFunction.__init__(

@@ -45,4 +45,4 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         inputs_func = {k: input_kws[k] for k in self._input_to_gluon_names}
-        return self._func.eval(F, self.broadcastable, **inputs_func)
+        return self._func.eval(F, **inputs_func)

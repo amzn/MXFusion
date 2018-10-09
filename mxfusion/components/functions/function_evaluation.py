@@ -172,4 +172,4 @@ class FunctionEvaluationWithParameters(FunctionEvaluation):
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """
-        return self._func.eval(F, self.broadcastable, **input_kws)
+        return self._func.eval(F, **input_kws)

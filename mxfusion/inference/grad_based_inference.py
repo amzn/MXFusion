@@ -64,7 +64,7 @@ class GradBasedInference(Inference):
         :type max_iter: int
         :param verbose: whether to print per-iteration messages.
         :type verbose: boolean
-        :param \**kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of the corresponding
+        :param **kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of the corresponding
             variable in model definition and the value of the argument is the data in numpy array format.
         """
         data = [kw[v] for v in self.observed_variable_names]
