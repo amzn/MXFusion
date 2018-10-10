@@ -41,21 +41,36 @@ class MXFusionGluonFunction(MXFusionFunction):
 
     @property
     def input_names(self):
+        """
+        The names of all the inputs that the function takes including the function parameters
+        """
         return self._input_names
 
     @property
     def output_names(self):
+        """
+        The names of all the outputs of the function
+        """
         return self._output_names
 
     @property
     def parameter_names(self):
+        """
+        The names of all the function parameters.
+        """
         return self._gluon_parameter_names
 
     @property
     def parameters(self):
         """
-        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters, including the kernel in front,
-            and the values are the corresponding Variables.
+        The parameters in the format of MXFusion Variable that are associated
+        with the function. These parameters are automatically included as the
+        inputs in the resulting FunctionEvaluation object with the need of
+        explicitly specification when calling the __call__ function.
+
+        :return: a dictionary of all the parameters, in which the keys are the
+        name of individual parameters and the values are the corresponding
+        Variables.
         :rtype: {str: Variable}
         """
         return self._gluon_parameters
@@ -175,17 +190,7 @@ class MXFusionGluonFunction(MXFusionFunction):
 
     def replicate_self(self, attribute_map=None):
         """
-        This functions is a copy constructor for the object.
-        In order to perform copy construction we first call ``__new__()`` on the class which creates a blank object.
-        We then initialize that object using the method's standard init procedures, and do any extra copying of attributes.
-
-        Replicates this Factor, using new inputs, outputs, and a new uuid.
-        Used during model replication to functionally replicate a factor into a new graph.
-
-        :param inputs: new input variables of the factor.
-        :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
-        :param outputs: new output variables of the factor.
-        :type outputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
+        The copy constructor for the fuction.
         """
         replicant = super(
             MXFusionGluonFunction, self).replicate_self(attribute_map)

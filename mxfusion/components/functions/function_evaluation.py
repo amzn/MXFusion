@@ -97,7 +97,6 @@ class FunctionEvaluation(Factor):
     :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
     :type: boolean
     """
-
     def __init__(self, inputs, outputs, input_names, output_names,
                  broadcastable=False):
         self.broadcastable = broadcastable
@@ -129,8 +128,16 @@ class FunctionEvaluation(Factor):
 
 class FunctionEvaluationWithParameters(FunctionEvaluation):
     """
-    """
+    The evaluation of a function with internal function parameters.
 
+    :param func: the function that this evaluation is generated from
+    :param inputs: MXFusion.components.functions.MXFusionFunction
+    :type inputs:  {str : Variable}
+    :param outputs: the output variables of the function.
+    :type outputs: {str : Variable}
+    :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
+    :type: boolean
+    """
     def __init__(self, func, input_variables, output_variables,
                  broadcastable=False):
         input_variable_names = set([k for k, _ in input_variables])

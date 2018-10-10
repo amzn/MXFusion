@@ -6,14 +6,12 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
     """
     The evaluation of a function that is a wrapper of a MXNet Gluon block.
 
-    :param function_wrapper: the MXFusion wrapper of the MXNet Gluon block that the function evaluation is associated with.
-    :type function_wrapper: MXFusion.functions.MXFusionGluonFunction
+    :param func: the MXFusion wrapper of the MXNet Gluon block that the function evaluation is associated with.
+    :type func: MXFusion.components.functions.MXFusionGluonFunction
     :param input_variables: the input arguments to the function.
-    :type input_variables: {variable name : Variable}
-    :param parameters.items(): the parameters in the Gluon block.
-    :type parameters.items(): {variable name : Variable}
-    :param num_outputs: the number of outputs of the function.
-    :type num_outputs: int
+    :type input_variables: {str : Variable}
+    :param output_variables: the output variables of the function.
+    :type output_variables: {str : Variable}
     :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
     :type: boolean
     """
