@@ -2,11 +2,13 @@ from .....common.config import get_default_dtype
 from .....common.exceptions import ModelSpecificationError
 from .....util.util import rename_duplicate_names, slice_axis
 from ....variables import Variable
+from ....functions.mxfusion_function import MXFusionFunction
+from ....functions.function_evaluation import FunctionEvaluationDecorator
 
 # TODO: write the design doc for kernels
 
 
-class Kernel(object):
+class Kernel(MXFusionFunction):
     """
     The base class for a Gaussian process kernel: a positive definite function which forms of a covariance function (kernel).
 
@@ -21,11 +23,13 @@ class Kernel(object):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    broadcastable = False
+
     def __init__(self, input_dim, name, active_dims=None, dtype=None,
                  ctx=None):
+        super(Kernel, self).__init__(
+            func_name=name, dtype=dtype, broadcastable=self.broadcastable)
         self.input_dim = input_dim
-        self.name = name
-        self.dtype = get_default_dtype() if dtype is None else dtype
         self.ctx = ctx
         self.active_dims = active_dims
         self._parameter_names = []
@@ -63,6 +67,14 @@ class Kernel(object):
         """
         raise NotImplementedError
 
+    @property
+    def input_names(self):
+        return ['X', 'X2']
+
+    @property
+    def output_names(self):
+        return ['covariance']
+
     def K(self, F, X, X2=None, **kernel_params):
         """
         Compute the covariance matrix.
@@ -76,8 +88,8 @@ class Kernel(object):
         :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
             X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :return: The covariance matrix
         :rtype: MXNet NDArray or MXNet Symbol
         """
@@ -102,8 +114,8 @@ class Kernel(object):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :return: The diagonal of the covariance matrix.
         :rtype: MXNet NDArray or MXNet Symbol
         """
@@ -150,8 +162,8 @@ class Kernel(object):
         :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
             X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :return: The covariance matrix.
         :rtype: MXNet NDArray or MXNet Symbol
         """
@@ -167,8 +179,8 @@ class Kernel(object):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :return: The covariance matrix.
         :rtype: MXNet NDArray or MXNet Symbol
         """
@@ -186,6 +198,20 @@ class Kernel(object):
         :rtype: {str (kernel name): MXNet NDArray or MXNet Symbol}
         """
         return {n: params[v.uuid] for n, v in self.parameters.items()}
+
+    def eval(self, F, X, X2=None, **kernel_params):
+        """
+        The method handling the execution of the function.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
+        :param **input_kws: the dict of inputs to the functions. The key in the
+        dict should match with the name of inputs specified in the inputs of
+        FunctionEvaluation.
+        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :returns: the return value of the function
+        :rtypes: MXNet NDArray or MXNet Symbol
+        """
+        return self.K(F, X, X2, **kernel_params)
 
 
 class NativeKernel(Kernel):
@@ -221,6 +247,10 @@ class NativeKernel(Kernel):
         """
         return {self.name + '_' + n: getattr(self, n) for n in
                 self._parameter_names}
+
+    @property
+    def parameter_names(self):
+        return [self.name + '_' + n for n in self._parameter_names]
 
 
 class CombinationKernel(Kernel):
@@ -261,3 +291,10 @@ class CombinationKernel(Kernel):
         for k in self.sub_kernels:
             p.update(k.parameters)
         return {self.name + '_' + k: v for k, v in p.items()}
+
+    @property
+    def parameter_names(self):
+        pnames = []
+        for k in self.sub_kernels:
+            pnames.extend([self.name + '_' + k for k in k.parameter_names])
+        return pnames

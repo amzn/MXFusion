@@ -57,7 +57,7 @@ class InferenceParameters(object):
             for f in g.functions.values():
                 if isinstance(f, GluonFunctionEvaluation):
                     self._params.update(
-                        f.function_wrapper.collect_internal_parameters())
+                        f.function.collect_gluon_parameters())
 
             for var in g.get_constants():
                 self._constants[var.uuid] = var.constant

@@ -1,6 +1,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
+from mxfusion.components.variables import Variable
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
 from mxfusion.components.distributions.gp.kernels import RBF, Linear, Bias, White
 from mxfusion.util.testutils import numpy_array_reshape, prepare_mxnet_array
@@ -81,6 +82,46 @@ try:
 
     @pytest.mark.usefixtures("set_seed")
     class TestGPKernels(object):
+
+        @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples, lengthscale, lengthscale_isSamples, variance, variance_isSamples, num_samples, input_dim, ARD", [
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 1, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(3,2)+1e-4, True, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(3,1)+1e-4, True, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(1)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, False),
+            ])
+        def test_kernel_as_MXFusionFunction(self, dtype, X, X_isSamples, X2,
+            X2_isSamples, lengthscale, lengthscale_isSamples, variance,
+            variance_isSamples, num_samples, input_dim, ARD):
+
+            X_mx = prepare_mxnet_array(X, X_isSamples, dtype)
+            X2_mx = prepare_mxnet_array(X2, X2_isSamples, dtype)
+            var_mx = prepare_mxnet_array(variance, variance_isSamples, dtype)
+            l_mx = prepare_mxnet_array(lengthscale, lengthscale_isSamples,
+                                       dtype)
+
+            X_mf = Variable(shape=X.shape)
+            l_mf = Variable(shape=lengthscale.shape)
+            var_mf = Variable(shape=variance.shape)
+            rbf = RBF(input_dim, ARD, 1., 1., 'rbf', None, dtype)
+            eval = rbf(X_mf, rbf_lengthscale=l_mf, rbf_variance=var_mf).factor
+            variables = {eval.X.uuid: X_mx, eval.rbf_lengthscale.uuid: l_mx, eval.rbf_variance.uuid: var_mx}
+            res_eval = eval.eval(F=mx.nd, variables=variables)
+            kernel_params = rbf.fetch_parameters(variables)
+            res_direct = rbf.K(F=mx.nd, X=X_mx, **kernel_params)
+            assert np.allclose(res_eval.asnumpy(), res_direct.asnumpy())
+
+            X_mf = Variable(shape=X.shape)
+            X2_mf = Variable(shape=X2.shape)
+            l_mf = Variable(shape=lengthscale.shape)
+            var_mf = Variable(shape=variance.shape)
+            rbf = RBF(input_dim, ARD, 1., 1., 'rbf', None, dtype)
+            eval = rbf(X_mf, X2_mf, rbf_lengthscale=l_mf, rbf_variance=var_mf).factor
+            variables = {eval.X.uuid: X_mx, eval.X2.uuid: X2_mx, eval.rbf_lengthscale.uuid: l_mx, eval.rbf_variance.uuid: var_mx}
+            res_eval = eval.eval(F=mx.nd, variables=variables)
+            kernel_params = rbf.fetch_parameters(variables)
+            res_direct = rbf.K(F=mx.nd, X=X_mx, X2=X2_mx, **kernel_params)
+            assert np.allclose(res_eval.asnumpy(), res_direct.asnumpy())
 
         @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples, lengthscale, lengthscale_isSamples, variance, variance_isSamples, num_samples, input_dim, ARD", [
             (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 1, 2, True),
@@ -177,6 +218,25 @@ try:
                 return GPy.kern.RBF(input_dim=input_dim, ARD=True) + GPy.kern.Linear(input_dim=input_dim, ARD=True)
 
             kernel_params = {'rbf': {'lengthscale': (rbf_lengthscale, rbf_lengthscale_isSamples), 'variance': (rbf_variance, rbf_variance_isSamples)},
+                             'linear': {'variances': (linear_variances, linear_variances_isSamples)}
+                             }
+
+            gpy_comb_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
+                                 num_samples, dtype, create_rbf_plus_linear,
+                                 create_gpy_rbf_plus_linear)
+
+        @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples,  rbf_lengthscale, rbf_lengthscale_isSamples, rbf_variance, rbf_variance_isSamples, linear_variances, linear_variances_isSamples, num_samples, input_dim", [
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(3,2)+1e-4, True, np.random.rand(3,1)+1e-4, True, np.random.rand(3,2)+1e-4, True, 3, 2)
+            ])
+        def test_adding_add_kernel(self, dtype, X, X_isSamples, X2, X2_isSamples,  rbf_lengthscale, rbf_lengthscale_isSamples, rbf_variance, rbf_variance_isSamples, linear_variances, linear_variances_isSamples, num_samples, input_dim):
+            def create_rbf_plus_linear():
+                return RBF(input_dim, True, 1., 1., 'rbf', None, dtype) + (RBF(input_dim, True, 1., 1., 'rbf', None, dtype) + Linear(input_dim, True, 1, 'linear', None, dtype))
+
+            def create_gpy_rbf_plus_linear():
+                return GPy.kern.RBF(input_dim=input_dim, ARD=True, name='rbf') + GPy.kern.RBF(input_dim=input_dim, ARD=True, name='rbf0') + GPy.kern.Linear(input_dim=input_dim, ARD=True)
+
+            kernel_params = {'rbf': {'lengthscale': (rbf_lengthscale, rbf_lengthscale_isSamples), 'variance': (rbf_variance, rbf_variance_isSamples)},
+            'rbf0': {'lengthscale': (rbf_lengthscale, rbf_lengthscale_isSamples), 'variance': (rbf_variance, rbf_variance_isSamples)},
                              'linear': {'variances': (linear_variances, linear_variances_isSamples)}
                              }
 
