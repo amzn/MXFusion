@@ -75,7 +75,7 @@ class White(NativeKernel):
     White kernel, which produces a constant value for the diagonal of the covariance matrix.
 
     .. math::
-       K = \sigma^2 I
+       K = \\sigma^2 I
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).
     :type input_dim: int

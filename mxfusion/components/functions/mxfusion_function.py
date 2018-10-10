@@ -6,19 +6,16 @@ from .function_evaluation import FunctionEvaluationWithParameters
 
 class MXFusionFunction(object):
     """
-    The wrapper of a MXNet Gluon block in MXFusion. It automatically fetches all the Gluon parameters in its ParameterDict. When this function
-    wrapper is called in Model definition, it returns a factor corresponding to the function evaluation.
+    The base class for the functions in MXFusion.
 
-    :param block: The MXNet Gluon block to be wrapped.
-    :type block: mxnet.gluon.Blockk or mxnet.gluon.HybridBlock
-    :param num_outputs: The number of output variables of the Gluon block.
-    :type num_outputs: int
+    :param func_name: The name of the function
+    :type func_name: str
     :param dtype: the data type of float point numbers used in the Gluon block.
     :type dtype: numpy.float32 or numpy.float64
-    :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
+    :param broadcastable: Whether the function supports broadcasting with the
+    additional dimension for samples.
     :type broadcastable: boolean
     """
-
     def __init__(self, func_name, dtype=None, broadcastable=False):
         super(MXFusionFunction, self).__init__()
         self.broadcastable = broadcastable
@@ -42,11 +39,13 @@ class MXFusionFunction(object):
 
     def __call__(self, *args, **kwargs):
         """
-        Bind the wrapped Gluon block with the input arguments. This is called during model specification.
+        The evaluation of the function in a model defition. It takes a list of
+        arguments in the type of MXFusion Variable and returns the output
+        variables.
 
-        :param args: the positional arguments that the Gluon block takes.
+        :param args: the positional arguments that the function takes.
         :type args: [Variable]
-        :param kwargs: Internal block variables the user would like to overwrite with Random or Function Variables.
+        :param kwargs: the keyword arguments that the function takes.
         :type kwargs: {name : Variable}
         :returns: The output variables of the FunctionEvaluation with the specified inputs.
         :rtype: A tuple of output Variables if >1 or a single output Variable if 1
@@ -67,36 +66,57 @@ class MXFusionFunction(object):
     @property
     def parameters(self):
         """
-        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the returned dictionary are the name of
-        the kernel parameters with a prefix (the name of the kernel plus '_') and the values are the corresponding variables.
+        The parameters in the format of MXFusion Variable that are associated
+        with the function. These parameters are automatically included as the
+        inputs in the resulting FunctionEvaluation object with the need of
+        explicitly specification when calling the __call__ function.
 
-        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters, including the kernel in front,
-            and the values are the corresponding Variables.
+        :return: a dictionary of all the parameters, in which the keys are the
+        name of individual parameters and the values are the corresponding
+        Variables.
         :rtype: {str: Variable}
         """
         raise NotImplementedError
 
     @property
     def input_names(self):
+        """
+        The names of all the inputs that the function takes including the function parameters
+        """
         raise NotImplementedError
 
     @property
     def output_names(self):
+        """
+        The names of all the outputs of the function
+        """
         raise NotImplementedError
 
     @property
     def parameter_names(self):
+        """
+        The names of all the function parameters.
+        """
         raise NotImplementedError
 
     @property
     def name(self):
+        """
+        The name of the function
+        """
         return self._func_name
 
     @name.setter
     def name(self, name):
+        """
+        The setter of the name of the function
+        """
         self._func_name = name
 
     def _parse_arguments(self, args, kwargs):
+        """
+        Parse the input positional and keyword arguments for the __call__ function.
+        """
         arg_names = [v for v in self.input_names if v not in kwargs]
         arguments = kwargs.copy()
         arguments.update({k: v for k, v in zip(arg_names, args)})
@@ -104,17 +124,7 @@ class MXFusionFunction(object):
 
     def replicate_self(self, attribute_map=None):
         """
-        This functions is a copy constructor for the object.
-        In order to perform copy construction we first call ``__new__()`` on the class which creates a blank object.
-        We then initialize that object using the method's standard init procedures, and do any extra copying of attributes.
-
-        Replicates this Factor, using new inputs, outputs, and a new uuid.
-        Used during model replication to functionally replicate a factor into a new graph.
-
-        :param inputs: new input variables of the factor.
-        :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
-        :param outputs: new output variables of the factor.
-        :type outputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
+        The copy constructor for the fuction.
         """
         replicant = self.__class__.__new__(self.__class__)
 
