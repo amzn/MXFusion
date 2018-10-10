@@ -1,3 +1,4 @@
+from copy import copy
 from .....common.config import get_default_dtype
 from .....common.exceptions import ModelSpecificationError
 from .....util.util import rename_duplicate_names, slice_axis
@@ -39,7 +40,8 @@ class Kernel(MXFusionFunction):
         Override to maintain a list of kernel parameters.
         """
         if isinstance(value, Variable):
-            self._parameter_names.append(name)
+            if name not in self._parameter_names:
+                self._parameter_names.append(name)
         super(Kernel, self).__setattr__(name, value)
 
     @property
@@ -213,6 +215,20 @@ class Kernel(MXFusionFunction):
         """
         return self.K(F, X, X2, **kernel_params)
 
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a kernel.
+        """
+        replicant = super(Kernel, self).replicate_self(attribute_map)
+        replicant.input_dim = self.input_dim
+        replicant.ctx = self.ctx
+        replicant.active_dims = copy(self.active_dims)
+        replicant._parameter_names = []
+        for n in self._parameter_names:
+            setattr(replicant, n, getattr(
+                self, n).replicate_self(attribute_map))
+        return replicant
+
 
 class NativeKernel(Kernel):
     """
@@ -298,3 +314,15 @@ class CombinationKernel(Kernel):
         for k in self.sub_kernels:
             pnames.extend([self.name + '_' + k for k in k.parameter_names])
         return pnames
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a kernel.
+        """
+        replicant = super(CombinationKernel, self).replicate_self(
+            attribute_map)
+        replicant.sub_kernels = [k.replicate_self(attribute_map) for k in
+                                 self.sub_kernels]
+        for k in replicant.sub_kernels:
+            setattr(replicant, k.name, k)
+        return replicant
