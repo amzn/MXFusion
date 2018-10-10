@@ -73,7 +73,7 @@ class Kernel(MXFusionFunction):
 
     @property
     def output_names(self):
-        raise ['covariance']
+        return ['covariance']
 
     def K(self, F, X, X2=None, **kernel_params):
         """
@@ -199,7 +199,6 @@ class Kernel(MXFusionFunction):
         """
         return {n: params[v.uuid] for n, v in self.parameters.items()}
 
-    @FunctionEvaluationDecorator()
     def eval(self, F, X, X2=None, **kernel_params):
         """
         The method handling the execution of the function.

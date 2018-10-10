@@ -89,7 +89,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         self._input_variable_names = [self.name + "_input_" + str(i) for i in
                                       range(len(args))]
         self._input_names = self._input_variable_names + \
-            self.func_parameter_names
+            self.parameter_names
 
         broadcastable = self.broadcastable
         for bv in kwargs.values():
