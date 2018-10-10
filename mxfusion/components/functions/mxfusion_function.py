@@ -92,6 +92,10 @@ class MXFusionFunction(object):
     def name(self):
         return self._func_name
 
+    @name.setter
+    def name(self, name):
+        self._func_name = name
+
     def _parse_arguments(self, args, kwargs):
         arg_names = [v for v in self.input_names if v not in kwargs]
         arguments = kwargs.copy()
