@@ -6,22 +6,33 @@ class Operator(FunctionEvaluation):
     Abstract Operator object for using MXNet operators in MXFusion space.
     Child classes implement the eval method with their operator and access necessary state through the properties dictionary.
     """
-    def __init__(self, inputs, outputs, operator_name, properties=None):
+    def __init__(self, inputs, outputs, operator_name, properties=None, broadcastable=False):
 
         # TODO Add a flag for broadcastable
 
         input_names = [v[0] for v in inputs]
         output_names = [v[0] for v in outputs]
-        self.properties = properties
+        self._properties = properties
         self.name = operator_name
+        self.broadcastable = broadcastable
 
         super(Operator, self).__init__(
-            inputs, outputs, input_names, output_names, broadcastable=False)
+            inputs, outputs, input_names, output_names, broadcastable=broadcastable)
 
+    def replicate_self(self, attribute_map=None):
+        replicant = super(Operator, self).replicate_self(attribute_map)
+        replicant._properties = self._properties
+        replicant.name = self.name
+        replicant.broadcastable = self.broadcastable
+        return replicant
+
+    @property
+    def properties(self):
+        return self._properties
 
 class OperatorDecorator(object):
 
-    def __init__(self, name, args, inputs, num_outputs=1):
+    def __init__(self, name, args, inputs, num_outputs=1, broadcastable=False):
         """
         :param name: The name of the operator to add.
         :type name: string
@@ -37,6 +48,7 @@ class OperatorDecorator(object):
         self.input_names = inputs
         self.property_names = [v for v in args if v not in inputs]
         self.num_outputs = num_outputs
+        self.broadcastable = broadcastable
 
     def _parse_arguments(self, args, kwargs):
         arg_names = [v for v in self.arg_names if v not in kwargs]

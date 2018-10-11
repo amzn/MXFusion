@@ -235,7 +235,7 @@ class ModelComponent(object):
         :param var_map: A mapping from the original model's components to the replicated components. This is used to track which components
             have already been replicated in a dynamic programming style.
         :type var_map: {original_node: new_node}
-        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to replicate that node's predecessors and successors.
+        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to replicate that node's predecessors and successors. If None, only replicates this node.
         :type replication_function: function
         """
         var_map = var_map if var_map is not None else {}

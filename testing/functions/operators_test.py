@@ -37,7 +37,7 @@ class TestOperators(object):
         (mean, mx.nd.mean, [mx.nd.array(np.random.rand(1,4))],  {}),
         (prod, mx.nd.prod, [mx.nd.array(np.random.rand(1,4))],  {}),
 
-        (dot, mx.nd.dot, [mx.nd.array(np.random.rand(1,4)), mx.nd.array(np.random.rand(1,4))], {}),
+        (dot, mx.nd.dot, [mx.nd.array(np.random.rand(1,4,1)), mx.nd.array(np.random.rand(1,1,4))], {}),
         (dot, mx.nd.dot, [mx.nd.array(np.random.rand(1,1,4)), mx.nd.array(np.random.rand(1,4,1))], {}),
         (diag, mx.nd.diag, [mx.nd.array(np.random.rand(1,4,4))],  {}),
 
