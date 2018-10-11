@@ -118,7 +118,7 @@ class Inference(ABC):
         """
         Run the inference method.
 
-        :param \**kwargs: The keyword arguments specify the data for inferenceself. The key of each argument is the name of the corresponding
+        :param **kwargs: The keyword arguments specify the data for inferenceself. The key of each argument is the name of the corresponding
             variable in model definition and the value of the argument is the data in numpy array format.
         :returns: the samples of target variables (if not spcified, the samples of all the latent variables)
         :rtype: {UUID: samples}

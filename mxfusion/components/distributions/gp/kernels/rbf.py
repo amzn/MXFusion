@@ -27,6 +27,8 @@ class RBF(StationaryKernel):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    broadcastable = True
+    
     def __init__(self, input_dim, ARD=False, variance=1., lengthscale=1.,
                  name='rbf', active_dims=None, dtype=None, ctx=None):
         super(RBF, self).__init__(

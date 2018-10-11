@@ -2,7 +2,8 @@ from future.utils import raise_from
 from uuid import uuid4
 import warnings
 import networkx as nx
-from ..components import Distribution, Factor, ModelComponent, Module, Variable, VariableType
+from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
+from ..modules.module import Module
 from ..common.exceptions import ModelSpecificationError, InferenceError
 from ..components.functions import FunctionEvaluation
 from ..components.variables.runtime_variable import expectation
@@ -37,7 +38,7 @@ class FactorGraph(object):
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' = '+str(f)+'\n'
-            elif isinstance(f, Distribution):
+            elif isinstance(f, (Distribution, Module)):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' ~ '+str(f)+'\n'
         return out_str[:-1]
 
@@ -168,7 +169,7 @@ class FactorGraph(object):
 
         return self._var_ties
 
-    def compute_log_prob(self, F, targets, conditionals=None, constants=None):
+    def compute_log_prob(self, F, variables, targets=None):
         """
         Compute the logarithm of the probability/probability density of a set of random variables in the factor graph. The set of random
         variables are specified in the "target" argument and any necessary conditional variables are specified in the "conditionals" argument.
@@ -176,21 +177,17 @@ class FactorGraph(object):
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param targets: Variables to compute the log probability of.
-        :type targets: {uuid : RTVariable}
+        :type targets: {uuid : mxnet NDArray or mxnet Symbol}
         :param conditionals: variables to condition the probabilities on.
-        :type conditionals: {uuid : RTVariable}
+        :type conditionals: {uuid : mxnet NDArray or mxnet Symbol}
         :param constants: the constants that may be used in computation.
         :type constants: {UUID: float or mxnet NDArray or mxnet Symbol}
         :returns: the sum of the log probability of all the target variables.
-        :rtype: RTVariable
+        :rtype: mxnet NDArray or mxnet Symbol
         """
-        constants = {} if constants is None else constants
-
-        variables = targets.copy()
-        variables.update(constants)
-        if conditionals is not None:
-            variables.update(conditionals)
-
+        if targets is not None:
+            targets = set(targets) if isinstance(targets, (list, tuple)) \
+                else targets
         logL = 0.
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
@@ -202,17 +199,24 @@ class FactorGraph(object):
                         warnings.warn('Function evaluation in FactorGraph.compute_log_prob_RT: the outcome variable '+str(uuid)+' of the function evaluation '+str(f)+' has already existed in the variable set.')
                     variables[uuid] = v
             elif isinstance(f, Distribution):
-                if f.random_variable.uuid in targets:
+                if targets is None or f.random_variable.uuid in targets:
                     logL = logL + F.sum(expectation(F, f.log_pdf(
                         F=F, variables=variables)))
             elif isinstance(f, Module):
-                raise NotImplementedError("Modules aren't implemented yet!")
+                if targets is None:
+                    module_targets = [v.uuid for _, v in f.outputs
+                                      if v.uuid in variables]
+                else:
+                    module_targets = [v.uuid for _, v in f.outputs
+                                      if v.uuid in targets]
+                if len(module_targets) > 0:
+                    logL = logL + F.sum(expectation(F, f.compute_log_prob(
+                        F=F, variables=variables, targets=module_targets)))
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         return logL
 
-    def draw_samples(self, F, num_samples=1, targets=None, conditionals=None,
-                     constants=None):
+    def draw_samples(self, F, variables, num_samples=1, targets=None):
         """
         Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples from all the variables
         that are *not* in the ``conditionals`` argument.
@@ -229,12 +233,6 @@ class FactorGraph(object):
         :returns: the samples of the target variables.
         :rtype: {UUID : RTVariable}
         """
-        constants = {} if constants is None else constants
-        variables = {}
-        variables.update(constants)
-        if conditionals is not None:
-            variables.update(conditionals)
-
         samples = {}
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
@@ -260,10 +258,16 @@ class FactorGraph(object):
                     variables[uuid] = v
                     samples[uuid] = v
             elif isinstance(f, Module):
-                raise NotImplementedError("Modules aren't implemented yet!")
+                s = f.draw_samples(
+                    F=F, variables=variables, num_samples=num_samples,
+                    targets=None)
+                samples.update(s)
+                variables.update(s)
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         if targets:
+            targets = set(targets) if isinstance(targets, (list, tuple)) \
+                else targets
             samples = {uuid: samples[uuid] for uuid in targets}
         return samples
 

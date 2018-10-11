@@ -1,12 +1,12 @@
 from ..common.exceptions import InferenceError
 from ..components.variables import Variable
 from .variational import StochasticVariationalInference
-from .inference_alg import InferenceAlgorithm
+from .inference_alg import SamplingAlgorithm
 from .inference import TransferInference
 from .map import MAP
 
 
-class ForwardSamplingAlgorithm(InferenceAlgorithm):
+class ForwardSamplingAlgorithm(SamplingAlgorithm):
     """
     The class of the forward sampling algorithm.
 
@@ -19,14 +19,7 @@ class ForwardSamplingAlgorithm(InferenceAlgorithm):
     :param observed: A list of observed variables
     :type observed: [Variable]
     """
-
-    def __init__(self, num_samples, model, observed, target_variables=None):
-        super(ForwardSamplingAlgorithm, self).__init__(model=model,
-                                                       observed=observed)
-        self.num_samples = num_samples
-        self._target_variables = target_variables
-
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The method for the computation of the inference algorithm
 
@@ -44,14 +37,11 @@ class ForwardSamplingAlgorithm(InferenceAlgorithm):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(parameters)
-        knowns.update(constants)
         samples = self.model.draw_samples(
-            F=F, targets=self._target_variables, conditionals=knowns,
-            num_samples=self.num_samples, constants=constants)
-        if self._target_variables is not None:
-            samples = {v: samples[v] for v in self._target_variables}
+            F=F, variables=variables, targets=self.target_variables,
+            num_samples=self.num_samples)
+        if self.target_variables is not None:
+            samples = {v: samples[v] for v in self.target_variables}
         samples = {k: v for k, v in samples.items()}
         return samples
 

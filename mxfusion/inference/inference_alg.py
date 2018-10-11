@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
+from mxnet import autograd
 from ..components.variables import VariableType
-from ..components.variables import add_sample_dimension_arrays
+from ..components.variables import add_sample_dimension_to_arrays
 from ..util.inference import variables_to_UUID
 
 
@@ -28,28 +29,32 @@ class ObjectiveBlock(HybridBlock):
     """
     def __init__(self, infr_method, constants, data_def, var_trans, var_ties,
                  excluded, prefix='', params=None):
-        super(ObjectiveBlock, self).__init__(prefix=prefix, params=params)
+        super(ObjectiveBlock, self).__init__(prefix=prefix, params=params.param_dict)
         self._infr_method = infr_method
         self._constants = constants
         self._data_def = data_def
         self._var_trans = var_trans
         self._var_ties = var_ties
-        for name in params:
+        self._infr_params = params
+        for name in params.param_dict:
             if name not in excluded:
-                setattr(self, name, params.get(name))
+                setattr(self, name, params.param_dict.get(name))
 
     def hybrid_forward(self, F, x, *args, **kw):
 
         for to_uuid, from_uuid in self._var_ties.items():
             kw[to_uuid] = kw[from_uuid]
         data = {k: v for k, v in zip(self._data_def, args)}
-        data = add_sample_dimension_arrays(F, data)
+        variables = add_sample_dimension_to_arrays(F, data)
         for k, v in self._var_trans.items():
             kw[k] = v.transform(kw[k], F=F)
-        kw = add_sample_dimension_arrays(F, kw)
-        constants = add_sample_dimension_arrays(F, self._constants)
-        obj = self._infr_method.compute(F=F, data=data, parameters=kw,
-                                        constants=constants)
+        add_sample_dimension_to_arrays(F, kw, out=variables)
+        add_sample_dimension_to_arrays(F, self._constants, out=variables)
+        obj = self._infr_method.compute(F=F, variables=variables)
+        with autograd.pause():
+            for k, v in variables.items():
+                if k.startswith('SET_'):
+                    self._infr_params[v[0]] = v[1]
         return obj
 
 
@@ -73,7 +78,7 @@ class InferenceAlgorithm(ABC):
         self._extra_graphs = extra_graphs if extra_graphs is not None else []
         self._graphs = [model] if extra_graphs is None else \
             [model] + extra_graphs
-        self._observed = observed
+        self._observed = set(observed)
         self._observed_uuid = variables_to_UUID(observed)
         self._observed_names = [v.name for v in observed]
 
@@ -100,6 +105,23 @@ class InferenceAlgorithm(ABC):
     def graphs(self):
         return self._graphs
 
+    def prepare_executor(self, rv_scaling=None):
+        excluded = set()
+        var_trans = {}
+        rv_scaling = {} if rv_scaling is None else rv_scaling
+        for g in self._graphs:
+            for v in g.variables.values():
+                if v.type == VariableType.PARAMETER and v.transformation is not None:
+                    var_trans[v.uuid] = v.transformation
+                if v.type == VariableType.PARAMETER and v.isInherited:
+                    excluded.add(v.uuid)
+                if v.type == VariableType.RANDVAR:
+                    if v.uuid in rv_scaling:
+                        v.factor.log_pdf_scaling = rv_scaling[v.uuid]
+                    else:
+                        v.factor.log_pdf_scaling = 1
+        return var_trans, excluded
+
     def create_executor(self, data_def, params, var_ties, rv_scaling=None):
         """
         Create a MXNet Gluon block to carry out the computation.
@@ -117,28 +139,19 @@ class InferenceAlgorithm(ABC):
         :returns: the Gluon block computing the outcome of inference
         :rtype: mxnet.gluon.HybridBlock
         """
-        excluded = set()
-        var_trans = {}
-        rv_scaling = {} if rv_scaling is None else rv_scaling
-        for g in self._graphs:
-            for v in g.variables.values():
-                if v.type == VariableType.PARAMETER and v.transformation is not None:
-                    var_trans[v.uuid] = v.transformation
-                if v.type == VariableType.PARAMETER and v.isInherited:
-                    excluded.add(v.uuid)
-                if v.type == VariableType.RANDVAR:
-                    if v.uuid in rv_scaling:
-                        v.factor.log_pdf_scaling = rv_scaling[v.uuid]
-                    else:
-                        v.factor.log_pdf_scaling = 1
-        block = ObjectiveBlock(infr_method=self, params=params.param_dict,
+        var_trans, excluded = self.prepare_executor(rv_scaling=rv_scaling)
+        for m in self.model.modules.values():
+            var_trans_m, excluded_m = m.prepare_executor(rv_scaling=rv_scaling)
+            var_trans.update(var_trans_m)
+            excluded = excluded.union(excluded_m)
+        block = ObjectiveBlock(infr_method=self, params=params,
                                constants=params.constants,
                                data_def=data_def, var_trans=var_trans,
                                var_ties=var_ties, excluded=excluded)
         return block
 
     @abstractmethod
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The abstract method for the computation of the inference algorithm
 
@@ -156,4 +169,33 @@ class InferenceAlgorithm(ABC):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
+        raise NotImplementedError
+
+    def set_parameter(self, variables, variable, value):
+        variables[variable.uuid] = value
+        variables['SET_'+variable.uuid] = (variable, value)
+
+
+class SamplingAlgorithm(InferenceAlgorithm):
+    """
+    The base class of sampling algorithms.
+
+    :param model_graph: the definition of the probabilistic model
+    :type model_graph: Model
+    :param observed: A list of observed variables
+    :type observed: [Variable]
+    :param num_samples: the number of samples used in estimating the variational lower bound
+    :type num_samples: int
+    :param target_variables: (optional) the target variables to sample
+    :type target_variables: [UUID]
+    """
+
+    def __init__(self, model, observed, num_samples=1, target_variables=None,
+                 extra_graphs=None):
+        super(SamplingAlgorithm, self).__init__(
+            model=model, observed=observed, extra_graphs=extra_graphs)
+        self.num_samples = num_samples
+        self.target_variables = target_variables
+
+    def compute(self, F, variables):
         raise NotImplementedError
