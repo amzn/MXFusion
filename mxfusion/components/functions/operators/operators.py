@@ -13,7 +13,7 @@ class Operator(FunctionEvaluation):
         input_names = [v[0] for v in inputs]
         output_names = [v[0] for v in outputs]
         self._properties = properties
-        self.name = operator_name
+        self.operator_name = operator_name
         self.broadcastable = broadcastable
 
         super(Operator, self).__init__(
@@ -21,9 +21,8 @@ class Operator(FunctionEvaluation):
 
     def replicate_self(self, attribute_map=None):
         replicant = super(Operator, self).replicate_self(attribute_map)
-        replicant._properties = self._properties
-        replicant.name = self.name
-        replicant.broadcastable = self.broadcastable
+        replicant._properties = self._properties.copy()
+        replicant.operator_name = self.operator_name
         return replicant
 
     @property

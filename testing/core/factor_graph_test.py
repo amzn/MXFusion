@@ -330,3 +330,7 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(all([m2_item == component_map_item for m2_item, component_map_item in zippy_keys]))
         import os
         os.remove(self.TESTFILE)
+
+    def test_print_fg(self):
+        m, component_set = self.make_model(self.bnn_net)
+        print(m)

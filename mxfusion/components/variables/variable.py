@@ -196,7 +196,7 @@ class Variable(ModelComponent):
 
     def __add__(self, y):
         from ..functions.operators import add
-        return add(self, y)
+        return add(x=self, y=y)
 
     def __sub__(self, y):
         from ..functions.operators import subtract
@@ -206,7 +206,7 @@ class Variable(ModelComponent):
         from ..functions.operators import multiply
         return multiply(self, y)
 
-    def __div__(self, y):
+    def __truediv__(self, y):
         from ..functions.operators import divide
         return divide(self, y)
 
