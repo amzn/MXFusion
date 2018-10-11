@@ -105,6 +105,8 @@ class ModelComponent(object):
     def successors(self):
         """
         Return a list of nodes pointed to by the edges of this node.
+
+        Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
             succ = [(e['name'], v) for v, e in self.graph.succ[self].items()]
@@ -144,8 +146,7 @@ class ModelComponent(object):
         """
         Return a list of nodes whose edges point into this node.
 
-        :param predecessors: List of tuples of name to node e.g. [('random_variable': Variable y)]
-        :type predecessors: List of tuples of name to node e.g. [('random_variable': Variable y)]
+        Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
             pred = [(e['name'], v) for v, e in self.graph.pred[self].items()]

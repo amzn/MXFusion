@@ -38,13 +38,17 @@ class Factor(ModelComponent):
             When python copies objects, it begins by checking for ``__setstate__()`` which doesn't exist, so it calls ``__getattr__()``. Our implementation then
             calls the ``self.inputs`` getter before the object is fully prepared because ``__init__()`` never gets called during the copy. This causes an infinite
             recursion to ``__getattr__()``. By skipping magic methods with "__" prefix, we allow the object to initialize correctly during copying.
+
+            # TODO this is very inefficient, can be improved.
             """
             raise AttributeError(value)
-        if self.inputs is not None:
+
+        if value in self._input_names:
             for name, node in self.inputs:
                 if name == value:
                     return node
-        if self.outputs is not None:
+
+        if value in self._output_names:
             for name, node in self.outputs:
                 if name == value:
                     return node
@@ -54,10 +58,11 @@ class Factor(ModelComponent):
     def __init__(self, inputs, outputs, input_names, output_names):
         super(Factor, self).__init__()
         self._check_name_conflict(inputs, outputs)
-        self.predecessors = inputs if inputs is not None else []
-        self.successors = outputs if outputs is not None else []
         self._input_names = input_names if input_names is not None else []
         self._output_names = output_names if output_names is not None else []
+        self.predecessors = inputs if inputs is not None else []
+        self.successors = outputs if outputs is not None else []
+
 
     def __repr__(self):
         out_str = str(self.__class__.__name__)
@@ -99,12 +104,24 @@ class Factor(ModelComponent):
     @property
     def inputs(self):
         """
-        Input variables of the factor.
-
-        :returns: Input variables of the factor.
-        :rtype: List of tuples of name to node e.g. [('random_variable': Variable y)]
+        Return a list of nodes whose edges point into this node.
         """
-        return self.predecessors
+        if self.graph is not None:
+            pred = {e['name']: v for v, e in self.graph.pred[self].items()}
+            return [(name, pred[name]) for name in self.input_names]
+        else:
+            return self._predecessors
+
+    @property
+    def outputs(self):
+        """
+        Return a list of nodes pointed to by the edges of this node.
+        """
+        if self.graph is not None:
+            succ = {e['name']: v for v, e in self.graph.succ[self].items()}
+            return [(name, succ[name]) for name in self.output_names]
+        else:
+            return self._successors
 
     @inputs.setter
     def inputs(self, inputs):
@@ -115,16 +132,6 @@ class Factor(ModelComponent):
         :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)]
         """
         self.predecessors = inputs
-
-    @property
-    def outputs(self):
-        """
-        Return variables of the factor.
-
-        :returns: Output variables of the factor.
-        :rtype: List of tuples of name to node e.g. [('random_variable': Variable y)]
-        """
-        return self.successors
 
     @outputs.setter
     def outputs(self, outputs):
