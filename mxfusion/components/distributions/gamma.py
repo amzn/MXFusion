@@ -68,16 +68,12 @@ class Gamma(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
 
-        from scipy.special import gammaln, xlogy
+        from ..functions.operators.mxnet_custom_operators import gammaln
 
         alpha, beta = self._get_alpha_beta(a,b)
-        # lpdf = xlogy(alpha.asnumpy()-1.0, random_variable.asnumpy()) - random_variable.asnumpy() - gammaln(alpha.asnumpy())
-        g_alpha = F.array(gammaln(alpha.asnumpy()), dtype=self.dtype)
-        p1 = F.array(xlogy(alpha.asnumpy() - 1.,random_variable.asnumpy()), dtype=self.dtype)
-        return ( p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
-        # lpdf_mx = p1 - random_variable - g_alpha
-        # import pdb; pdb.set_trace()
-        # return lpdf_mx
+        g_alpha = gammaln(alpha)
+        p1 = (alpha - 1.) * F.log(random_variable)
+        return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
 
     @UnivariateDrawSamplesDecorator()
     def draw_samples(self, a, b, rv_shape, num_samples=1, F=None):
@@ -93,8 +89,7 @@ class Gamma(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
         alpha, beta = self._get_alpha_beta(a,b)
-        # out_shape = (num_samples,) + rv_shape
-        return F.random.gamma(alpha=alpha, beta=beta, shape=(num_samples,), dtype=self.dtype, ctx=self.ctx)
+        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype, ctx=self.ctx)
 
     @staticmethod
     def define_variable(a=0., b=1., shape=None, rand_gen=None,
