@@ -53,7 +53,9 @@ class OperatorDecorator(object):
 
                 @FunctionEvaluationDecorator()
                 def eval(self, F, **input_kws):
-                    return func(F, **input_kws, **self.properties)
+                    kws = input_kws.copy()
+                    kws.update(self.properties)
+                    return func(F, **kws)
 
             op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names if n in all_args],
                                   outputs=[('output_'+str(i), Variable()) for i in range(self.num_outputs)],

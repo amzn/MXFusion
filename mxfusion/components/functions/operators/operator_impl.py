@@ -50,7 +50,7 @@ def prod(F, data, axis=None):
 """ Matrix Operations """
 @OperatorDecorator(name='dot', args=['x', 'y'], inputs=['x', 'y'])
 def dot(F, x, y):
-    return F.gemm2(x, y)
+    return F.linalg.gemm2(x, y)
 
 # TODO Bring in the axis arguments once it's in the release version of MXNet
 @OperatorDecorator(name='diag', args=['data', 'k', 'axis1', 'axis2'], inputs=['data'])
