@@ -264,7 +264,7 @@ class ConditionalGaussianProcess(Distribution):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for a kernel.
+        The copy constructor for a conditional Gaussian process distribution.
         """
         replicant = super(ConditionalGaussianProcess,
                           self).replicate_self(attribute_map)

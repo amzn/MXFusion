@@ -4,7 +4,7 @@ from .gluon_func_eval import GluonFunctionEvaluation
 from .mxfusion_function import MXFusionFunction
 from ..variables import Variable, VariableType
 from mxnet.gluon import ParameterDict, Block, HybridBlock
-from ...common.exceptions import ModelSpecificationError, InferenceError
+from ...common.exceptions import ModelSpecificationError
 
 
 class MXFusionGluonFunction(MXFusionFunction):
@@ -37,7 +37,6 @@ class MXFusionGluonFunction(MXFusionFunction):
         self._output_names = [self.name + "_output_" + str(i) for i in
                               range(self.num_outputs)]
         self._gluon_parameter_names = sorted(self._gluon_parameters.keys())
-        print('gluon_params', self._gluon_parameters)
 
     @property
     def input_names(self):
