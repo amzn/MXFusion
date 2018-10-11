@@ -261,3 +261,14 @@ class ConditionalGaussianProcess(Distribution):
         if self.mean_func is not None:
             rv = rv + self.mean_func(F, X)
         return rv
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a kernel.
+        """
+        replicant = super(ConditionalGaussianProcess,
+                          self).replicate_self(attribute_map)
+        replicant.mean_func = self.mean_func.replicate_self(attribute_map) \
+            if self.mean_func is not None else None
+        replicant.kernel = self.kernel.replicate_self(attribute_map)
+        return replicant

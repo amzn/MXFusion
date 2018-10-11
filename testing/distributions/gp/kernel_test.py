@@ -13,7 +13,7 @@ try:
     def gpy_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params, num_samples, dtype, mf_kernel_create, gpy_kernel_create):
         X_mx = prepare_mxnet_array(X, X_isSamples, dtype)
         X2_mx = prepare_mxnet_array(X2, X2_isSamples, dtype)
-        kern = mf_kernel_create()
+        kern = mf_kernel_create().replicate_self()
         kernel_params_mx = {kern.name + '_' + k:
                             prepare_mxnet_array(v[0], v[1], dtype) for k, v in
                             kernel_params.items()}
@@ -48,7 +48,7 @@ try:
     def gpy_comb_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params, num_samples, dtype, mf_kernel_create, gpy_kernel_create):
         X_mx = prepare_mxnet_array(X, X_isSamples, dtype)
         X2_mx = prepare_mxnet_array(X2, X2_isSamples, dtype)
-        kern = mf_kernel_create()
+        kern = mf_kernel_create().replicate_self()
         kernel_params_mx = {kern.name + '_' + k + '_' + k2:
                             prepare_mxnet_array(v2[0], v2[1], dtype) for k, v in
                             kernel_params.items() for k2, v2 in v.items()}

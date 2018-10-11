@@ -196,7 +196,9 @@ class MXFusionGluonFunction(MXFusionFunction):
             MXFusionGluonFunction, self).replicate_self(attribute_map)
         replicant._gluon_block = self._gluon_block
         replicant.num_outputs = self.num_outputs
-        replicant._gluon_parameters = replicant._create_variables_from_gluon_block(replicant._gluon_block)
+        replicant._gluon_parameters = {
+            k: v.replicate_self(attribute_map) for k, v in
+            self._gluon_parameters.items()}
         replicant._input_names = copy(self._input_names)
         replicant._input_variable_names = copy(self._input_variable_names)
         replicant._output_names = copy(self._output_names)

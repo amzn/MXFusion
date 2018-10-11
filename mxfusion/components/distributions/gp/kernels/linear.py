@@ -87,3 +87,11 @@ class Linear(NativeKernel):
         X2 = F.square(X)
         return F.sum(X2 * broadcast_to_w_samples(F, variances, X2.shape),
                      axis=-1)
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a kernel.
+        """
+        replicant = super(Linear, self).replicate_self(attribute_map)
+        replicant.ARD = self.ARD
+        return replicant

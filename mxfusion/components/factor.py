@@ -84,9 +84,10 @@ class Factor(ModelComponent):
 
         replicant = self.__class__.__new__(self.__class__)
 
-        Factor.__init__(replicant, None, None, copy(self.input_names), copy(self.output_names))
+        Factor.__init__(
+            replicant, None, None, copy(self.input_names),
+            copy(self.output_names))
         replicant._uuid = self.uuid
-        # replicant.replicant = True
         return replicant
 
     def _check_name_conflict(self, inputs, outputs):
