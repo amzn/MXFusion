@@ -11,5 +11,5 @@ Submodules
     operator_impl
 """
 
-from .operators import Operator, OperatorDecorator
+from .operators import Operator, MXNetOperatorDecorator
 from .operator_impl import *

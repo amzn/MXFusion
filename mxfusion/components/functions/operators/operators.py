@@ -30,7 +30,7 @@ class Operator(FunctionEvaluation):
     def properties(self):
         return self._properties
 
-class OperatorDecorator(object):
+class MXNetOperatorDecorator(object):
 
     def __init__(self, name, args, inputs, num_outputs=1, broadcastable=False):
         """
