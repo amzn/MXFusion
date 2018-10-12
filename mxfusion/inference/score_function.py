@@ -27,7 +27,7 @@ class ScoreFunctionInference(StochasticVariationalInference):
         super(ScoreFunctionInference, self).__init__(
             model=model, observed=observed, posterior=posterior, num_samples=num_samples)
 
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The method for the computation of the inference algorithm
 
@@ -45,21 +45,14 @@ class ScoreFunctionInference(StochasticVariationalInference):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(parameters)
-        knowns.update(constants)
-
         # Sample q(z | lambda)
         samples = self.posterior.draw_samples(
-            F=F, conditionals=knowns, num_samples=self.num_samples,
-            constants=constants)
-        knowns.update(samples)
+            F=F, variables=variables, num_samples=self.num_samples)
+        variables.update(samples)
 
-        q_z_lambda = self.posterior.compute_log_prob(
-            F=F, targets=knowns, constants=constants)
+        q_z_lambda = self.posterior.log_pdf(F=F, variables=variables)
 
-        p_x_z = self.model.compute_log_prob(
-            F=F, targets=knowns, constants=constants)
+        p_x_z = self.model.log_pdf(F=F, variables=variables)
 
         difference_nograd = F.stop_gradient(p_x_z - q_z_lambda)
         gradient_lambda = F.mean(q_z_lambda * difference_nograd, axis=0)
@@ -69,6 +62,7 @@ class ScoreFunctionInference(StochasticVariationalInference):
         gradient_log_L = gradient_lambda + gradient_theta
 
         return -gradient_theta, -gradient_log_L
+
 
 class ScoreFunctionRBInference(ScoreFunctionInference):
     """
@@ -94,9 +88,10 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
 
     def __init__(self, num_samples, model, posterior, observed):
         super(ScoreFunctionRBInference, self).__init__(
-            model=model, observed=observed, posterior=posterior, num_samples=num_samples)
+            model=model, observed=observed, posterior=posterior,
+            num_samples=num_samples)
 
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The method for the computation of the inference algorithm
 
@@ -114,21 +109,14 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(parameters)
-        knowns.update(constants)
-
         # Sample q(z | lambda)
         samples = self.posterior.draw_samples(
-            F=F, conditionals=knowns, num_samples=self.num_samples,
-            constants=constants)
-        knowns.update(samples)
+            F=F, variables=variables, num_samples=self.num_samples)
+        variables.update(samples)
 
-        q_z_lambda = self.posterior.compute_log_prob(
-            F=F, targets=knowns, constants=constants)
+        q_z_lambda = self.posterior.log_pdf(F=F, variables=variables)
 
-        p_x_z = self.model.compute_log_prob(
-            F=F, targets=knowns, constants=constants)
+        p_x_z = self.model.log_pdf(F=F, variables=variables)
 
         gradient_theta = F.mean(p_x_z - F.stop_gradient(q_z_lambda), axis=0)
         posterior_rvs = [v for v in self.posterior.variables.values() if v.type is VariableType.RANDVAR]
@@ -138,16 +126,14 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
             model_v = self.model[v]
 
             q_i_varset = self._extract_descendant_blanket_params(self.posterior, v)
-            q_i_params = {key:val for key,val in knowns.items() if key in q_i_varset}
-            q_i = self.posterior.compute_log_prob(F=F,
-                  targets=q_i_params,
-                  constants=knowns)
+            q_i_params = {key:val for key,val in variables.items() if key in q_i_varset}
+            q_i = self.posterior.log_pdf(F=F, targets=q_i_params,
+                                         variables=variables)
 
             p_i_varset = self._extract_descendant_blanket_params(self.model, model_v)
-            p_i_params = {key:val for key,val in knowns.items() if key in p_i_varset}
-            p_i = self.model.compute_log_prob(F=F,
-                  targets=p_i_params,
-                  constants=constants)
+            p_i_params = {key:val for key,val in variables.items() if key in p_i_varset}
+            p_i = self.model.log_pdf(F=F, targets=p_i_params,
+                                     variables=variables)
 
             # TODO Remove this hack one day when MXNet doesn't have a bug?
             # Need to stop the gradient of p_i manually, for some reason it doesn't like
