@@ -138,6 +138,8 @@ class InferenceAlgorithm(ABC):
 
         :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling or mini-batch learning.
         :type rv_scaling: {UUID: float}
+        :returns: the list of the variable transformations and the list of the variables that are excluded from being setted as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
+        :rtypes: {str(UUID): Transformation}, set(str(UUID))
         """
         excluded = set()
         var_trans = {}
