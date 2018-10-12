@@ -192,8 +192,8 @@ class ConditionalGaussianProcess(Distribution):
         :param random_variable: the random_variable of which log-PDF is computed.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -234,8 +234,8 @@ class ConditionalGaussianProcess(Distribution):
         :param num_samples: the number of drawn samples (default: one).
         :int num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -261,3 +261,14 @@ class ConditionalGaussianProcess(Distribution):
         if self.mean_func is not None:
             rv = rv + self.mean_func(F, X)
         return rv
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a conditional Gaussian process distribution.
+        """
+        replicant = super(ConditionalGaussianProcess,
+                          self).replicate_self(attribute_map)
+        replicant.mean_func = self.mean_func.replicate_self(attribute_map) \
+            if self.mean_func is not None else None
+        replicant.kernel = self.kernel.replicate_self(attribute_map)
+        return replicant

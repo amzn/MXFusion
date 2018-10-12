@@ -13,3 +13,4 @@ Submodules
 
 from .mxfusion_gluon_function import MXFusionGluonFunction
 from .function_evaluation import FunctionEvaluation
+from .mxfusion_function import MXFusionFunction

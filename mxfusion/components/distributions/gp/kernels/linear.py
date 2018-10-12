@@ -27,6 +27,8 @@ class Linear(NativeKernel):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    broadcastable = False
+    
     def __init__(self, input_dim, ARD=False, variances=1., name='linear',
                  active_dims=None, dtype=None, ctx=None):
         super(Linear, self).__init__(input_dim=input_dim, name=name,
@@ -87,3 +89,11 @@ class Linear(NativeKernel):
         X2 = F.square(X)
         return F.sum(X2 * broadcast_to_w_samples(F, variances, X2.shape),
                      axis=-1)
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a kernel.
+        """
+        replicant = super(Linear, self).replicate_self(attribute_map)
+        replicant.ARD = self.ARD
+        return replicant

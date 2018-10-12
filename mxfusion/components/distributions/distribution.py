@@ -117,6 +117,7 @@ class Distribution(Factor):
         replicant._rand_gen = self._rand_gen
         replicant.dtype = self.dtype
         replicant.ctx = self.ctx
+        replicant.log_pdf_scaling = 1
         return replicant
 
     def log_pdf(self, F=None, **kwargs):
