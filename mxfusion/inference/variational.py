@@ -90,6 +90,6 @@ class StochasticVariationalInference(VariationalInference):
         samples = self.posterior.draw_samples(
             F=F, variables=variables, num_samples=self.num_samples)
         variables.update(samples)
-        logL = self.model.compute_log_prob(F=F, variables=variables)
-        logL = logL - self.posterior.compute_log_prob(F=F, variables=variables)
+        logL = self.model.log_pdf(F=F, variables=variables)
+        logL = logL - self.posterior.log_pdf(F=F, variables=variables)
         return -logL

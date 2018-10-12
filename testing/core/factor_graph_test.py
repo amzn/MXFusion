@@ -181,7 +181,7 @@ class FactorGraphTests(unittest.TestCase):
         variance2 = m.v3.factor.variance
         variance_rt = add_sample_dimension(mx.nd, variance.constant)
         variance2_rt = add_sample_dimension(mx.nd, variance2.constant)
-        log_pdf = m.compute_log_prob(F=mx.nd, variables={m.v2.uuid: v2_rt, m.v3.uuid:v3_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt, v.uuid: v_rt}).asscalar()
+        log_pdf = m.log_pdf(F=mx.nd, variables={m.v2.uuid: v2_rt, m.v3.uuid:v3_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt, v.uuid: v_rt}).asscalar()
 
         variables = {m.v2.factor.mean.uuid: v_rt, m.v2.factor.variance.uuid: variance_rt, m.v2.factor.random_variable.uuid: v2_rt}
         log_pdf_1 = mx.nd.sum(m.v2.factor.log_pdf(F=mx.nd, variables=variables))

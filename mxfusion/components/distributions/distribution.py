@@ -16,7 +16,7 @@ class LogPDFDecorator(object):
 
     def _wrap_log_pdf_with_variables(self, func):
 
-        def log_pdf_variables(self, F, variables):
+        def log_pdf_variables(self, F, variables, targets=None):
             """
             Computes the logrithm of the probability density/mass function
             (PDF/PMF) of the distribution. The inputs and outputs variables are
@@ -55,7 +55,7 @@ class DrawSamplesDecorator(object):
     def _wrap_draw_samples_with_variables(self, func):
 
         def draw_samples_variables(self, F, variables, num_samples=1,
-                                   always_return_tuple=False):
+                                   always_return_tuple=False, targets=None):
             """
             Draw a set of samples from the distribution. The inputs variables
             are fetched from the *variables* argument according to their UUIDs.

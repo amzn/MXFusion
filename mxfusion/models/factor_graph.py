@@ -169,7 +169,7 @@ class FactorGraph(object):
 
         return self._var_ties
 
-    def compute_log_prob(self, F, variables, targets=None):
+    def log_pdf(self, F, variables, targets=None):
         """
         Compute the logarithm of the probability/probability density of a set of random variables in the factor graph. The set of random
         variables are specified in the "target" argument and any necessary conditional variables are specified in the "conditionals" argument.
