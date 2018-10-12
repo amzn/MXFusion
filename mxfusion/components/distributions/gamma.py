@@ -68,10 +68,8 @@ class Gamma(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
 
-        from ..functions.operators.mxnet_custom_operators import gammaln
-
         alpha, beta = self._get_alpha_beta(a,b)
-        g_alpha = gammaln(alpha)
+        g_alpha = F.gammaln(alpha)
         p1 = (alpha - 1.) * F.log(random_variable)
         return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
 
