@@ -1,6 +1,6 @@
 import numpy as np
 from ..module import Module
-from ...models import Model
+from ...models.model import Model
 from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal
 from ...inference.inference_alg import InferenceAlgorithm, \

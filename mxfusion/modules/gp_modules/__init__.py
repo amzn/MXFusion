@@ -7,3 +7,5 @@ Submodules
     :toctree: _autosummary
 
 """
+
+from .gp_regression import GPRegression
