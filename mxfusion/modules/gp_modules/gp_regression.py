@@ -3,11 +3,12 @@ from ..module import Module
 from ...models import Model
 from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal
-from ...inference.inference_alg import InferenceAlgorithm
+from ...inference.inference_alg import InferenceAlgorithm, \
+    VariationalSamplingAlgorithm
 
 
 class GPRegr_log_pdf(InferenceAlgorithm):
-    def __init__(self, model, observed):
+    def __init__(self, model, observed, jitter=0.):
         super(GPRegr_log_pdf, self).__init__(model=model, observed=observed)
 
     def compute(self, F, variables):
@@ -30,6 +31,52 @@ class GPRegr_log_pdf(InferenceAlgorithm):
 
         return - logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi)) / 2
 
+
+class GPRegr_draw_samples(VariationalSamplingAlgorithm):
+    def __init__(self, model, posterior, observed, num_samples=1,
+                 target_variables=None, jitter=0.):
+        super(GPRegr_draw_samples, self).__init__(
+            model=model, posterior=posterior, observed=observed,
+            num_samples=num_samples, target_variables=target_variables)
+        self.jitter = jitter
+
+    def compute(self, F, variables):
+        X = variables[self.model.X]
+        Y = variables[self.model.Y]
+        noise_var = variables[self.model.noise_var]
+        D = Y.shape[-1]
+        N = X.shape[-2]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(variables)
+
+        K = kern.K(F, X, **kern_params) + F.eye(N, dtype=X.dtype) * noise_var
+        L = F.linalg.potrf(K)
+
+        if self.model.mean_func is not None:
+            mean = self.model.mean_func(F, X)
+            Y = Y - mean
+
+class GPRegr_draw_samples(InferenceAlgorithm):
+    def __init__(self, model, observed):
+        super(GPRegr_draw_samples, self).__init__(model=model, observed=observed)
+
+    def compute(self, F, data, parameters, constants):
+        X = data[self.model.X]
+        X_cond = data[self.model.X_cond]
+        Y_cond = data[self.model.Y_cond]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(parameters)
+
+        Kxt = kern.K(F, X_cond, X, **kern_params)
+        Ktt = kern.Kdiag(F, X, **kern_params)
+        Kxx = kern.K(F, X_cond, **kern_params)
+        L = F.linalg.potrf(Kxx)
+        LInvY = F.linalg.trsm(L, Y_cond)
+        LinvKxt = F.linalg.trsm(L, Kxt)
+
+        mu = F.linalg.gemm2(LinvKxt, LInvY, True, False)
+        var = Ktt - F.sum(F.square(LinvKxt), axis=1)
+        return mu, var
 
 # class GPPrediction(InferenceAlgorithm):
 #     def __init__(self, model, observed):
