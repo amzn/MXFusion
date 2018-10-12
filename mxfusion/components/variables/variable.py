@@ -41,6 +41,7 @@ class Variable(ModelComponent):
     def __init__(self, value=None, shape=None, transformation=None, isInherited=False, initial_value=None):
         super(Variable, self).__init__()
 
+        # TODO If no shape we assume a scalar but this could be incorrect if we really just mean the shape is unknown.
         self.shape = shape if shape is not None else (1,)
         self.attributes = [s for s in self.shape if isinstance(s, Variable)]
         # whether the variable is inherited from a Gluon block.
@@ -192,3 +193,28 @@ class Variable(ModelComponent):
     @property
     def initial_value(self):
         return self._initial_value
+
+    def __add__(self, y):
+        from ..functions.operators import add
+        return add(x=self, y=y)
+
+    def __sub__(self, y):
+        from ..functions.operators import subtract
+        return subtract(self, y)
+
+    def __mul__(self, y):
+        from ..functions.operators import multiply
+        return multiply(self, y)
+
+    def __truediv__(self, y):
+        from ..functions.operators import divide
+        return divide(self, y)
+
+    def __pow__(self, y):
+        from ..functions.operators import power
+        return power(self, y)
+
+    @property
+    def T(self):
+        from ..functions.operators import transpose
+        return transpose(self)

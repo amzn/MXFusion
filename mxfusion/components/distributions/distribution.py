@@ -113,16 +113,6 @@ class Distribution(Factor):
         self.log_pdf_scaling = 1
 
     def replicate_self(self, attribute_map=None):
-        """
-        Replicates this Factor, using new inputs, outputs, and a new uuid.
-        Used during model replication to functionally replicate a factor into a
-        new graph.
-
-        :param inputs: new input variables of the factor.
-        :type inputs: a dict of {'name' : Variable} or None
-        :param outputs: new output variables of the factor.
-        :type outputs: a dict of {'name' : Variable} or None
-        """
         replicant = super(Distribution, self).replicate_self(attribute_map)
         replicant._rand_gen = self._rand_gen
         replicant.dtype = self.dtype
