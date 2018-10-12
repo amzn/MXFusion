@@ -9,3 +9,4 @@ Submodules
 """
 
 from .gp_regression import GPRegression
+from .sparsegp_regression import SparseGPRegression

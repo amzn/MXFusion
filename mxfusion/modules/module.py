@@ -3,6 +3,7 @@ from mxnet.gluon import ParameterDict
 from mxnet import initializer
 from ..components.variables.variable import VariableType
 from ..components.factor import Factor
+from ..components.distributions.random_gen import MXNetRandomGenerator
 from ..common.exceptions import ModelSpecificationError
 from ..util.inference import realize_shape
 from ..common.config import get_default_dtype
@@ -14,10 +15,12 @@ class Module(Factor):
     """
 
     def __init__(self, inputs, outputs, input_names,
-                 output_names, dtype=None, ctx=None):
+                 output_names, rand_gen=None, dtype=None, ctx=None):
         super(Module, self).__init__(
             inputs=inputs, outputs=outputs, input_names=input_names,
             output_names=output_names)
+        self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
+            rand_gen
         self.dtype = get_default_dtype() if dtype is None else dtype
         self.ctx = ctx
         self._module_graph = None

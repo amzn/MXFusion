@@ -114,7 +114,7 @@ class SparseGPRegression(Module):
         output_names = ['random_variable']
         super(SparseGPRegression, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
-            output_names=output_names, dtype=dtype, ctx=ctx)
+            output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         self.mean_func = mean_func
         self.kernel = kernel
         self._jitter = 0.
@@ -126,7 +126,7 @@ class SparseGPRegression(Module):
     @jitter.setter
     def jitter(self, value):
         self._jitter = value
-        for k, v in self._log_prob_methods.items():
+        for k, v in self._log_pdf_methods.items():
             v.jitter = value
         for k, vs in self._draw_samples_methods.items():
             for v in vs:
@@ -155,7 +155,7 @@ class SparseGPRegression(Module):
         graph.U = GaussianProcess.define_variable(
             X=graph.inducing_inputs, kernel=self.kernel,
             shape=(graph.inducing_inputs.shape[0], Y.shape[-1]),
-            mean_func=self.mean_func, rand_gen=self.rand_gen, dtype=self.dtype,
+            mean_func=self.mean_func, rand_gen=self._rand_gen, dtype=self.dtype,
             ctx=self.ctx)
         # graph.F = ConditionalGaussianProcess.define_variable(
         #     X=graph.X, X_cond=graph.inducing_inputs, Y_cond=graph.U,
@@ -163,7 +163,7 @@ class SparseGPRegression(Module):
         #     rand_gen=self.rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=0, variance=graph.noise_var, rand_gen=self.rand_gen,
+            mean=0, variance=graph.noise_var, rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
@@ -182,7 +182,7 @@ class SparseGPRegression(Module):
     def _attach_default_inference_algorithms(self):
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
-        self.attach_log_prob_algorithms(
+        self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
             algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed, jitter=self._jitter))
 

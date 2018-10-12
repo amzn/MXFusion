@@ -108,7 +108,7 @@ class GPRegression(Module):
         output_names = ['random_variable']
         super(GPRegression, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
-            output_names=output_names, dtype=dtype, ctx=ctx)
+            output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         self.mean_func = mean_func
         self.kernel = kernel
 
