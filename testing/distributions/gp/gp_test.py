@@ -9,6 +9,8 @@ from mxfusion.components import Variable
 from mxfusion.util.testutils import prepare_mxnet_array
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 from scipy.stats import multivariate_normal
+import matplotlib
+matplotlib.use('Agg')
 import GPy
 
 
