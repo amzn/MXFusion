@@ -37,6 +37,12 @@ class InferenceParameters(object):
         self._params = ParameterDict()
 
     def update_constants(self, constants):
+        """
+        Update the constants.
+
+        :param constants: The constants to be updated.
+        :type constants: {Variable: float or MXNet NDArray}
+        """
         self.constants.update({
             (k.uuid if isinstance(k, ModelComponent) else k): v
             for k, v in constants.items()})
