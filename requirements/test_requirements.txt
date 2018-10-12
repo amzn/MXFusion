@@ -5,3 +5,4 @@ pytest>=3.5.1
 pytest-cov>=2.5.1
 scipy>=1.1.0
 GPy>=1.8.5
+matplotlib

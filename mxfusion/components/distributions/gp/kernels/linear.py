@@ -27,8 +27,8 @@ class Linear(NativeKernel):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    broadcastable = False
-    
+    broadcastable = True
+
     def __init__(self, input_dim, ARD=False, variances=1., name='linear',
                  active_dims=None, dtype=None, ctx=None):
         super(Linear, self).__init__(input_dim=input_dim, name=name,

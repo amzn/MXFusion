@@ -1,4 +1,4 @@
-from .factor import Factor
+from ..components.factor import Factor
 
 
 class Module(Factor):

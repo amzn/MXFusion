@@ -48,11 +48,14 @@ class Variable(ModelComponent):
         self.isInherited = isInherited
         self._transformation = transformation
         self._value = None
+        if isinstance(initial_value, (int, float)):
+            initial_value = mx.nd.array([initial_value])
         self._initial_value = initial_value
         self.isConstant = False
         from ..distributions import Distribution
+        from ...modules.module import Module
         from ..functions.function_evaluation import FunctionEvaluation
-        if isinstance(value, Distribution):
+        if isinstance(value, (Distribution, Module)):
             self._initialize_as_randvar(value, shape, transformation)
         elif isinstance(value, FunctionEvaluation):
             self._initialize_as_funcvar(value, shape, transformation)
@@ -63,12 +66,13 @@ class Variable(ModelComponent):
     def type(self):
         from ..distributions import Distribution
         from ..functions import FunctionEvaluation
+        from ...modules.module import Module
         if self.factor is None:
             if self.isConstant:
                 return VariableType.CONSTANT
             else:
                 return VariableType.PARAMETER
-        elif isinstance(self.factor, Distribution):
+        elif isinstance(self.factor, (Distribution, Module)):
             return VariableType.RANDVAR
         elif isinstance(self.factor, FunctionEvaluation):
             return VariableType.FUNCVAR
@@ -193,6 +197,18 @@ class Variable(ModelComponent):
     @property
     def initial_value(self):
         return self._initial_value
+
+    @property
+    def initial_value_before_transformation(self):
+        """
+        The initial value of a variable before applying the chosen
+        transformation (if exists)
+        """
+        if self._transformation is None:
+            return self._initial_value
+        else:
+            return self._transformation.inverseTransform(self._initial_value,
+                                                         F=mx.nd)
 
     def __add__(self, y):
         from ..functions.operators import add

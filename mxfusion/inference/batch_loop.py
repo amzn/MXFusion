@@ -38,3 +38,4 @@ class BatchInferenceLoop(GradLoop):
             if verbose:
                 print('\rIteration {} logL: {}'.format(i + 1, -loss.asscalar()))
             trainer.step(batch_size=1, ignore_stale_grad=True)
+        loss = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
