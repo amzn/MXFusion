@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
 from mxnet import autograd
+from ..common.constants import SET_PARAMETER_PREFIX
 from ..components.variables import VariableType
 from ..components.variables import add_sample_dimension_to_arrays
 from ..util.inference import variables_to_UUID
@@ -68,7 +69,7 @@ class ObjectiveBlock(HybridBlock):
             # An inference algorithm may directly set the value of a parameter instead of computing its gradient.
             # This part handles the setting of parameters.
             for k, v in variables.items():
-                if k.startswith('SET_'):
+                if k.startswith(SET_PARAMETER_PREFIX):
                     self._infr_params[v[0]] = v[1]
         return obj
 
@@ -213,8 +214,8 @@ class InferenceAlgorithm(ABC):
         :type target_value: MXNet NDArray or float
         """
         variables[target_variable.uuid] = target_value
-        variables['SET_'+target_variable.uuid] = (target_variable,
-                                                  target_value)
+        variables[SET_PARAMETER_PREFIX+target_variable.uuid] = \
+            (target_variable, target_value)
 
 
 class SamplingAlgorithm(InferenceAlgorithm):
