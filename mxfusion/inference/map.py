@@ -66,4 +66,4 @@ class MAP(InferenceAlgorithm):
                 variables[v.uuid] = variables[self.posterior[v].factor.location.uuid]
 
         logL = self.model.log_pdf(F=F, variables=variables)
-        return -logL
+        return -logL, -logL

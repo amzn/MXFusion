@@ -2,6 +2,7 @@ from future.utils import raise_from
 from uuid import uuid4
 import warnings
 import networkx as nx
+import networkx.algorithms.dag
 from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
 from ..modules.module import Module
 from ..common.exceptions import ModelSpecificationError, InferenceError
@@ -301,6 +302,29 @@ class FactorGraph(object):
         """
         return FactorGraph(**kwargs)
 
+    def get_markov_blanket(self, node):
+        """
+        Gets the Markov Blanket for a node, which is the node's predecessors, the nodes successors, and those successors' other predecessors.
+        """
+        def get_variable_predecessors(node):
+            return [v2 for k1,v1 in node.predecessors for k2,v2 in v1.predecessors if isinstance(v2, Variable)]
+        def get_variable_successors(node):
+            return [v2 for k1,v1 in node.successors for k2,v2 in v1.successors if isinstance(v2, Variable)]
+        def flatten(node_list):
+            return set([p for varset in node_list for p in varset])
+        successors = set(get_variable_successors(node))
+        n = set([node])
+        pred = set(get_variable_predecessors(node))
+        succs_preds = flatten([get_variable_predecessors(s) for s in successors])
+        return n.union(pred.union(successors.union(succs_preds)))
+
+    def get_descendants(self, node):
+        """
+        Recursively gets all successors in the graph for the given node.
+        :rtype: set of all nodes in the graph descended from the node.
+        """
+        return set(filter(lambda x: isinstance(x, Variable),
+               networkx.algorithms.dag.descendants(self.components_graph, node).union({node})))
     def remove_subgraph(self, node):
         """
         Removes a node and its parent graph recursively.

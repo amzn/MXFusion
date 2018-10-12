@@ -92,4 +92,4 @@ class StochasticVariationalInference(VariationalInference):
         variables.update(samples)
         logL = self.model.log_pdf(F=F, variables=variables)
         logL = logL - self.posterior.log_pdf(F=F, variables=variables)
-        return -logL
+        return -logL, -logL

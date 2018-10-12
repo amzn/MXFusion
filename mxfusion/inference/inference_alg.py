@@ -243,7 +243,9 @@ class SamplingAlgorithm(InferenceAlgorithm):
 
     def compute(self, F, variables):
         """
-        The abstract method for the computation of the inference algorithm
+        The abstract method for the computation of the inference algorithm.
+
+        If inference algorithm is used for gradient based optimizations, it should return two values. The first for the loss function, the second the gradient of the loss function.
 
         :param F: the execution context (mxnet.ndarray or mxnet.symbol)
         :type F: Python module
@@ -251,6 +253,6 @@ class SamplingAlgorithm(InferenceAlgorithm):
         variables at runtime.
         :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the inference algorithm
-        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol. If gradient based, will return two values. The first the loss function, the second the gradient of the loss function.
         """
         raise NotImplementedError
