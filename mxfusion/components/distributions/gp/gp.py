@@ -198,7 +198,7 @@ class GaussianProcess(Distribution):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for a kernel.
+        The copy constructor for a Gaussian process distribution.
         """
         replicant = super(GaussianProcess, self).replicate_self(attribute_map)
         replicant.mean_func = self.mean_func.replicate_self(attribute_map) \
