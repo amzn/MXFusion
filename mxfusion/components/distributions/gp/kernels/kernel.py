@@ -1,10 +1,8 @@
 from copy import copy
-from .....common.config import get_default_dtype
 from .....common.exceptions import ModelSpecificationError
 from .....util.util import rename_duplicate_names, slice_axis
 from ....variables import Variable
 from ....functions.mxfusion_function import MXFusionFunction
-from ....functions.function_evaluation import FunctionEvaluationDecorator
 
 # TODO: write the design doc for kernels
 

@@ -16,7 +16,7 @@ class LogPDFDecorator(object):
 
     def _wrap_log_pdf_with_variables(self, func):
 
-        def log_pdf_variables(self, F, variables):
+        def log_pdf_variables(self, F, variables, targets=None):
             """
             Computes the logrithm of the probability density/mass function
             (PDF/PMF) of the distribution. The inputs and outputs variables are
@@ -55,7 +55,7 @@ class DrawSamplesDecorator(object):
     def _wrap_draw_samples_with_variables(self, func):
 
         def draw_samples_variables(self, F, variables, num_samples=1,
-                                   always_return_tuple=False):
+                                   always_return_tuple=False, targets=None):
             """
             Draw a set of samples from the distribution. The inputs variables
             are fetched from the *variables* argument according to their UUIDs.
@@ -113,16 +113,6 @@ class Distribution(Factor):
         self.log_pdf_scaling = 1
 
     def replicate_self(self, attribute_map=None):
-        """
-        Replicates this Factor, using new inputs, outputs, and a new uuid.
-        Used during model replication to functionally replicate a factor into a
-        new graph.
-
-        :param inputs: new input variables of the factor.
-        :type inputs: a dict of {'name' : Variable} or None
-        :param outputs: new output variables of the factor.
-        :type outputs: a dict of {'name' : Variable} or None
-        """
         replicant = super(Distribution, self).replicate_self(attribute_map)
         replicant._rand_gen = self._rand_gen
         replicant.dtype = self.dtype

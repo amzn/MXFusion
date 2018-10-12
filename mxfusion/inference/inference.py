@@ -1,4 +1,3 @@
-from abc import ABC
 import warnings
 import numpy as np
 import mxnet as mx
@@ -9,7 +8,7 @@ from ..util.inference import discover_shape_constants, init_outcomes
 from ..models.factor_graph import FactorGraph
 
 
-class Inference(ABC):
+class Inference(object):
     """
     Abstract class defining an inference method that can be applied to a model.
     An inference method consists of a few components: the applied inference algorithm, the model definition (optionally a definition of posterior
@@ -105,9 +104,9 @@ class Inference(ABC):
                                                               data)}
                 else:
                     raise InferenceError("Keywords not of type mx.nd.NDArray or tuple/list for shapes passed into initialization.")
-            shape_constants = discover_shape_constants(data_shapes,
-                                                       self._graphs)
-            self.params.update_constants(shape_constants)
+                shape_constants = discover_shape_constants(data_shapes,
+                                                           self._graphs)
+                self.params.update_constants(shape_constants)
             self._initialize_params()
             self._initialized = True
         else:

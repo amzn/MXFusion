@@ -65,5 +65,5 @@ class MAP(InferenceAlgorithm):
             if v.type == VariableType.RANDVAR and v not in self._observed:
                 variables[v.uuid] = variables[self.posterior[v].factor.location.uuid]
 
-        logL = self.model.compute_log_prob(F=F, variables=variables)
-        return -logL
+        logL = self.model.log_pdf(F=F, variables=variables)
+        return -logL, -logL
