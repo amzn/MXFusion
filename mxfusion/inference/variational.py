@@ -57,4 +57,4 @@ class StochasticVariationalInference(InferenceAlgorithm):
             F=F, targets=knowns, constants=constants)
         logL = logL - self.posterior.compute_log_prob(
             F=F, targets=knowns, constants=constants)
-        return -logL
+        return -logL, -logL

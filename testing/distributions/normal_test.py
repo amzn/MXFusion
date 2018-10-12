@@ -238,6 +238,33 @@ class TestMultivariateNormalDistribution(object):
         if isSamples_any:
             assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)
 
+    @pytest.mark.parametrize(
+        "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
+        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (5,3,2), 5),
+        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(2,2)+0.1), False, (5,3,2), 5),
+        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(5,2,2)+0.1), True, (5,3,2), 5),
+        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(5,2,2)+0.1), True, (5,3,2), 5),
+        ])
+    def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype, mean, mean_isSamples, var,
+                             var_isSamples, rv_shape, num_samples):
+
+        mean_mx = mx.nd.array(mean, dtype=dtype)
+        if not mean_isSamples:
+            mean_mx = add_sample_dimension(mx.nd, mean_mx)
+        var_mx = mx.nd.array(var, dtype=dtype)
+        if not var_isSamples:
+            var_mx = add_sample_dimension(mx.nd, var_mx)
+        var = var_mx.asnumpy()
+
+        rand = np.random.rand(num_samples, *rv_shape)
+        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
+
+        normal = MultivariateNormal.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        variables = {normal.mean.uuid: mean_mx, normal.covariance.uuid: var_mx}
+        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
+
+        assert np.issubdtype(draw_samples_rt.dtype, dtype)
+        assert is_sampled_array(mx.nd, draw_samples_rt) == True
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
@@ -254,13 +281,8 @@ class TestMultivariateNormalDistribution(object):
         if not var_isSamples:
             var_mx = add_sample_dimension(mx.nd, var_mx)
         var = var_mx.asnumpy()
-        # var = (var[:,:,:,None]*var[:,None,:,:]).sum(-2)+np.eye(2)
-        # var_mx = mx.nd.array(var, dtype=dtype)
 
-        isSamples_any = any([mean_isSamples, var_isSamples])
         # n_dim = 1 + len(rv.shape) if isSamples_any else len(rv.shape)
-        # mean_np = numpy_array_reshape(mean, mean_isSamples, n_dim)
-        # var_np = numpy_array_reshape(var, var_isSamples, n_dim)
         rand = np.random.rand(num_samples, *rv_shape)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
         rand_exp = np.expand_dims(rand, axis=-1)
@@ -271,10 +293,8 @@ class TestMultivariateNormalDistribution(object):
         normal = MultivariateNormal.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
 
         variables = {normal.mean.uuid: mean_mx, normal.covariance.uuid: var_mx}
-        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables)
+        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == isSamples_any
-        if isSamples_any:
-            assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)
-        # assert np.allclose(rv_samples_np, draw_samples_rt.asnumpy()), (rv_samples_np, draw_samples_rt.asnumpy())
+        assert is_sampled_array(mx.nd, draw_samples_rt) == True
+        assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)
