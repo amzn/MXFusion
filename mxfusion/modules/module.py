@@ -1,3 +1,4 @@
+import warnings
 from mxnet.gluon import ParameterDict
 from mxnet import initializer
 from ..components.variables.variable import VariableType
@@ -21,7 +22,7 @@ class Module(Factor):
         self.ctx = ctx
         self._module_graph = None
         self._extra_graphs = []
-        self._log_prob_methods = {}
+        self._log_pdf_methods = {}
         self._draw_samples_methods = {}
 
     def _generate_outputs(self, output_shapes):
@@ -46,10 +47,10 @@ class Module(Factor):
             else variables
         outputs = {name: variable for name, variable in
                    zip(self.output_names, variables)}
+        self.successors = [(k, v) for k, v in outputs.items()]
         self._module_graph, self._extra_graphs = \
             self._build_module_graphs(outputs)
         self._attach_default_inference_algorithms()
-        self.successors = [(k, v) for k, v in outputs.items()]
 
     def expose_hidden_parameters_as_input(self, name, variable):
         v = variable.replicate_self()
@@ -93,7 +94,8 @@ class Module(Factor):
         return tuple(sorted([uuid_to_names[uuid] for uuid in uuids if uuid in
                              uuid_to_names]))
 
-    def attach_log_prob_algorithms(self, targets, conditionals, algorithm):
+    def attach_log_pdf_algorithms(self, targets, conditionals, algorithm,
+                                  alg_name=None):
         """
         :param targets: Variables to compute the log probability of.
         :type targets: tuple of str
@@ -107,9 +109,15 @@ class Module(Factor):
             targets = tuple(sorted(targets))
         if conditionals is not None:
             conditionals = tuple(sorted(conditionals))
-        self._log_prob_methods[(targets, conditionals)] = algorithm
+        self._log_pdf_methods[(targets, conditionals)] = algorithm
+        if alg_name is not None:
+            if not hasattr(self, alg_name):
+                setattr(self, alg_name, algorithm)
+            else:
+                warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
 
-    def attach_draw_samples_algorithms(self, targets, conditionals, algorithm):
+    def attach_draw_samples_algorithms(self, targets, conditionals, algorithm,
+                                       alg_name=None):
         """
         :param targets: a list of names of arguments to draw samples from.
         :type targets: tuple of str
@@ -127,8 +135,13 @@ class Module(Factor):
                                                              algorithm))
         else:
             self._draw_samples_methods[conditionals] = [(targets, algorithm)]
+        if alg_name is not None:
+            if not hasattr(self, alg_name):
+                setattr(self, alg_name, algorithm)
+            else:
+                warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
 
-    def compute_log_prob(self, F, variables, targets=None):
+    def log_pdf(self, F, variables, targets=None):
         if targets is None:
             target_names = tuple(sorted(self.output_names.copy()))
         else:
@@ -136,10 +149,10 @@ class Module(Factor):
         conditionals_names = self.get_names_from_uuid(variables.keys())
         conditionals_names = tuple(sorted(set(conditionals_names) - set(target_names)))
 
-        if (target_names, conditionals_names) in self._log_prob_methods:
-            alg = self._log_prob_methods[(target_names, conditionals_names)]
+        if (target_names, conditionals_names) in self._log_pdf_methods:
+            alg = self._log_pdf_methods[(target_names, conditionals_names)]
         else:
-            raise ModelSpecificationError("The targets, conditionals pattern for log_prob computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
+            raise ModelSpecificationError("The targets, conditionals pattern for log_pdf computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
         return alg.compute(F, variables)
 
     def draw_samples(self, F, variables, num_samples=1, targets=None):

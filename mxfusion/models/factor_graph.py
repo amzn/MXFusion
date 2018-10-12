@@ -211,7 +211,7 @@ class FactorGraph(object):
                     module_targets = [v.uuid for _, v in f.outputs
                                       if v.uuid in targets]
                 if len(module_targets) > 0:
-                    logL = logL + F.sum(expectation(F, f.compute_log_prob(
+                    logL = logL + F.sum(expectation(F, f.log_pdf(
                         F=F, variables=variables, targets=module_targets)))
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
@@ -259,11 +259,13 @@ class FactorGraph(object):
                     variables[uuid] = v
                     samples[uuid] = v
             elif isinstance(f, Module):
-                s = f.draw_samples(
+                outcome = f.draw_samples(
                     F=F, variables=variables, num_samples=num_samples,
                     targets=None)
-                samples.update(s)
-                variables.update(s)
+                outcome_uuid = [v.uuid for _, v in f.outputs]
+                for v, uuid in zip(outcome, outcome_uuid):
+                    variables[uuid] = v
+                    samples[uuid] = v
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         if targets:

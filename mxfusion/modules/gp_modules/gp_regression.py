@@ -4,11 +4,13 @@ from ...models import Model
 from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal
 from ...inference.inference_alg import InferenceAlgorithm, \
-    VariationalSamplingAlgorithm
+    SamplingAlgorithm
+from ...util.inference import realize_shape
+from ...util.customop import broadcast_to_w_samples
 
 
 class GPRegr_log_pdf(InferenceAlgorithm):
-    def __init__(self, model, observed, jitter=0.):
+    def __init__(self, model, observed):
         super(GPRegr_log_pdf, self).__init__(model=model, observed=observed)
 
     def compute(self, F, variables):
@@ -32,51 +34,41 @@ class GPRegr_log_pdf(InferenceAlgorithm):
         return - logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi)) / 2
 
 
-class GPRegr_draw_samples(VariationalSamplingAlgorithm):
-    def __init__(self, model, posterior, observed, num_samples=1,
-                 target_variables=None, jitter=0.):
-        super(GPRegr_draw_samples, self).__init__(
-            model=model, posterior=posterior, observed=observed,
-            num_samples=num_samples, target_variables=target_variables)
-        self.jitter = jitter
+class GPRegr_sampling(SamplingAlgorithm):
+    def __init__(self, model, observed, num_samples=1, target_variables=None):
+
+        super(GPRegr_sampling, self).__init__(
+            model=model, observed=observed, num_samples=num_samples,
+            target_variables=target_variables)
 
     def compute(self, F, variables):
         X = variables[self.model.X]
-        Y = variables[self.model.Y]
         noise_var = variables[self.model.noise_var]
-        D = Y.shape[-1]
         N = X.shape[-2]
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
         K = kern.K(F, X, **kern_params) + F.eye(N, dtype=X.dtype) * noise_var
         L = F.linalg.potrf(K)
+        Y_shape = realize_shape(self.model.Y.shape, variables)
+        out_shape = (self.num_samples,)+Y_shape
+
+        L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
+        die = F.random.normal(shape=out_shape, dtype=self.model.F.factor.dtype)
+        f_samples = F.linalg.trmm(L, die)
 
         if self.model.mean_func is not None:
             mean = self.model.mean_func(F, X)
-            Y = Y - mean
+            f_samples = f_samples + mean
 
-class GPRegr_draw_samples(InferenceAlgorithm):
-    def __init__(self, model, observed):
-        super(GPRegr_draw_samples, self).__init__(model=model, observed=observed)
+        y_samples = f_samples + F.random.normal(shape=out_shape, dtype=self.model.Y.factor.dtype) * F.sqrt(noise_var)
+        samples = {self.model.F.uuid: f_samples, self.model.Y.uuid: y_samples}
 
-    def compute(self, F, data, parameters, constants):
-        X = data[self.model.X]
-        X_cond = data[self.model.X_cond]
-        Y_cond = data[self.model.Y_cond]
-        kern = self.model.kernel
-        kern_params = kern.fetch_parameters(parameters)
+        if self.target_variables:
+            return (samples[v] for v in self.target_variables)
+        else:
+            return (y_samples,)
 
-        Kxt = kern.K(F, X_cond, X, **kern_params)
-        Ktt = kern.Kdiag(F, X, **kern_params)
-        Kxx = kern.K(F, X_cond, **kern_params)
-        L = F.linalg.potrf(Kxx)
-        LInvY = F.linalg.trsm(L, Y_cond)
-        LinvKxt = F.linalg.trsm(L, Kxt)
-
-        mu = F.linalg.gemm2(LinvKxt, LInvY, True, False)
-        var = Ktt - F.sum(F.square(LinvKxt), axis=1)
-        return mu, var
 
 # class GPPrediction(InferenceAlgorithm):
 #     def __init__(self, model, observed):
@@ -112,7 +104,6 @@ class GPRegression(Module):
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         inputs = [('X', X), ('noise_var', noise_var)]
-        # + [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(GPRegression, self).__init__(
@@ -141,11 +132,11 @@ class GPRegression(Module):
         graph.noise_var = self.noise_var.replicate_self()
         graph.F = GaussianProcess.define_variable(
             X=graph.X, kernel=self.kernel, shape=Y.shape,
-            mean_func=self.mean_func, rand_gen=self.rand_gen, dtype=self.dtype,
+            mean_func=self.mean_func, dtype=self.dtype,
             ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var, rand_gen=self.rand_gen,
+            mean=graph.F, variance=graph.noise_var,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.F.factor.kernel
@@ -154,9 +145,16 @@ class GPRegression(Module):
     def _attach_default_inference_algorithms(self):
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
-        self.attach_log_prob_algorithms(
+        self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=GPRegr_log_pdf(self._module_graph, observed))
+            algorithm=GPRegr_log_pdf(self._module_graph, observed),
+            alg_name='gp_log_pdf')
+
+        observed = [v for k, v in self.inputs]
+        self.attach_draw_samples_algorithms(
+            targets=self.output_names, conditionals=self.input_names,
+            algorithm=GPRegr_sampling(self._module_graph, observed),
+            alg_name='gp_sampling')
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, mean_func=None,
@@ -170,11 +168,13 @@ class GPRegression(Module):
         :type X: Variable
         :param kernel: the kernel of Gaussian process
         :type kernel: Kernel
+        :param noise_var: the Gaussian noise for GP regression
+        :type noise_var: Variable
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
         :param mean_func: the mean function of Gaussian process
-        :type mean_func: N/A
+        :type mean_func: MXFusionFunction
         :param rand_gen: the random generator (default: MXNetRandomGenerator)
         :type rand_gen: RandomGenerator
         :param dtype: the data type for float point numbers
