@@ -29,10 +29,12 @@ class VariationalInference(InferenceAlgorithm):
 
 class VariationalSamplingAlgorithm(SamplingAlgorithm):
     """
-    The base class of sampling algorithms.
+    The base class for the sampling algorithms that are applied to the models with variational approximation.
 
-    :param model_graph: the definition of the probabilistic model
-    :type model_graph: Model
+    :param model: the definition of the probabilistic model
+    :type model: Model
+    :param posterior: the definition of the variational posterior of the probabilistic model
+    :param posterior: Posterior
     :param observed: A list of observed variables
     :type observed: [Variable]
     :param num_samples: the number of samples used in estimating the variational lower bound
@@ -68,7 +70,6 @@ class StochasticVariationalInference(VariationalInference):
     :param observed: A list of observed variables
     :type observed: [Variable]
     """
-
     def __init__(self, num_samples, model, posterior, observed):
         super(StochasticVariationalInference, self).__init__(
             model=model, posterior=posterior, observed=observed)
@@ -76,23 +77,16 @@ class StochasticVariationalInference(VariationalInference):
 
     def compute(self, F, variables):
         """
-        The method for the computation of the inference algorithm
+        Compute the inference algorithm
 
         :param F: the execution context (mxnet.ndarray or mxnet.symbol)
         :type F: Python module
-        :param data: the data variables for inference
-        :type data: {Variable: mxnet.ndarray.ndarray.NDArray or
-            mxnet.symbol.symbol.Symbol}
-        :param parameters: the parameters for inference
-        :type parameters: {Variable: mxnet.ndarray.ndarray.NDArray or
-            mxnet.symbol.symbol.Symbol}
-        :param constants: the constants for inference
-        :type parameters: {Variable: mxnet.ndarray.ndarray.NDArray or
-            mxnet.symbol.symbol.Symbol}
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-
         samples = self.posterior.draw_samples(
             F=F, variables=variables, num_samples=self.num_samples)
         variables.update(samples)
