@@ -97,7 +97,6 @@ class TestNormalDistribution(object):
 def make_symmetric(array):
     original_shape = array.shape
     d3_array = np.reshape(array, (-1,)+array.shape[-2:])
-    # import pdb; pdb.set_trace()
     d3_array = (d3_array[:,:,:,None]*d3_array[:,:,None,:]).sum(-3)+np.eye(2)
     return np.reshape(d3_array, original_shape)
 

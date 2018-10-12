@@ -75,7 +75,7 @@ class FactorGraphTests(unittest.TestCase):
     def test_bnn_model(self):
 
         bnn_fg, component_set = self.make_model(self.bnn_net)
-        self.assertTrue(component_set <= bnn_fg.components_graph.nodes().keys(),
+        self.assertTrue(component_set <= set(bnn_fg.components_graph.nodes().keys()),
                         "Variables are all added to _components_graph {} {}".format(component_set, bnn_fg.components_graph.nodes().keys()))
         self.assertTrue(component_set <= bnn_fg.components.keys(), "Variable is added to _components dict. {} {}".format(component_set, bnn_fg.components.keys()))
         # assert False
@@ -86,7 +86,7 @@ class FactorGraphTests(unittest.TestCase):
         f = Normal.define_variable(mean=m, variance=v)
         component_set = set((v, m, f))
         self.fg.f = f
-        self.assertTrue(component_set <= self.fg.components_graph.nodes().keys(),
+        self.assertTrue(component_set <= set(self.fg.components_graph.nodes().keys()),
                         "Variables are all added to _components_graph {} {}".format(component_set, self.fg.components_graph.nodes().keys()))
         self.assertTrue(set((v.uuid, m.uuid, f.uuid)) <= self.fg.components.keys(), "Variable is added to _components dict. {} {}".format(v.uuid, self.fg.components))
 
@@ -96,7 +96,7 @@ class FactorGraphTests(unittest.TestCase):
         y = f(x)
         component_set = set((x, y))
         self.fg.y = y
-        self.assertTrue(component_set <= self.fg.components_graph.nodes().keys(),
+        self.assertTrue(component_set <= set(self.fg.components_graph.nodes().keys()),
                         "Variables are all added to _components_graph {} {}".format(component_set, self.fg.components_graph.nodes().keys()))
         self.assertTrue(set(map(lambda x: x.uuid, component_set)) <= self.fg.components.keys(), "Variable is added to _components dict. {} {}".format(set(map(lambda x: x.uuid, component_set)), self.fg.components.keys()))
         self.assertTrue(len(self.fg.components_graph.nodes().keys()) == 5, "There should be variables for the block parameters and a function evaluation totally 5 nodes in the graph but there were only {} in {}".format(len(self.fg.components_graph.nodes().keys()), self.fg.components_graph.nodes().keys()))
@@ -330,3 +330,7 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(all([m2_item == component_map_item for m2_item, component_map_item in zippy_keys]))
         import os
         os.remove(self.TESTFILE)
+
+    def test_print_fg(self):
+        m, component_set = self.make_model(self.bnn_net)
+        print(m)
