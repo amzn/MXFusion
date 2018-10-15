@@ -105,6 +105,8 @@ class ModelComponent(object):
     def successors(self):
         """
         Return a list of nodes pointed to by the edges of this node.
+
+        Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
             succ = [(e['name'], v) for v, e in self.graph.succ[self].items()]
@@ -144,8 +146,7 @@ class ModelComponent(object):
         """
         Return a list of nodes whose edges point into this node.
 
-        :param predecessors: List of tuples of name to node e.g. [('random_variable': Variable y)]
-        :type predecessors: List of tuples of name to node e.g. [('random_variable': Variable y)]
+        Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
             pred = [(e['name'], v) for v, e in self.graph.pred[self].items()]
@@ -235,7 +236,7 @@ class ModelComponent(object):
         :param var_map: A mapping from the original model's components to the replicated components. This is used to track which components
             have already been replicated in a dynamic programming style.
         :type var_map: {original_node: new_node}
-        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to replicate that node's predecessors and successors.
+        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to replicate that node's predecessors and successors. If None, only replicates this node.
         :type replication_function: function
         """
         var_map = var_map if var_map is not None else {}

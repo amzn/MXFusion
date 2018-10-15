@@ -105,3 +105,11 @@ class StationaryKernel(NativeKernel):
         :rtype: MXNet NDArray or MXNet Symbol
         """
         return broadcast_to_w_samples(F, variance, X.shape[:-1])
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a kernel.
+        """
+        replicant = super(StationaryKernel, self).replicate_self(attribute_map)
+        replicant.ARD = self.ARD
+        return replicant

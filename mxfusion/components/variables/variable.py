@@ -41,17 +41,21 @@ class Variable(ModelComponent):
     def __init__(self, value=None, shape=None, transformation=None, isInherited=False, initial_value=None):
         super(Variable, self).__init__()
 
+        # TODO If no shape we assume a scalar but this could be incorrect if we really just mean the shape is unknown.
         self.shape = shape if shape is not None else (1,)
         self.attributes = [s for s in self.shape if isinstance(s, Variable)]
         # whether the variable is inherited from a Gluon block.
         self.isInherited = isInherited
         self._transformation = transformation
         self._value = None
+        if isinstance(initial_value, (int, float)):
+            initial_value = mx.nd.array([initial_value])
         self._initial_value = initial_value
         self.isConstant = False
         from ..distributions import Distribution
+        from ...modules.module import Module
         from ..functions.function_evaluation import FunctionEvaluation
-        if isinstance(value, Distribution):
+        if isinstance(value, (Distribution, Module)):
             self._initialize_as_randvar(value, shape, transformation)
         elif isinstance(value, FunctionEvaluation):
             self._initialize_as_funcvar(value, shape, transformation)
@@ -62,12 +66,13 @@ class Variable(ModelComponent):
     def type(self):
         from ..distributions import Distribution
         from ..functions import FunctionEvaluation
+        from ...modules.module import Module
         if self.factor is None:
             if self.isConstant:
                 return VariableType.CONSTANT
             else:
                 return VariableType.PARAMETER
-        elif isinstance(self.factor, Distribution):
+        elif isinstance(self.factor, (Distribution, Module)):
             return VariableType.RANDVAR
         elif isinstance(self.factor, FunctionEvaluation):
             return VariableType.FUNCVAR
@@ -192,3 +197,40 @@ class Variable(ModelComponent):
     @property
     def initial_value(self):
         return self._initial_value
+
+    @property
+    def initial_value_before_transformation(self):
+        """
+        The initial value of a variable before applying the chosen
+        transformation (if exists)
+        """
+        if self._transformation is None:
+            return self._initial_value
+        else:
+            return self._transformation.inverseTransform(self._initial_value,
+                                                         F=mx.nd)
+
+    def __add__(self, y):
+        from ..functions.operators import add
+        return add(x=self, y=y)
+
+    def __sub__(self, y):
+        from ..functions.operators import subtract
+        return subtract(self, y)
+
+    def __mul__(self, y):
+        from ..functions.operators import multiply
+        return multiply(self, y)
+
+    def __truediv__(self, y):
+        from ..functions.operators import divide
+        return divide(self, y)
+
+    def __pow__(self, y):
+        from ..functions.operators import power
+        return power(self, y)
+
+    @property
+    def T(self):
+        from ..functions.operators import transpose
+        return transpose(self)

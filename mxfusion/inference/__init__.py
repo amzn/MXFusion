@@ -29,3 +29,4 @@ from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampli
 from .grad_based_inference import GradBasedInference
 from .variational import StochasticVariationalInference
 from .inference_parameters import InferenceParameters
+from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
