@@ -15,7 +15,7 @@ class AddKernel(CombinationKernel):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, sub_kernels, name='add', dtype=None, ctx=None):
+    def __init__(self, sub_kernels, name='sum', dtype=None, ctx=None):
         kernels = []
         for k in sub_kernels:
             if isinstance(k, AddKernel):
