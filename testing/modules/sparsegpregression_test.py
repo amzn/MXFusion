@@ -45,6 +45,4 @@ class TestSparseGPRegressionModule(object):
         loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
         l_mf = -loss
 
-        print(l_mf.asnumpy(), l_gpy)
-        assert False
         assert np.allclose(l_mf.asnumpy(), l_gpy)
