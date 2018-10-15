@@ -210,7 +210,7 @@ class FactorGraphTests(unittest.TestCase):
         variance_rt = add_sample_dimension(mx.nd, variance.constant)
         variance2_rt = add_sample_dimension(mx.nd, variance2.constant)
         samples = m.draw_samples(F=mx.nd, num_samples=5, targets=[m.v3.uuid],
-        variables={v.uuid: v_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt})[m.v3.uuid]
+        variables={v.uuid: v_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt})[0]
 
         samples_np = v_np + samples_1_np[:, None] + np.sqrt(0.1)*samples_2_np.reshape(5,10)
 

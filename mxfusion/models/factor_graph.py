@@ -177,12 +177,10 @@ class FactorGraph(object):
         Any relevant constants are specified in the "constants" argument.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
+        :param variables: The set of variables
+        :type variables: {UUID : MXNet NDArray or MXNet Symbol}
         :param targets: Variables to compute the log probability of.
         :type targets: {uuid : mxnet NDArray or mxnet Symbol}
-        :param conditionals: variables to condition the probabilities on.
-        :type conditionals: {uuid : mxnet NDArray or mxnet Symbol}
-        :param constants: the constants that may be used in computation.
-        :type constants: {UUID: float or mxnet NDArray or mxnet Symbol}
         :returns: the sum of the log probability of all the target variables.
         :rtype: mxnet NDArray or mxnet Symbol
         """
@@ -220,19 +218,17 @@ class FactorGraph(object):
     def draw_samples(self, F, variables, num_samples=1, targets=None):
         """
         Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples from all the variables
-        that are *not* in the ``conditionals`` argument.
+        that are *not* in the conditional variables. If the ``targets`` argument is given, this method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict of samples where the keys are the UUIDs of variables and the values are the samples.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
+        :param variables: The set of variables
+        :type variables: {UUID : MXNet NDArray or MXNet Symbol}
         :param num_samples: The number of samples to draw for the target variables.
         :type num_samples: int
         :param targets: a list of Variables to draw samples from.
         :type targets: [UUID]
-        :param conditionals: Variables to condition the samples on.
-        :type conditionals: {UUID : RTVariable}
-        :param constants: the constants that may be used in computation.
-        :type constants: {UUID: float or mxnet NDArray or mxnet Symbol}
         :returns: the samples of the target variables.
-        :rtype: {UUID : RTVariable}
+        :rtype: (MXNet NDArray or MXNet Symbol,) or {str(UUID): MXNet NDArray or MXNet Symbol}
         """
         samples = {}
         for f in self.ordered_factors:
@@ -268,10 +264,9 @@ class FactorGraph(object):
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         if targets:
-            targets = set(targets) if isinstance(targets, (list, tuple)) \
-                else targets
-            samples = {uuid: samples[uuid] for uuid in targets}
-        return samples
+            return tuple(samples[uuid] for uuid in targets)
+        else:
+            return samples
 
     def remove_component(self, component):
         """

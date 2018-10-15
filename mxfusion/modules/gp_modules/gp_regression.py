@@ -37,6 +37,9 @@ class GPRegr_log_pdf(InferenceAlgorithm):
 
 
 class GPRegr_sampling(SamplingAlgorithm):
+    """
+    The method for drawing samples from the prior distribution of a Gaussian process regression model.
+    """
     def __init__(self, model, observed, num_samples=1, target_variables=None,
                  rand_gen=None):
 
@@ -100,6 +103,24 @@ class GPRegr_sampling(SamplingAlgorithm):
 
 class GPRegression(Module):
     """
+    Gaussian process regression module
+
+    This module contains a Gaussian process with Gaussian likelihood.
+
+    :param X: the input variables on which the random variables are conditioned.
+    :type X: Variable
+    :param kernel: the kernel of Gaussian process.
+    :type kernel: Kernel
+    :param noise_var: the variance of the Gaussian likelihood
+    :type noise_var: Variable
+    :param mean_func: the mean function of Gaussian process.
+    :type mean_func: MXFusionFunction
+    :param rand_gen: the random generator (default: MXNetRandomGenerator).
+    :type rand_gen: RandomGenerator
+    :param dtype: the data type for float point numbers.
+    :type dtype: numpy.float32 or numpy.float64
+    :param ctx: the mxnet context (default: None/current context).
+    :type ctx: None or mxnet.cpu or mxnet.gpu
     """
 
     def __init__(self, X, kernel, noise_var, mean_func=None, rand_gen=None,
@@ -120,6 +141,9 @@ class GPRegression(Module):
     def _generate_outputs(self, output_shapes=None):
         """
         Generate the output of the module with given output_shapes.
+
+        :param output_shape: the shapes of all the output variables
+        :type output_shape: {str: tuple}
         """
         if output_shapes is None:
             Y_shape = self.X.shape[:-1] + (1,)
@@ -127,11 +151,11 @@ class GPRegression(Module):
             Y_shape = output_shapes['random_variable']
         self.set_outputs([Variable(shape=Y_shape)])
 
-    def _build_module_graphs(self, output_variables):
+    def _build_module_graphs(self):
         """
         Generate a model graph for GP regression module.
         """
-        Y = output_variables['random_variable']
+        Y = self.random_variable
         graph = Model(name='gp_regression')
         graph.X = self.X.replicate_self()
         graph.noise_var = self.noise_var.replicate_self()
@@ -148,6 +172,9 @@ class GPRegression(Module):
         return graph, []
 
     def _attach_default_inference_algorithms(self):
+        """
+        The internal method for attaching default inference algorithms of the module. This method needs to be overridden by specific probabilistic modules.
+        """
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
@@ -166,15 +193,14 @@ class GPRegression(Module):
     def define_variable(X, kernel, noise_var, shape=None, mean_func=None,
                         rand_gen=None, dtype=None, ctx=None):
         """
-        Creates and returns a set of random variable drawn from a Gaussian
-        process.
+        Creates and returns a variable drawn from a Gaussian process regression.
 
         :param X: the input variables on which the random variables are
         conditioned.
         :type X: Variable
         :param kernel: the kernel of Gaussian process
         :type kernel: Kernel
-        :param noise_var: the Gaussian noise for GP regression
+        :param noise_var: the variance of the Gaussian likelihood
         :type noise_var: Variable
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)

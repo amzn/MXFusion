@@ -11,6 +11,9 @@ from ...util.customop import make_diagonal
 
 
 class SVGPRegr_log_pdf(VariationalInference):
+    """
+    The inference algorithm for computing the variational lower bound of the stochastic variational Gaussian process with Gaussian likelihood.
+    """
     def __init__(self, model, posterior, observed, jitter=0.):
         super(SVGPRegr_log_pdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
@@ -121,7 +124,28 @@ class SVGPRegr_log_pdf(VariationalInference):
 
 class SVGPRegression(Module):
     """
-    Stochastic Variational Gaussian Process Regression module with Gaussian likelihood
+    Stochastic variational sparse Gaussian process regression module
+
+    This module contains a variational sparse Gaussian process with Gaussian likelihood.
+
+    :param X: the input variables on which the random variables are conditioned.
+    :type X: Variable
+    :param kernel: the kernel of Gaussian process.
+    :type kernel: Kernel
+    :param noise_var: the variance of the Gaussian likelihood
+    :type noise_var: Variable
+    :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated if not specified.
+    :type inducing_inputs: Variable
+    :param inducing_num: the number of inducing points of sparse GP (default: 10)
+    :type inducing_num: int
+    :param mean_func: the mean function of Gaussian process.
+    :type mean_func: MXFusionFunction
+    :param rand_gen: the random generator (default: MXNetRandomGenerator).
+    :type rand_gen: RandomGenerator
+    :param dtype: the data type for float point numbers.
+    :type dtype: numpy.float32 or numpy.float64
+    :param ctx: the mxnet context (default: None/current context).
+    :type ctx: None or mxnet.cpu or mxnet.gpu
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
@@ -146,6 +170,9 @@ class SVGPRegression(Module):
     def _generate_outputs(self, output_shapes=None):
         """
         Generate the output of the module with given output_shapes.
+
+        :param output_shape: the shapes of all the output variables
+        :type output_shape: {str: tuple}
         """
         if output_shapes is None:
             Y_shape = self.X.shape[:-1] + (1,)
@@ -153,11 +180,11 @@ class SVGPRegression(Module):
             Y_shape = output_shapes['random_variable']
         self.set_outputs([Variable(shape=Y_shape)])
 
-    def _build_module_graphs(self, output_variables):
+    def _build_module_graphs(self):
         """
         Generate a model graph for GP regression module.
         """
-        Y = output_variables['random_variable']
+        Y = self.random_variable
         graph = Model(name='sparsegp_regression')
         graph.X = self.X.replicate_self()
         graph.inducing_inputs = self.inducing_inputs.replicate_self()
@@ -185,6 +212,9 @@ class SVGPRegression(Module):
         return graph, [post]
 
     def _attach_default_inference_algorithms(self):
+        """
+        Generate a model graph for stochastic variational GP regression module.
+        """
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
@@ -205,24 +235,28 @@ class SVGPRegression(Module):
                         inducing_num=10, mean_func=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
-        Creates and returns a set of random variable drawn from a Gaussian
-        process.
+        Creates and returns a variable drawn from a Stochastic variational sparse Gaussian process regression with Gaussian likelihood.
 
-        :param X: the input variables on which the random variables are
-        conditioned.
+        :param X: the input variables on which the random variables are conditioned.
         :type X: Variable
-        :param kernel: the kernel of Gaussian process
+        :param kernel: the kernel of Gaussian process.
         :type kernel: Kernel
+        :param noise_var: the variance of the Gaussian likelihood
+        :type noise_var: Variable
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
-        :param mean_func: the mean function of Gaussian process
-        :type mean_func: N/A
-        :param rand_gen: the random generator (default: MXNetRandomGenerator)
+        :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated if not specified.
+        :type inducing_inputs: Variable
+        :param inducing_num: the number of inducing points of sparse GP (default: 10)
+        :type inducing_num: int
+        :param mean_func: the mean function of Gaussian process.
+        :type mean_func: MXFusionFunction
+        :param rand_gen: the random generator (default: MXNetRandomGenerator).
         :type rand_gen: RandomGenerator
-        :param dtype: the data type for float point numbers
+        :param dtype: the data type for float point numbers.
         :type dtype: numpy.float32 or numpy.float64
-        :param ctx: the mxnet context (default: None/current context)
+        :param ctx: the mxnet context (default: None/current context).
         :type ctx: None or mxnet.cpu or mxnet.gpu
         """
         gp = SVGPRegression(

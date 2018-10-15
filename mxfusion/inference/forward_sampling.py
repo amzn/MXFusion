@@ -38,10 +38,7 @@ class ForwardSamplingAlgorithm(SamplingAlgorithm):
             F=F, variables=variables, targets=self.target_variables,
             num_samples=self.num_samples)
 
-        if self.target_variables:
-            return tuple(samples[v] for v in self.target_variables)
-        else:
-            return samples
+        return samples
 
 
 class ForwardSampling(TransferInference):
