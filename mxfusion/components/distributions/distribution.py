@@ -18,7 +18,7 @@ class LogPDFDecorator(object):
 
         def log_pdf_variables(self, F, variables):
             """
-            Computes the logrithm of the probability density/mass function
+            Computes the logarithm of the probability density/mass function
             (PDF/PMF) of the distribution. The inputs and outputs variables are
             fetched from the *variables* argument according to their UUIDs.
 

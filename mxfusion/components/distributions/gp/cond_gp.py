@@ -12,7 +12,7 @@ class ConditionalGaussianProcessLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kw):
             """
-            Computes the logrithm of the probability density/mass function (PDF/PMF) of the distribution.
+            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
             :param kw: the dict of input and output variables of the distribution
@@ -175,7 +175,7 @@ class ConditionalGaussianProcess(Distribution):
     def log_pdf(self, X, X_cond, Y_cond, random_variable, F=None,
                 **kernel_params):
         """
-        Computes the logrithm of the probability density function (PDF) of the condtional Gaussian process.
+        Computes the logarithm of the probability density function (PDF) of the condtional Gaussian process.
 
         .. math::
            \\log p(Y| X_c, Y_c, X) = \\log \\mathcal{N}(Y| K_{*c}K_{cc}^{-1}(Y_C - g(X_c)) + g(X), K_{**} - K_{*c}K_{cc}^{-1}K_{*c}^\\top)
