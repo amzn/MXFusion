@@ -251,18 +251,17 @@ class FactorGraph(object):
                     continue
                 elif any(known):
                     raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ + " has been observed!")
-                outcome = f.draw_samples(
-                    F=F, num_samples=num_samples, variables=variables,
-                    always_return_tuple=True)
                 outcome_uuid = [v.uuid for _, v in f.outputs]
+                outcome = f.draw_samples(
+                    F=F, num_samples=num_samples, variables=variables, always_return_tuple=True)
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
                     samples[uuid] = v
             elif isinstance(f, Module):
+                outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.draw_samples(
                     F=F, variables=variables, num_samples=num_samples,
-                    targets=None)
-                outcome_uuid = [v.uuid for _, v in f.outputs]
+                    targets=outcome_uuid)
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
                     samples[uuid] = v

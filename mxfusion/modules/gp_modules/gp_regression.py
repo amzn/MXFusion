@@ -5,14 +5,16 @@ from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal
 from ...inference.inference_alg import InferenceAlgorithm, \
     SamplingAlgorithm
+from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape
 from ...util.customop import broadcast_to_w_samples
 
 
 class GPRegr_log_pdf(InferenceAlgorithm):
-    def __init__(self, model, observed):
-        super(GPRegr_log_pdf, self).__init__(model=model, observed=observed)
-
+    """
+    The method to compute the logarithm of the probability density function of
+    a Gaussian process model with Gaussian likelihood.
+    """
     def compute(self, F, variables):
         X = variables[self.model.X]
         Y = variables[self.model.Y]
@@ -35,11 +37,14 @@ class GPRegr_log_pdf(InferenceAlgorithm):
 
 
 class GPRegr_sampling(SamplingAlgorithm):
-    def __init__(self, model, observed, num_samples=1, target_variables=None):
+    def __init__(self, model, observed, num_samples=1, target_variables=None,
+                 rand_gen=None):
 
         super(GPRegr_sampling, self).__init__(
             model=model, observed=observed, num_samples=num_samples,
             target_variables=target_variables)
+        self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
+            rand_gen
 
     def compute(self, F, variables):
         X = variables[self.model.X]
@@ -54,20 +59,20 @@ class GPRegr_sampling(SamplingAlgorithm):
         out_shape = (self.num_samples,)+Y_shape
 
         L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
-        die = F.random.normal(shape=out_shape, dtype=self.model.F.factor.dtype)
-        f_samples = F.linalg.trmm(L, die)
+        die = self._rand_gen.sample_normal(shape=out_shape,
+                                           dtype=self.model.F.factor.dtype)
+        y_samples = F.linalg.trmm(L, die)
 
         if self.model.mean_func is not None:
             mean = self.model.mean_func(F, X)
-            f_samples = f_samples + mean
+            y_samples = y_samples + mean
 
-        y_samples = f_samples + F.random.normal(shape=out_shape, dtype=self.model.Y.factor.dtype) * F.sqrt(noise_var)
-        samples = {self.model.F.uuid: f_samples, self.model.Y.uuid: y_samples}
+        samples = {self.model.Y.uuid: y_samples}
 
         if self.target_variables:
-            return (samples[v] for v in self.target_variables)
+            return tuple(samples[v] for v in self.target_variables)
         else:
-            return (y_samples,)
+            return samples
 
 
 # class GPPrediction(InferenceAlgorithm):
@@ -132,11 +137,11 @@ class GPRegression(Module):
         graph.noise_var = self.noise_var.replicate_self()
         graph.F = GaussianProcess.define_variable(
             X=graph.X, kernel=self.kernel, shape=Y.shape,
-            mean_func=self.mean_func, dtype=self.dtype,
-            ctx=self.ctx)
+            mean_func=self.mean_func, rand_gen=self._rand_gen,
+            dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var,
+            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.F.factor.kernel
@@ -153,7 +158,8 @@ class GPRegression(Module):
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=GPRegr_sampling(self._module_graph, observed),
+            algorithm=GPRegr_sampling(self._module_graph, observed,
+                                      rand_gen=self._rand_gen),
             alg_name='gp_sampling')
 
     @staticmethod

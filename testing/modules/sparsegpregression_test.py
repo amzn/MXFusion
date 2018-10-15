@@ -37,7 +37,7 @@ class TestSparseGPRegressionModule(object):
         m.noise_var = Variable(transformation=PositiveTransformation(), initial_value=mx.nd.array(noise_var, dtype=dtype))
         kernel = RBF(input_dim=3, ARD=True, variance=mx.nd.array(variance, dtype=dtype), lengthscale=mx.nd.array(lengthscale, dtype=dtype), dtype=dtype)
         m.Y = SparseGPRegression.define_variable(X=m.X, kernel=kernel, noise_var=m.noise_var, inducing_inputs=m.Z, shape=(m.N, 1), dtype=dtype)
-        m.Y.factor.jitter = 1e-8
+        m.Y.factor.sgp_log_pdf.jitter = 1e-8
 
         observed = [m.X, m.Y]
         infr = Inference(MAP(model=m, observed=observed), dtype=dtype)

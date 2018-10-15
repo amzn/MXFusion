@@ -37,10 +37,11 @@ class ForwardSamplingAlgorithm(SamplingAlgorithm):
         samples = self.model.draw_samples(
             F=F, variables=variables, targets=self.target_variables,
             num_samples=self.num_samples)
-        if self.target_variables is not None:
-            samples = {v: samples[v] for v in self.target_variables}
-        samples = {k: v for k, v in samples.items()}
-        return samples
+
+        if self.target_variables:
+            return tuple(samples[v] for v in self.target_variables)
+        else:
+            return samples
 
 
 class ForwardSampling(TransferInference):

@@ -8,6 +8,7 @@ from mxfusion.components import Variable
 from mxfusion.inference import Inference, MAP
 from mxfusion.components.variables.var_trans import PositiveTransformation
 
+
 import matplotlib
 matplotlib.use('Agg')
 import GPy
@@ -45,7 +46,6 @@ class TestSVGPRegressionModule(object):
         kernel = RBF(input_dim=3, ARD=True, variance=mx.nd.array(variance, dtype=dtype), lengthscale=mx.nd.array(lengthscale, dtype=dtype), dtype=dtype)
         m.Y = SVGPRegression.define_variable(X=m.X, kernel=kernel, noise_var=m.noise_var, inducing_inputs=m.Z, shape=(m.N, 1), dtype=dtype)
         gp = m.Y.factor
-        # gp.jitter = 1e-8
 
         observed = [m.X, m.Y]
         infr = Inference(MAP(model=m, observed=observed), dtype=dtype)

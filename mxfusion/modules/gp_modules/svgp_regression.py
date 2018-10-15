@@ -6,6 +6,7 @@ from ...components.variables.variable import Variable
 from ...components.variables.var_trans import PositiveTransformation
 from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess, MultivariateNormal
 from ...inference.variational import VariationalInference, VariationalSamplingAlgorithm
+from ...inference.forward_sampling import ForwardSamplingAlgorithm
 from ...util.customop import make_diagonal
 
 
@@ -13,8 +14,8 @@ class SVGPRegr_log_pdf(VariationalInference):
     def __init__(self, model, posterior, observed, jitter=0.):
         super(SVGPRegr_log_pdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
-        self.jitter = jitter
         self.log_pdf_scaling = 1
+        self.jitter = jitter
 
     def compute(self, F, variables):
         X = variables[self.model.X]
@@ -70,52 +71,52 @@ class SVGPRegr_log_pdf(VariationalInference):
         return logL
 
 
-class SVGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
-    def __init__(self, model, posterior, observed, num_samples=1,
-                 target_variables=None, jitter=0.):
-        super(SVGPRegr_draw_samples_independent, self).__init__(
-            model=model, posterior=posterior, observed=observed,
-            num_samples=num_samples, target_variables=target_variables)
-        self.jitter = jitter
-
-    def compute(self, F, variables):
-        X = variables[self.model.X]
-        Z = variables[self.model.inducing_inputs]
-        noise_var = variables[self.model.noise_var]
-        mu = variables[self.posterior.qU_mean]
-        S_W = variables[self.posterior.qU_cov_W]
-        S_diag = variables[self.posterior.qU_cov_diag]
-        M = Z.shape[-2]
-        kern = self.model.kernel
-        kern_params = kern.fetch_parameters(variables)
-
-        S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
-
-        Kuu = kern.K(F, Z, **kern_params)
-        if self.jitter > 0.:
-            Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
-
-        L = F.linalg.potrf(Kuu)
-        Ls = F.linalg.potrf(S)
-        LinvLs = F.linalg.trsm(L, Ls)
-        Linvmu = F.linalg.trsm(L, mu)
-        LinvSLinvT = F.linalg.syrk(LinvLs)
-        wv = F.linalg.trsm(L, Linvmu, transpose=True)
-
-        Kxt = kern.K(F, Z, X, **kern_params)
-        Ktt_diag = kern.Kdiag(F, X, **kern_params)
-
-        f_mean = F.linalg.gemm2(Kxt, wv, True, False)
-
-        LinvKxt = F.linalg.trsm(L, Kxt)
-        tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
-        var = F.expand_dims(Ktt_diag - F.sum(F.square(LinvKxt), axis=-2) + F.sum(tmp*LinvKxt, axis=-2), axis=-1)
-
-        f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
-
-        # y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
-
-        return {self.model.Y.uuid: f_samples, 'F_mean': f_mean, 'F_var':var}
+# class SVGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
+#     def __init__(self, model, posterior, observed, num_samples=1,
+#                  target_variables=None, jitter=0.):
+#         super(SVGPRegr_draw_samples_independent, self).__init__(
+#             model=model, posterior=posterior, observed=observed,
+#             num_samples=num_samples, target_variables=target_variables)
+#         self.jitter = jitter
+#
+#     def compute(self, F, variables):
+#         X = variables[self.model.X]
+#         Z = variables[self.model.inducing_inputs]
+#         noise_var = variables[self.model.noise_var]
+#         mu = variables[self.posterior.qU_mean]
+#         S_W = variables[self.posterior.qU_cov_W]
+#         S_diag = variables[self.posterior.qU_cov_diag]
+#         M = Z.shape[-2]
+#         kern = self.model.kernel
+#         kern_params = kern.fetch_parameters(variables)
+#
+#         S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
+#
+#         Kuu = kern.K(F, Z, **kern_params)
+#         if self.jitter > 0.:
+#             Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
+#
+#         L = F.linalg.potrf(Kuu)
+#         Ls = F.linalg.potrf(S)
+#         LinvLs = F.linalg.trsm(L, Ls)
+#         Linvmu = F.linalg.trsm(L, mu)
+#         LinvSLinvT = F.linalg.syrk(LinvLs)
+#         wv = F.linalg.trsm(L, Linvmu, transpose=True)
+#
+#         Kxt = kern.K(F, Z, X, **kern_params)
+#         Ktt_diag = kern.Kdiag(F, X, **kern_params)
+#
+#         f_mean = F.linalg.gemm2(Kxt, wv, True, False)
+#
+#         LinvKxt = F.linalg.trsm(L, Kxt)
+#         tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
+#         var = F.expand_dims(Ktt_diag - F.sum(F.square(LinvKxt), axis=-2) + F.sum(tmp*LinvKxt, axis=-2), axis=-1)
+#
+#         f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
+#
+#         # y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
+#
+#         return {self.model.Y.uuid: f_samples, 'F_mean': f_mean, 'F_var':var}
 
 
 class SVGPRegression(Module):
@@ -141,19 +142,6 @@ class SVGPRegression(Module):
             output_names=output_names, dtype=dtype, ctx=ctx)
         self.mean_func = mean_func
         self.kernel = kernel
-
-    @property
-    def jitter(self):
-        return self._jitter
-
-    @jitter.setter
-    def jitter(self, value):
-        self._jitter = value
-        for k, v in self._log_pdf_methods.items():
-            v.jitter = value
-        for k, vs in self._draw_samples_methods.items():
-            for v in vs:
-                v[1].jitter = value
 
     def _generate_outputs(self, output_shapes=None):
         """
@@ -202,13 +190,15 @@ class SVGPRegression(Module):
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
             algorithm=SVGPRegr_log_pdf(
-                self._module_graph, self._extra_graphs[0], observed))
+                self._module_graph, self._extra_graphs[0], observed),
+            alg_name='svgp_log_pdf')
 
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SVGPRegr_draw_samples_independent(
-                self._module_graph, self._extra_graphs[0], observed))
+            algorithm=ForwardSamplingAlgorithm(
+                self._module_graph, observed),
+            alg_name='svgp_sampling')
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,

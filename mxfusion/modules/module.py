@@ -112,12 +112,17 @@ class Module(Factor):
             targets = tuple(sorted(targets))
         if conditionals is not None:
             conditionals = tuple(sorted(conditionals))
-        self._log_pdf_methods[(targets, conditionals)] = algorithm
+        if (targets, conditionals) in self._log_pdf_methods:
+            old_name = self._log_pdf_methods[(targets, conditionals)][1]
+            if old_name is not None:
+                delattr(self, old_name)
         if alg_name is not None:
             if not hasattr(self, alg_name):
                 setattr(self, alg_name, algorithm)
             else:
                 warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
+                alg_name = None
+        self._log_pdf_methods[(targets, conditionals)] = (algorithm, alg_name)
 
     def attach_draw_samples_algorithms(self, targets, conditionals, algorithm,
                                        alg_name=None):
@@ -133,16 +138,27 @@ class Module(Factor):
             targets = tuple(sorted(targets))
         if conditionals is not None:
             conditionals = tuple(sorted(conditionals))
-        if conditionals in self._draw_samples_methods:
-            self._draw_samples_methods[conditionals].append((targets,
-                                                             algorithm))
-        else:
-            self._draw_samples_methods[conditionals] = [(targets, algorithm)]
         if alg_name is not None:
             if not hasattr(self, alg_name):
                 setattr(self, alg_name, algorithm)
             else:
                 warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
+                alg_name = None
+        if conditionals in self._draw_samples_methods:
+            methods = self._draw_samples_methods[conditionals]
+            no_match = True
+            for i, m in enumerate(methods):
+                if targets == m[0]:
+                    if m[2] is not None:
+                        delattr(self, m[2])
+                    methods[i] = (targets, algorithm, alg_name)
+                    no_match = False
+                    break
+            if no_match:
+                self._draw_samples_methods[conditionals].append(
+                    (targets, algorithm, alg_name))
+        else:
+            self._draw_samples_methods[conditionals] = [(targets, algorithm, alg_name)]
 
     def log_pdf(self, F, variables, targets=None):
         if targets is None:
@@ -153,7 +169,7 @@ class Module(Factor):
         conditionals_names = tuple(sorted(set(conditionals_names) - set(target_names)))
 
         if (target_names, conditionals_names) in self._log_pdf_methods:
-            alg = self._log_pdf_methods[(target_names, conditionals_names)]
+            alg = self._log_pdf_methods[(target_names, conditionals_names)][0]
         else:
             raise ModelSpecificationError("The targets, conditionals pattern for log_pdf computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
         return alg.compute(F, variables)
@@ -168,7 +184,7 @@ class Module(Factor):
         if conditionals_names in self._draw_samples_methods:
             algs = self._draw_samples_methods[conditionals_names]
             target_names = set(target_names)
-            for t, alg in algs:
+            for t, alg, _ in algs:
                 if target_names <= set(t):
                     alg.num_samples = num_samples
                     alg.target_variables = targets

@@ -4,6 +4,7 @@ from ..module import Module
 from ...models import Model, Posterior
 from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess, MultivariateNormal
+from ...inference.forward_sampling import ForwardSamplingAlgorithm
 from ...inference.variational import VariationalInference, VariationalSamplingAlgorithm
 
 
@@ -59,40 +60,40 @@ class SparseGPRegr_log_pdf(VariationalInference):
         return logL
 
 
-class SparseGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
-    def __init__(self, model, posterior, observed, num_samples=1,
-                 target_variables=None, jitter=0.):
-        super(SparseGPRegr_draw_samples_independent, self).__init__(
-            model=model, posterior=posterior, observed=observed,
-            num_samples=num_samples, target_variables=target_variables)
-        self.jitter = jitter
-
-    def compute(self, F, variables):
-        X = variables[self.model.X]
-        Z = variables[self.model.inducing_inputs]
-        noise_var = variables[self.model.noise_var]
-        L = variables[self.posterior.L]
-        LA = variables[self.posterior.LA]
-        wv = variables[self.posterior.wv]
-        kern = self.model.kernel
-        kern_params = kern.fetch_parameters(variables)
-
-        Kxt = kern.K(F, Z, X, **kern_params)
-        Ktt_diag = kern.Kdiag(F, X, **kern_params)
-
-        f_mean = F.linalg.gemm2(Kxt, wv, True, False)
-
-        f_mean = F.linalg.gemm2(Kxt, wv, True, False)
-        LinvKxt = F.linalg.trsm(L, Kxt)
-        LAinvLinvKxt = F.linalg.trsm(LA, LinvKxt)
-
-        var = F.expand_dims(Ktt_diag - F.sum(F.square(LinvKxt), axis=-2) + F.sum(F.square(LAinvLinvKxt), axis=-2), axis=-1)
-
-        f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
-
-        y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
-
-        return {self.model.Y.uuid: y_samples, 'F_mean': f_mean, 'F_var':var}
+# class SparseGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
+#     def __init__(self, model, posterior, observed, num_samples=1,
+#                  target_variables=None, jitter=0.):
+#         super(SparseGPRegr_draw_samples_independent, self).__init__(
+#             model=model, posterior=posterior, observed=observed,
+#             num_samples=num_samples, target_variables=target_variables)
+#         self.jitter = jitter
+#
+#     def compute(self, F, variables):
+#         X = variables[self.model.X]
+#         Z = variables[self.model.inducing_inputs]
+#         noise_var = variables[self.model.noise_var]
+#         L = variables[self.posterior.L]
+#         LA = variables[self.posterior.LA]
+#         wv = variables[self.posterior.wv]
+#         kern = self.model.kernel
+#         kern_params = kern.fetch_parameters(variables)
+#
+#         Kxt = kern.K(F, Z, X, **kern_params)
+#         Ktt_diag = kern.Kdiag(F, X, **kern_params)
+#
+#         f_mean = F.linalg.gemm2(Kxt, wv, True, False)
+#
+#         f_mean = F.linalg.gemm2(Kxt, wv, True, False)
+#         LinvKxt = F.linalg.trsm(L, Kxt)
+#         LAinvLinvKxt = F.linalg.trsm(LA, LinvKxt)
+#
+#         var = F.expand_dims(Ktt_diag - F.sum(F.square(LinvKxt), axis=-2) + F.sum(F.square(LAinvLinvKxt), axis=-2), axis=-1)
+#
+#         f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
+#
+#         y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
+#
+#         return {self.model.Y.uuid: y_samples, 'F_mean': f_mean, 'F_var':var}
 
 
 class SparseGPRegression(Module):
@@ -128,9 +129,9 @@ class SparseGPRegression(Module):
         self._jitter = value
         for k, v in self._log_pdf_methods.items():
             v.jitter = value
-        for k, vs in self._draw_samples_methods.items():
-            for v in vs:
-                v[1].jitter = value
+        # for k, vs in self._draw_samples_methods.items():
+        #     for v in vs:
+        #         v[1].jitter = value
 
     def _generate_outputs(self, output_shapes=None):
         """
@@ -184,13 +185,14 @@ class SparseGPRegression(Module):
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed, jitter=self._jitter))
+            algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed, jitter=self._jitter), alg_name='sgp_log_pdf')
 
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SparseGPRegr_draw_samples_independent(
-                self._module_graph, self._extra_graphs[0], observed, jitter=self._jitter))
+            algorithm=ForwardSamplingAlgorithm(
+                self._module_graph, observed),
+            alg_name='sgp_sampling')
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
