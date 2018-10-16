@@ -40,3 +40,22 @@ class MXNetRandomGenerator(RandomGenerator):
         F = get_default_MXNet_mode() if F is None else F
         return F.random.multinomial(
             data=data, get_prob=get_prob, dtype=dtype)
+
+    @staticmethod
+    def sample_gamma(alpha=1, beta=1, shape=None, dtype=None, out=None,
+                     ctx=None, F=None):
+        """
+        Sample Gamma distributed variables
+
+        :param alpha: Also known as shape
+        :param beta: Also known as rate
+        :param shape: Array shape of samples
+        :param dtype: Data type
+        :param out: output variable
+        :param ctx: execution context
+        :param F: MXNet node
+        :return: Array of samples
+        """
+        return MXNetRandomGenerator.sample_univariate(
+            func=F.random.gamma, alpha=alpha, beta=beta,
+            shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
