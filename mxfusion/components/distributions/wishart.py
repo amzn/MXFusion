@@ -1,6 +1,7 @@
 import numpy as np
 import mxnet as mx
 
+from mxfusion.common.exceptions import InferenceError
 from ...util import special as sp
 from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
@@ -76,7 +77,16 @@ class WishartDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            num_samples = max([get_num_samples(F, v) for v in variables.values()])
+            is_samples = any([is_sampled_array(F, v) for v in variables.values()])
+            if is_samples:
+                num_samples_inferred = max([get_num_samples(F, v) for v in
+                                           variables.values()])
+                if num_samples_inferred != num_samples:
+                    raise InferenceError("The number of samples in the num_amples argument of draw_samples of "
+                                         "the Wishart distribution must be the same as the number of samples "
+                                         "given to the inputs. num_samples: {}, the inferred number of samples "
+                                         "from inputs: {}.".format(num_samples, num_samples_inferred))
+
             shapes_map = dict(
                 degrees_of_freedom=(num_samples,) + rv_shape,
                 scale=(num_samples,) + rv_shape + (rv_shape[-1],),
@@ -180,6 +190,13 @@ class Wishart(Distribution):
         """
         Draw a number of samples from the Wishart distribution.
 
+        The Bartlett decomposition of a matrix X from a p-variate Wishart distribution with scale matrix V
+        and n degrees of freedom is the factorization:
+        X = LAA'L'
+        where L is the Cholesky factor of V and A is lower triangular, with
+        diagonal elements drawn from a chi squared (n-i+1) distribution where i is the (1-based) diagonal index
+        and the off-diagonal elements are independent N(0, 1)
+
         :param degrees_of_freedom: the degrees of freedom of the Wishart distribution.
         :type degrees_of_freedom: MXNet NDArray or MXNet Symbol
         :param scale: the scale of the Wishart distributions.
@@ -194,14 +211,22 @@ class Wishart(Distribution):
         """
         F = get_default_MXNet_mode() if F is None else F
 
-        raise NotImplementedError
+        # Cholesky of L
+        L = F.linalg.potrf(scale)
 
-        out_shape = (num_samples,) + rv_shape + (1,)
-        lmat = F.linalg.potrf(scale)
-        epsilon = self._rand_gen.sample_Wishart(
-            shape=out_shape, dtype=self.dtype, ctx=self.ctx)
-        lmat_eps = F.linalg.trmm(lmat, epsilon)
-        return F.broadcast_add(lmat_eps.sum(-1), degrees_of_freedom)
+        dof = degrees_of_freedom.asnumpy().ravel()[0]
+
+        # Create the lower triangular matrix A
+        A = F.zeros((dof, dof), dtype=scale.dtype)
+        for j in range(dof):
+            A[j, j] = np.sqrt(np.random.chisquare(df=dof - j))
+            for k in range(j + 1, dof):
+                A[k, j] = np.random.normal()
+
+        # Broadcast A
+        A = A.broadcast_like(L)
+        LA = F.linalg.trmm(L, A)
+        return F.linalg.gemm2(LA, LA, transpose_b=True)
 
     @staticmethod
     def define_variable(shape, degrees_of_freedom=0, scale=None, rand_gen=None,
