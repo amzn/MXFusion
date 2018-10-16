@@ -18,7 +18,7 @@ class InferenceTests(unittest.TestCase):
         m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mf.components.Variable(shape=(m.N, 1))
         m.r = m.f(m.x)
-        for k, v in m.r.factor.block_variables:
+        for k, v in m.r.factor.parameters.items():
             if k.endswith('_weight') or k.endswith('_bias'):
                 v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0]), variance=mx.nd.array([1e6])))
         m.y = mf.components.distributions.Categorical.define_variable(log_prob=m.r, num_classes=2, normalization=True, one_hot_encoding=False, shape=(m.N, 1))

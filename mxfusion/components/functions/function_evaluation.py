@@ -97,7 +97,6 @@ class FunctionEvaluation(Factor):
     :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
     :type: boolean
     """
-
     def __init__(self, inputs, outputs, input_names, output_names,
                  broadcastable=False):
         self.broadcastable = broadcastable
@@ -125,3 +124,59 @@ class FunctionEvaluation(Factor):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         raise NotImplementedError
+
+
+class FunctionEvaluationWithParameters(FunctionEvaluation):
+    """
+    The evaluation of a function with internal function parameters.
+
+    :param func: the function that this evaluation is generated from
+    :param inputs: MXFusion.components.functions.MXFusionFunction
+    :type inputs:  {str : Variable}
+    :param outputs: the output variables of the function.
+    :type outputs: {str : Variable}
+    :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
+    :type: boolean
+    """
+    def __init__(self, func, input_variables, output_variables,
+                 broadcastable=False):
+        input_variable_names = set([k for k, _ in input_variables])
+        inputs = input_variables + list(
+            {k: v for k, v in func.parameters.items() if k not in
+             input_variable_names}.items())
+        input_names = [k for k, _ in inputs]
+        output_names = [k for k, _ in output_variables]
+        super(FunctionEvaluationWithParameters, self).__init__(
+            inputs=inputs, outputs=output_variables, input_names=input_names,
+            output_names=output_names, broadcastable=broadcastable
+        )
+        self._func = func
+
+    def replicate_self(self, attribute_map=None):
+        replicant = super(
+            FunctionEvaluationWithParameters,
+            self).replicate_self(attribute_map)
+        replicant._func = self._func.replicate_self(attribute_map)
+        return replicant
+
+    @property
+    def parameters(self):
+        return self._func.parameters
+
+    @property
+    def function(self):
+        return self._func
+
+    @FunctionEvaluationDecorator()
+    def eval(self, F, **input_kws):
+        """
+        Invokes the MXNet Gluon block with the arguments passed in.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
+        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
+            of FunctionEvaluation.
+        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :returns: the return value of the function
+        :rtypes: MXNet NDArray or MXNet Symbol
+        """
+        return self._func.eval(F, **input_kws)

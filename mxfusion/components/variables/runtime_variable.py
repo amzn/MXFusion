@@ -16,7 +16,7 @@ def add_sample_dimension(F, array):
     return F.expand_dims(array, axis=0)
 
 
-def add_sample_dimension_arrays(F, arrays):
+def add_sample_dimension_to_arrays(F, arrays, out=None):
     """
     Add the sample dimension to a dict of arrays.
 
@@ -24,10 +24,15 @@ def add_sample_dimension_arrays(F, arrays):
     :type F: mxnet.ndarray or mxnet.symbol
     :param arrays: a dictionary of MXNet arrays.
     :type arrays: {UUID: array}
+    :param out: (optional) if not None, add processed arrays into out.
+    :type out: dict
     """
-    return {
+    processed_arrays = {
         uuid: add_sample_dimension(F, v) if isinstance(v, (NDArray, Symbol))
         else v for uuid, v in arrays.items()}
+    if out is not None:
+        out.update(processed_arrays)
+    return processed_arrays
 
 
 def expectation(F, array):

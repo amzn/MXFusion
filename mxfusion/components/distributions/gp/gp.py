@@ -146,8 +146,8 @@ class GaussianProcess(Distribution):
         :param random_variable: the random_variable of which log-PDF is computed.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -159,11 +159,10 @@ class GaussianProcess(Distribution):
         if self.mean_func is not None:
             mean = self.mean_func(F, X)
             random_variable = random_variable - mean
-        LinvY = F.sum(F.linalg.trsm(L, random_variable), axis=-1)
+        LinvY = F.linalg.trsm(L, random_variable)
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
 
-        return (- logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi),
-                axis=-1) / 2) * self.log_pdf_scaling
+        return (- logdet_l * D - F.sum(F.sum(F.square(LinvY) + np.log(2. * np.pi), axis=-1), axis=-1) / 2) * self.log_pdf_scaling
 
     @GaussianProcessDrawSamplesDecorator()
     def draw_samples(self, X, rv_shape, num_samples=1, F=None, **kernel_params):
@@ -177,8 +176,8 @@ class GaussianProcess(Distribution):
         :param num_samples: the number of drawn samples (default: one).
         :int num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :param \**kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type \**kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -196,3 +195,13 @@ class GaussianProcess(Distribution):
             mean = self.mean_func(F, X)
             rv = rv + mean
         return rv
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for a Gaussian process distribution.
+        """
+        replicant = super(GaussianProcess, self).replicate_self(attribute_map)
+        replicant.mean_func = self.mean_func.replicate_self(attribute_map) \
+            if self.mean_func is not None else None
+        replicant.kernel = self.kernel.replicate_self(attribute_map)
+        return replicant

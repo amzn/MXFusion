@@ -9,7 +9,7 @@
 ![MXFusion](docs/images/logo/blender-small.png)
 
 [Website](https://github.com/amzn/MXFusion) |
-[Documentation](https://github.com/amzn/MXFusion/docs) |
+[Documentation](https://mxfusion.readthedocs.io/en/latest/index.html) |
 [Contribution Guide](https://github.com/amzn/MXFusion/CONTRIBUTING.md)
 
 MXFusion is a library for integrating probabilistic modelling with deep learning.
