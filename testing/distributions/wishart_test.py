@@ -12,16 +12,26 @@ from mxfusion.util.testutils import MockMXNetRandomGenerator, numpy_array_reshap
 @pytest.mark.usefixtures("set_seed")
 class TestWishartDistribution(object):
 
-    @pytest.mark.parametrize("dtype, n_dim, random_state, scale_is_samples, rv, rv_is_samples, num_samples", [
-        (np.float32, 2, 0, False, np.random.rand(5,3,2), True, 5),
-        ])
-    def test_log_pdf_with_broadcast(self, dtype, n_dim, random_state, scale_is_samples, rv, rv_is_samples, num_samples):
+    @pytest.mark.parametrize("dtype, degrees_of_freedom, random_state, scale_is_samples, "
+                             "rv_is_samples, num_data_points, num_samples",
+                             [
+                                 (np.float32, 2, 0, True, True, 3, 5),
+                             ])
+    def test_log_pdf_with_broadcast(self, dtype, degrees_of_freedom, random_state,
+                                    scale_is_samples, rv_is_samples, num_data_points, num_samples):
+        # Create random variables
+        rv = np.zeros((num_samples, num_data_points, degrees_of_freedom, degrees_of_freedom))
+        for i in range(num_samples):
+            for j in range(num_data_points):
+                # TODO: should be PD not PSD?
+                rv[i, j, :, :] = make_spd_matrix(degrees_of_freedom)
+
         # Create a positive semi-definite matrix to act as the scale matrix
         # TODO: should be PD not PSD?
-        scale = make_spd_matrix(n_dim=n_dim, random_state=random_state)
+        scale = make_spd_matrix(n_dim=degrees_of_freedom, random_state=random_state)
 
-        degrees_of_freedom_mx = mx.nd.array([n_dim], dtype=int)
-        degrees_of_freedom = degrees_of_freedom_mx.asnumpy()
+        degrees_of_freedom_mx = mx.nd.array([degrees_of_freedom], dtype=int)
+        # degrees_of_freedom = degrees_of_freedom_mx.asnumpy()
 
         scale_mx = mx.nd.array(scale, dtype=dtype)
         if not scale_is_samples:
@@ -36,18 +46,18 @@ class TestWishartDistribution(object):
         is_samples_any = scale_is_samples or rv_is_samples
         rv_shape = rv.shape[1:]
 
-        n_dim = 1 + len(rv.shape) if is_samples_any and not rv_is_samples else len(rv.shape)
-        scale_np = np.broadcast_to(scale,(5,3,2,2))
-        rv_np = numpy_array_reshape(rv, is_samples_any, n_dim)
+        degrees_of_freedom = 1 + len(rv.shape) if is_samples_any and not rv_is_samples else len(rv.shape)
+        scale_np = np.broadcast_to(scale, rv.shape)
+        rv_np = numpy_array_reshape(rv, is_samples_any, degrees_of_freedom)
 
         rand = np.random.rand(num_samples, *rv_shape)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
         r = []
-        for s in range(len(rv_np)):
+        for s in range(num_samples):
             a = []
-            for i in range(len(rv_np[s])):
-                a.append(wishart.logpdf(rv_np[s][i], df=n_dim, scale=scale_np[s][i]))
+            for i in range(num_data_points):
+                a.append(wishart.logpdf(rv_np[s][i], df=degrees_of_freedom, scale=scale_np[s][i]))
             r.append(a)
         log_pdf_np = np.array(r)
 
