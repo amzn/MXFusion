@@ -18,9 +18,9 @@ class WishartLogPDFDecorator(LogPDFDecorator):
             The inputs and outputs variables are in RTVariable format.
 
             Shape assumptions:
-            * degrees_of_freedom is S x N x 1
+            * degrees_of_freedom is S x 1
             * scale is S x N x D x D
-            * random_variable is S x N x D
+            * random_variable is S x N x D x D
 
             Where:
             * S, the number of samples, is optional. If more than one of the variables has samples,
@@ -42,9 +42,10 @@ class WishartLogPDFDecorator(LogPDFDecorator):
             num_samples = max([get_num_samples(F, v) for v in variables.values()])
 
             shapes_map = dict(
-                degrees_of_freedom=(num_samples,) + rv_shape,
-                scale=(num_samples,) + rv_shape + (rv_shape[-1],),
-                random_variable=(num_samples,) + rv_shape)
+                degrees_of_freedom=(num_samples,),
+                scale=(num_samples,) + rv_shape,
+                random_variable=(num_samples,) + rv_shape
+            )
             variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
                          for name, v in variables.items()}
             res = func(self, F=F, **variables)
@@ -77,7 +78,7 @@ class WishartDrawSamplesDecorator(DrawSamplesDecorator):
 
             num_samples = max([get_num_samples(F, v) for v in variables.values()])
             shapes_map = dict(
-                degrees_of_freedom=rv_shape,
+                degrees_of_freedom=(num_samples,) + rv_shape,
                 scale=(num_samples,) + rv_shape + (rv_shape[-1],),
                 random_variable=(num_samples,) + rv_shape)
             variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
