@@ -23,3 +23,4 @@ from .normal import Normal, MultivariateNormal
 from .pointmass import PointMass
 from .categorical import Categorical
 from .gp import GaussianProcess, ConditionalGaussianProcess
+from .wishart import Wishart
