@@ -71,8 +71,8 @@ class Normal(UnivariateDistribution):
         :type variance: MXNet NDArray or MXNet Symbol
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
-        :param nSamples: the number of drawn samples (default: one).
-        :int nSamples: int
+        :param num_samples: the number of drawn samples (default: one).
+        :int num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the normal distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -113,7 +113,7 @@ class MultivariateNormalLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kw):
             """
-            Computes the logrithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
+            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
 
             Shape assumptions:
             * mean is S x N x D
