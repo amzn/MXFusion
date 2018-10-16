@@ -9,27 +9,31 @@ from mxfusion.components.variables.runtime_variable import add_sample_dimension,
 from mxfusion.util.testutils import MockMXNetRandomGenerator, numpy_array_reshape
 
 
+def make_spd_matrices(num_samples, num_data_points, num_dimensions, random_state):
+    matrices = np.zeros((num_samples, num_data_points, num_dimensions, num_dimensions))
+    for i in range(num_samples):
+        for j in range(num_data_points):
+            matrices[i, j, :, :] = make_spd_matrix(num_dimensions, random_state=random_state)
+    return matrices
+
+
 @pytest.mark.usefixtures("set_seed")
 class TestWishartDistribution(object):
 
     @pytest.mark.parametrize("dtype_dof, dtype, degrees_of_freedom, random_state, scale_is_samples, "
-                             "rv_is_samples, num_data_points, num_samples",
+                             "rv_is_samples, num_data_points, num_samples, broadcast",
                              [
-                                 # (np.int32, np.float32, 1, 0, False, True, 3, 6),
-                                 (np.int32, np.float32, 2, 0, False, True, 3, 6),
+                                 (np.int32, np.float32, 2, 0, False, True, 3, 6, True),
+                                 (np.int32, np.float32, 2, 0, True, True, 3, 6, False),
                              ])
-    def test_log_pdf_with_broadcast(self, dtype_dof, dtype, degrees_of_freedom, random_state,
-                                    scale_is_samples, rv_is_samples, num_data_points, num_samples):
-        # Create random variables
-        rv = np.zeros((num_samples, num_data_points, degrees_of_freedom, degrees_of_freedom))
-        for i in range(num_samples):
-            for j in range(num_data_points):
-                # TODO: should be PD not PSD?
-                rv[i, j, :, :] = make_spd_matrix(degrees_of_freedom)
-
-        # Create a positive semi-definite matrix to act as the scale matrix
-        # TODO: should be PD not PSD?
-        scale = make_spd_matrix(n_dim=degrees_of_freedom, random_state=random_state)
+    def test_log_pdf(self, dtype_dof, dtype, degrees_of_freedom, random_state,
+                     scale_is_samples, rv_is_samples, num_data_points, num_samples, broadcast):
+        # Create positive semi-definite matrices
+        rv = make_spd_matrices(num_samples, num_data_points, degrees_of_freedom, random_state=random_state)
+        if broadcast:
+            scale = make_spd_matrix(n_dim=degrees_of_freedom, random_state=random_state)
+        else:
+            scale = make_spd_matrices(num_samples, num_data_points, degrees_of_freedom, random_state=random_state)
 
         degrees_of_freedom_mx = mx.nd.array([degrees_of_freedom], dtype=dtype_dof)
         degrees_of_freedom = degrees_of_freedom_mx.asnumpy()[0]
@@ -45,14 +49,14 @@ class TestWishartDistribution(object):
         rv = rv_mx.asnumpy()
 
         is_samples_any = scale_is_samples or rv_is_samples
-        rv_shape = rv.shape[1:]
 
-        # degrees_of_freedom = 1 + len(rv.shape) if is_samples_any and not rv_is_samples else len(rv.shape)
-        scale_np = np.broadcast_to(scale, rv.shape)
+        if broadcast:
+            scale_np = np.broadcast_to(scale, rv.shape)
+        else:
+            n_dim = 1 + len(rv.shape) if is_samples_any and not rv_is_samples else len(rv.shape)
+            scale_np = numpy_array_reshape(scale, is_samples_any, n_dim)
+
         rv_np = numpy_array_reshape(rv, is_samples_any, degrees_of_freedom)
-
-        # rand = np.random.rand(num_samples, *rv_shape)
-        # rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
         r = []
         for s in range(num_samples):
@@ -62,7 +66,11 @@ class TestWishartDistribution(object):
             r.append(a)
         log_pdf_np = np.array(r)
 
-        var = Wishart.define_variable(shape=rv_shape, dtype=dtype, rand_gen=None).factor
+        # rand = np.random.rand(num_samples, *rv.shape[1:])
+        # rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
+        rand_gen = None  # TODO: not needed?
+
+        var = Wishart.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {var.degrees_of_freedom.uuid: degrees_of_freedom_mx, var.scale.uuid: scale_mx,
                      var.random_variable.uuid: rv_mx}
         log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
@@ -72,54 +80,6 @@ class TestWishartDistribution(object):
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
-
-    # @pytest.mark.parametrize("dtype, n_dim, random_state, scale_is_samples, rv, rv_is_samples, num_samples", [
-    #     (np.float32, 2, 0, False, np.random.rand(5, 3, 2), True, 5),
-    # ])
-    # def test_log_pdf_no_broadcast(self, dtype, n_dim, random_state, scale_is_samples, rv, rv_is_samples, num_samples):
-    #     # Create a positive semi-definite matrix to act as the scale matrix
-    #     # TODO: should be PD not PSD?
-    #     scale = make_spd_matrix(n_dim=n_dim, random_state=random_state)
-    #
-    #     scale_mx = mx.nd.array(scale, dtype=dtype)
-    #     if not scale_is_samples:
-    #         scale_mx = add_sample_dimension(mx.nd, scale_mx)
-    #     scale = scale_mx.asnumpy()
-    #
-    #     rv_mx = mx.nd.array(rv, dtype=dtype)
-    #     if not rv_is_samples:
-    #         rv_mx = add_sample_dimension(mx.nd, rv_mx)
-    #     rv = rv_mx.asnumpy()
-    #
-    #     from scipy.stats import multivariate_normal
-    #     is_samples_any = scale_is_samples or rv_is_samples
-    #     rv_shape = rv.shape[1:]
-    #
-    #     n_dim = 1 + len(rv.shape) if is_samples_any and not rv_is_samples else len(rv.shape)
-    #     mean_np = numpy_array_reshape(mean, is_samples_any, n_dim)
-    #     var_np = numpy_array_reshape(scale, is_samples_any, n_dim)
-    #     rv_np = numpy_array_reshape(rv, is_samples_any, n_dim)
-    #
-    #     rand = np.random.rand(num_samples, *rv_shape)
-    #     rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-    #
-    #     r = []
-    #     for s in range(len(rv_np)):
-    #         a = []
-    #         for i in range(len(rv_np[s])):
-    #             a.append(multivariate_normal.logpdf(rv_np[s][i], mean_np[s][i], var_np[s][i]))
-    #         r.append(a)
-    #     log_pdf_np = np.array(r)
-    #
-    #     var = Wishart.define_variable(degrees_of_freedom=n_dim, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-    #     variables = {var.covariance.uuid: scale_mx, var.random_variable.uuid: rv_mx}
-    #     log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
-    #
-    #     assert np.issubdtype(log_pdf_rt.dtype, dtype)
-    #     assert is_sampled_array(mx.nd, log_pdf_rt) == is_samples_any
-    #     if is_samples_any:
-    #         assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
-    #     assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
 
     # @pytest.mark.parametrize(
     #     "dtype, mean, mean_is_samples, var, var_is_samples, rv_shape, num_samples",[
