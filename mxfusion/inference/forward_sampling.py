@@ -1,57 +1,44 @@
 from ..common.exceptions import InferenceError
 from ..components.variables import Variable
 from .variational import StochasticVariationalInference
-from .inference_alg import InferenceAlgorithm
+from .inference_alg import SamplingAlgorithm
 from .inference import TransferInference
 from .map import MAP
 
 
-class ForwardSamplingAlgorithm(InferenceAlgorithm):
+class ForwardSamplingAlgorithm(SamplingAlgorithm):
     """
     The class of the forward sampling algorithm.
 
-    :param num_samples: the number of samples used in estimating the variational lower bound
-    :type num_samples: int
-    :param model_graph: the definition of the probabilistic model
-    :type model_graph: Model
-    :param target_variables: (optional) the target variables to sample
-    :type target_variables: [UUID]
+    :param model: the definition of the probabilistic model
+    :type model: Model
     :param observed: A list of observed variables
     :type observed: [Variable]
+    :param num_samples: the number of samples used in estimating the variational lower bound
+    :type num_samples: int
+    :param target_variables: (optional) the target variables to sample
+    :type target_variables: [UUID]
+    :param extra_graphs: a list of extra FactorGraph used in the inference
+                         algorithm.
+    :type extra_graphs: [FactorGraph]
     """
-
-    def __init__(self, num_samples, model, observed, target_variables=None):
-        super(ForwardSamplingAlgorithm, self).__init__(model=model,
-                                                       observed=observed)
-        self.num_samples = num_samples
-        self._target_variables = target_variables
-
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
-        The method for the computation of the inference algorithm
+        Compute the inference algorithm
 
         :param F: the execution context (mxnet.ndarray or mxnet.symbol)
         :type F: Python module
-        :param data: the data variables for inference
-        :type data: {Variable: mxnet.ndarray.ndarray.NDArray or
-            mxnet.symbol.symbol.Symbol}
-        :param parameters: the parameters for inference
-        :type parameters: {Variable: mxnet.ndarray.ndarray.NDArray or
-            mxnet.symbol.symbol.Symbol}
-        :param constants: the constants for inference
-        :type parameters: {Variable: mxnet.ndarray.ndarray.NDArray or
-            mxnet.symbol.symbol.Symbol}
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(parameters)
-        knowns.update(constants)
         samples = self.model.draw_samples(
-            F=F, targets=self._target_variables, conditionals=knowns,
-            num_samples=self.num_samples, constants=constants)
-        if self._target_variables is not None:
-            samples = {v: samples[v] for v in self._target_variables}
+            F=F, variables=variables, targets=self.target_variables,
+            num_samples=self.num_samples)
+        if self.target_variables is not None:
+            samples = {v: samples[v] for v in self.target_variables}
         samples = {k: v for k, v in samples.items()}
         return samples
 
@@ -62,8 +49,8 @@ class ForwardSampling(TransferInference):
 
     :param num_samples: the number of samples used in estimating the variational lower bound
     :type num_samples: int
-    :param model_graph: the definition of the probabilistic model
-    :type model_graph: Model
+    :param model: the definition of the probabilistic model
+    :type model: Model
     :param observed: A list of observed variables
     :type observed: [Variable]
     :param var_ties: A dictionary of variables that are tied together and use the MXNet Parameter of the dict value's uuid.
@@ -72,10 +59,10 @@ class ForwardSampling(TransferInference):
     :type infr_params: InferenceParameters or [InferenceParameters]
     :param target_variables: (optional) the target variables to sample
     :type target_variables: [Variable]
-    :param constants: Specify a list of model variables as constants
-    :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
+    :param constants: Specify a list of model variables as constants
+    :type constants: {Variable: mxnet.ndarray}
     :param dtype: data type for internal numberical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
@@ -98,6 +85,16 @@ class ForwardSampling(TransferInference):
 
 
 def merge_posterior_into_model(model, posterior, observed):
+    """
+    Replace the prior distributions of a model with its variational posterior distributions.
+
+    :param model: the definition of the probabilistic model
+    :type model: Model
+    :param posterior: the definition of the variational posterior of the probabilistic model
+    :param posterior: Posterior
+    :param observed: A list of observed variables
+    :type observed: [Variable]
+    """
     new_model, var_map = model.clone()
     for lv in model.get_latent_variables(observed):
         v = posterior.extract_distribution_of(posterior[lv])
@@ -111,10 +108,10 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
 
     :param num_samples: the number of samples used in estimating the variational lower bound
     :type num_samples: int
-    :param inherited_inference: the inference method of which the model and inference results are taken
-    :type inherited_inference: SVIInference or SVIMiniBatchInference
     :param observed: A list of observed variables
     :type observed: [Variable]
+    :param inherited_inference: the inference method of which the model and inference results are taken
+    :type inherited_inference: SVIInference or SVIMiniBatchInference
     :param target_variables: (optional) the target variables to sample
     :type target_variables: [Variable]
     :param constants: Specify a list of model variables as constants

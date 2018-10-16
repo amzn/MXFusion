@@ -1,6 +1,7 @@
 import numpy as np
 import mxnet as mx
 from ...common.config import get_default_MXNet_mode
+from ...common.exceptions import InferenceError
 from ..variables import Variable
 from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
@@ -70,8 +71,8 @@ class Normal(UnivariateDistribution):
         :type variance: MXNet NDArray or MXNet Symbol
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
-        :param nSamples: the number of drawn samples (default: one).
-        :int nSamples: int
+        :param num_samples: the number of drawn samples (default: one).
+        :int num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the normal distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -112,7 +113,7 @@ class MultivariateNormalLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kw):
             """
-            Computes the logrithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
+            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
 
             Shape assumptions:
             * mean is S x N x D
@@ -170,7 +171,13 @@ class MultivariateNormalDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            num_samples = max([get_num_samples(F, v) for v in variables.values()])
+            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            if isSamples:
+                num_samples_inferred = max([get_num_samples(F, v) for v in
+                                           variables.values()])
+                if num_samples_inferred != num_samples:
+                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Normal distribution must be the same as the number of samples given to the inputs. nSamples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
+
             shapes_map = {}
             shapes_map['mean'] = (num_samples,) + rv_shape
             shapes_map['covariance'] = (num_samples,) + rv_shape + (rv_shape[-1],)
