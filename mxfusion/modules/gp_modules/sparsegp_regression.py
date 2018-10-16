@@ -6,6 +6,7 @@ from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess, MultivariateNormal
 from ...inference.forward_sampling import ForwardSamplingAlgorithm
 from ...inference.variational import VariationalInference, VariationalSamplingAlgorithm
+from ...inference.inference_alg import InferenceAlgorithm
 
 
 class SparseGPRegr_log_pdf(VariationalInference):
@@ -51,8 +52,8 @@ class SparseGPRegr_log_pdf(VariationalInference):
         logL = logL + F.sum(F.sum(
             F.square(LAInvLinvKufY)/(2*F.square(noise_var)), axis=-1), axis=-1)
         logL = logL - D*F.sum(Kff_diag, axis=-1)/(2*noise_var)
-        logL = logL + F.sum(F.sum(F.square(LinvKuf)/(2.*noise_var),
-                            axis=-1), axis=-1)
+        logL = logL + D*F.sum(F.sum(F.square(LinvKuf)/(2.*noise_var),
+                              axis=-1), axis=-1)
 
         with autograd.pause():
             wv = F.broadcast_div(F.linalg.trsm(L, F.linalg.trsm(LA, LAInvLinvKufY, transpose=True), transpose=True), noise_var)
@@ -63,40 +64,49 @@ class SparseGPRegr_log_pdf(VariationalInference):
         return logL
 
 
-# class SparseGPRegr_draw_samples_independent(VariationalSamplingAlgorithm):
-#     def __init__(self, model, posterior, observed, num_samples=1,
-#                  target_variables=None, jitter=0.):
-#         super(SparseGPRegr_draw_samples_independent, self).__init__(
-#             model=model, posterior=posterior, observed=observed,
-#             num_samples=num_samples, target_variables=target_variables)
-#         self.jitter = jitter
-#
-#     def compute(self, F, variables):
-#         X = variables[self.model.X]
-#         Z = variables[self.model.inducing_inputs]
-#         noise_var = variables[self.model.noise_var]
-#         L = variables[self.posterior.L]
-#         LA = variables[self.posterior.LA]
-#         wv = variables[self.posterior.wv]
-#         kern = self.model.kernel
-#         kern_params = kern.fetch_parameters(variables)
-#
-#         Kxt = kern.K(F, Z, X, **kern_params)
-#         Ktt_diag = kern.Kdiag(F, X, **kern_params)
-#
-#         f_mean = F.linalg.gemm2(Kxt, wv, True, False)
-#
-#         f_mean = F.linalg.gemm2(Kxt, wv, True, False)
-#         LinvKxt = F.linalg.trsm(L, Kxt)
-#         LAinvLinvKxt = F.linalg.trsm(LA, LinvKxt)
-#
-#         var = F.expand_dims(Ktt_diag - F.sum(F.square(LinvKxt), axis=-2) + F.sum(F.square(LAinvLinvKxt), axis=-2), axis=-1)
-#
-#         f_samples = F.random.normal(shape=(self.num_samples,) + f_mean.shape[1:], dtype=f_mean.dtype) * F.sqrt(var) + f_mean
-#
-#         y_samples = f_samples + F.random.normal(shape=f_samples.shape, dtype=f_samples.dtype) * F.sqrt(noise_var)
-#
-#         return {self.model.Y.uuid: y_samples, 'F_mean': f_mean, 'F_var':var}
+class SparseGPRegr_prediction(InferenceAlgorithm):
+    def __init__(self, model, posterior, observed, noise_free=True,
+                 diagonal_variance=True):
+        super(SparseGPRegr_prediction, self).__init__(
+            model=model, observed=observed, extra_graphs=[posterior])
+        self.noise_free = noise_free
+        self.diagonal_variance = diagonal_variance
+
+    def compute(self, F, variables):
+        X = variables[self.model.X]
+        N = X.shape[-2]
+        Z = variables[self.model.inducing_inputs]
+        noise_var = variables[self.model.noise_var]
+        L = variables[self.graphs[1].L]
+        LA = variables[self.graphs[1].LA]
+        wv = variables[self.graphs[1].wv]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(variables)
+
+        Kxt = kern.K(F, Z, X, **kern_params)
+
+        mu = F.linalg.gemm2(Kxt, wv, True, False)
+        if self.model.mean_func is not None:
+            mean = self.model.mean_func(F, X)
+            mu = mu + mean
+
+        LinvKxt = F.linalg.trsm(L, Kxt)
+        LAinvLinvKxt = F.linalg.trsm(LA, LinvKxt)
+
+        if self.diagonal_variance:
+            Ktt = kern.Kdiag(F, X, **kern_params)
+            var = Ktt - F.sum(F.square(LinvKxt), axis=-2) + \
+                F.sum(F.square(LAinvLinvKxt), axis=-2)
+            if not self.noise_free:
+                var += noise_var
+        else:
+            Ktt = kern.K(F, X, **kern_params)
+            var = Ktt - F.linalg.syrk(LinvKxt, True) + \
+                F.linalg.syrk(LAinvLinvKxt, True)
+            if not self.noise_free:
+                var += F.eye(N, dtype=X.dtype) * noise_var
+
+        return mu, var
 
 
 class SparseGPRegression(Module):
@@ -211,6 +221,12 @@ class SparseGPRegression(Module):
                 self._module_graph, observed),
             alg_name='sgp_sampling')
 
+        self.attach_prediction_algorithms(
+            conditionals=self.input_names,
+            algorithm=SparseGPRegr_prediction(
+                self._module_graph, self._extra_graphs[0], observed),
+            alg_name='sgp_predict')
+
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
                         inducing_num=10, mean_func=None, rand_gen=None,
@@ -246,3 +262,13 @@ class SparseGPRegression(Module):
             mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for the fuction.
+        """
+        rep = super(SparseGPRegression, self).replicate_self(attribute_map)
+
+        rep.kernel = self.kernel.replicate_self(attribute_map)
+        rep.mean_func = self.mean_func.replicate_self(attribute_map)
+        return rep

@@ -1,16 +1,18 @@
 import numpy as np
+from mxnet import autograd
 from ..module import Module
-from ...models.model import Model
+from ...models import Model, Posterior
 from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal
 from ...inference.inference_alg import InferenceAlgorithm, \
     SamplingAlgorithm
 from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape
+from ...inference.variational import VariationalInference
 from ...util.customop import broadcast_to_w_samples
 
 
-class GPRegr_log_pdf(InferenceAlgorithm):
+class GPRegr_log_pdf(VariationalInference):
     """
     The method to compute the logarithm of the probability density function of
     a Gaussian process model with Gaussian likelihood.
@@ -32,8 +34,13 @@ class GPRegr_log_pdf(InferenceAlgorithm):
             Y = Y - mean
         LinvY = F.linalg.trsm(L, Y)
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
+        logL = - logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi))/2
 
-        return - logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi)) / 2
+        with autograd.pause():
+            self.set_parameter(variables, self.posterior.X, X[0])
+            self.set_parameter(variables, self.posterior.L, L[0])
+            self.set_parameter(variables, self.posterior.LinvY, LinvY[0])
+        return logL
 
 
 class GPRegr_sampling(SamplingAlgorithm):
@@ -78,27 +85,43 @@ class GPRegr_sampling(SamplingAlgorithm):
             return samples
 
 
-# class GPPrediction(InferenceAlgorithm):
-#     def __init__(self, model, observed):
-#         super(GPPrediction, self).__init__(model=model, observed=observed)
-#
-#     def compute(self, F, data, parameters, constants):
-#         X = data[self.model.X]
-#         X_cond = data[self.model.X_cond]
-#         Y_cond = data[self.model.Y_cond]
-#         kern = self.model.kernel
-#         kern_params = kern.fetch_parameters(parameters)
-#
-#         Kxt = kern.K(F, X_cond, X, **kern_params)
-#         Ktt = kern.Kdiag(F, X, **kern_params)
-#         Kxx = kern.K(F, X_cond, **kern_params)
-#         L = F.linalg.potrf(Kxx)
-#         LInvY = F.linalg.trsm(L, Y_cond)
-#         LinvKxt = F.linalg.trsm(L, Kxt)
-#
-#         mu = F.linalg.gemm2(LinvKxt, LInvY, True, False)
-#         var = Ktt - F.sum(F.square(LinvKxt), axis=1)
-#         return mu, var
+class GPRegr_prediction(InferenceAlgorithm):
+    def __init__(self, model, posterior, observed, noise_free=True,
+                 diagonal_variance=True):
+        super(GPRegr_prediction, self).__init__(model=model, observed=observed,
+                                                extra_graphs=[posterior])
+        self.noise_free = noise_free
+        self.diagonal_variance = diagonal_variance
+
+    def compute(self, F, variables):
+        X = variables[self.model.X]
+        N = X.shape[-2]
+        noise_var = variables[self.model.noise_var]
+        X_cond = variables[self.graphs[1].X]
+        L = variables[self.graphs[1].L]
+        LinvY = variables[self.graphs[1].LinvY]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(variables)
+
+        Kxt = kern.K(F, X_cond, X, **kern_params)
+        LinvKxt = F.linalg.trsm(L, Kxt)
+        mu = F.linalg.gemm2(LinvKxt, LinvY, True, False)
+
+        if self.model.mean_func is not None:
+            mean = self.model.mean_func(F, X)
+            mu = mu + mean
+
+        if self.diagonal_variance:
+            Ktt = kern.Kdiag(F, X, **kern_params)
+            var = Ktt - F.sum(F.square(LinvKxt), axis=-2)
+            if not self.noise_free:
+                var += noise_var
+        else:
+            Ktt = kern.K(F, X, **kern_params)
+            var = Ktt - F.linalg.syrk(LinvKxt, True)
+            if not self.noise_free:
+                var += F.eye(N, dtype=X.dtype) * noise_var
+        return mu, var
 
 
 class GPRegression(Module):
@@ -169,7 +192,12 @@ class GPRegression(Module):
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.F.factor.kernel
-        return graph, []
+        # The posterior graph is used to store parameters for prediction
+        post = Posterior(graph)
+        post.L = Variable(shape=graph.X.shape[:-1]+graph.X.shape[-2:-1])
+        post.LinvY = Variable(shape=graph.X.shape[:-1]+graph.Y.shape[-1:])
+        post.X = Variable(shape=graph.X.shape)
+        return graph, [post]
 
     def _attach_default_inference_algorithms(self):
         """
@@ -179,7 +207,8 @@ class GPRegression(Module):
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=GPRegr_log_pdf(self._module_graph, observed),
+            algorithm=GPRegr_log_pdf(self._module_graph, self._extra_graphs[0],
+                                     observed),
             alg_name='gp_log_pdf')
 
         observed = [v for k, v in self.inputs]
@@ -188,6 +217,12 @@ class GPRegression(Module):
             algorithm=GPRegr_sampling(self._module_graph, observed,
                                       rand_gen=self._rand_gen),
             alg_name='gp_sampling')
+
+        self.attach_prediction_algorithms(
+            conditionals=self.input_names,
+            algorithm=GPRegr_prediction(
+                self._module_graph, self._extra_graphs[0], observed),
+            alg_name='gp_predict')
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, mean_func=None,
@@ -219,3 +254,13 @@ class GPRegression(Module):
             rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for the fuction.
+        """
+        rep = super(GPRegression, self).replicate_self(attribute_map)
+
+        rep.kernel = self.kernel.replicate_self(attribute_map)
+        rep.mean_func = self.mean_func.replicate_self(attribute_map)
+        return rep
