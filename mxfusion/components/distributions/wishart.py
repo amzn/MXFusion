@@ -156,15 +156,24 @@ class Wishart(Distribution):
         F = get_default_MXNet_mode() if F is None else F
 
         # Constants
-        dimension = scale.shape[0]
-        a = degrees_of_freedom - dimension - 1
-        b = degrees_of_freedom * dimension * np.log(2)
+        num_samples, num_data_points, dimension, _ = scale.shape
+
+        # Note that the degrees of freedom should be a float for most of the remaining calculations
+        df = degrees_of_freedom.astype(random_variable.dtype)
+        a = df - dimension - 1
+        b = df * dimension * np.log(2)
+
+        # Make copies of the constants
+        df = df.tile(num_data_points).reshape((num_samples, num_data_points))
+        a = a.tile(num_data_points).reshape((num_samples, num_data_points))
+        b = b.tile(num_data_points).reshape((num_samples, num_data_points))
 
         log_det_X = sp.log_determinant(random_variable, F)
-        log_gamma_np = sp.log_mv_gamma(degrees_of_freedom / 2, dimension)
-        tr_v_inv_x = sp.trace(sp.solve(scale, random_variable))
+        log_det_V = sp.log_determinant(scale, F)
+        log_gamma_np = sp.log_multivariate_gamma(df / 2, dimension, F)
+        tr_v_inv_x = sp.trace(sp.solve(scale, random_variable), F)
 
-        return 0.5 * (((a * log_det_X) - tr_v_inv_x - b) / 2) - log_gamma_np
+        return 0.5 * ((a * log_det_X) - tr_v_inv_x - b - (df * log_det_V)) - log_gamma_np
 
     @WishartDrawSamplesDecorator()
     def draw_samples(self, degrees_of_freedom, scale, rv_shape, num_samples=1, F=None):
