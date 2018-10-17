@@ -16,6 +16,14 @@ class RandomGenerator(ABC):
     def sample_gamma(alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None):
         pass
 
+    @staticmethod
+    def sample_multinomial(data, get_prob=True, dtype='int32', F=None):
+        pass
+
+    @staticmethod
+    def sample_bernoulli(prob_true=0.5, dtype='bool', F=None):
+        pass
+
 
 class MXNetRandomGenerator(RandomGenerator):
     """
@@ -82,6 +90,19 @@ class MXNetRandomGenerator(RandomGenerator):
         F = get_default_MXNet_mode() if F is None else F
         return F.random.multinomial(
             data=data, get_prob=get_prob, dtype=dtype)
+
+    @staticmethod
+    def sample_bernoulli(prob_true=0.5, dtype='bool', F=None):
+        """
+        Sample Bernoulli distributed variables
+
+        :param prob_true: Probability of being true
+        :param dtype: data type
+        :param F: MXNet node
+        :return: Array of samples
+        """
+        F = get_default_MXNet_mode() if F is None else F
+        return F.random.normal() > 0
 
     @staticmethod
     def sample_gamma(alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
