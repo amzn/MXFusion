@@ -19,7 +19,7 @@ __all__ = ['categorical', 'distribution', 'normal', 'pointmass', 'rand_gen',
            'univariate','gp']
 
 from .distribution import Distribution
-from .gamma import Gamma
+from .gamma import Gamma, GammaMeanVariance
 from .normal import Normal, MultivariateNormal
 from .pointmass import PointMass
 from .categorical import Categorical
