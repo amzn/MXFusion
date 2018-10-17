@@ -79,15 +79,21 @@ class Beta(UnivariateDistribution):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
-        out_shape = (num_samples,) + rv_shape
+
+        if a.shape != (num_samples, ) + rv_shape:
+            raise ValueError("Shape mismatch between inputs {} and random variable {}".format(
+                a.shape, (num_samples, ) + rv_shape))
+
+        # Note output shape is determined by input dimensions
+        out_shape = ()  # (num_samples,) + rv_shape
 
         ones = F.ones_like(a)
 
         # Sample X from Gamma(a, 1)
-        x = self._rand_gen.sample_gamma(a, ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+        x = self._rand_gen.sample_gamma(alpha=a, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
 
         # Sample Y from Gamma(b, 1)
-        y = self._rand_gen.sample_gamma(b, ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+        y = self._rand_gen.sample_gamma(alpha=b, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
 
         # Return X / (X + Y)
         return F.broadcast_div(x, F.broadcast_add(x, y))

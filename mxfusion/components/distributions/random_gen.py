@@ -12,6 +12,10 @@ class RandomGenerator(ABC):
     def sample_normal(loc=0, scale=1, shape=None, dtype=None, out=None, ctx=None):
         pass
 
+    @staticmethod
+    def sample_gamma(alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None):
+        pass
+
 
 class MXNetRandomGenerator(RandomGenerator):
     """
