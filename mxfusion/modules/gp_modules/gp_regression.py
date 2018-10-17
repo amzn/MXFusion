@@ -130,6 +130,68 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
             return outcomes
 
 
+class GPRegressionSamplingPrediction(SamplingAlgorithm):
+    def __init__(self, model, posterior, observed, num_samples=1,
+                 target_variables=None, rand_gen=None, noise_free=True,
+                 diagonal_variance=True, jitter=0.):
+        super(GPRegressionSamplingPrediction, self).__init__(
+            model=model, observed=observed, extra_graphs=[posterior])
+        self.noise_free = noise_free
+        self.diagonal_variance = diagonal_variance
+        self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
+            rand_gen
+        self.jitter = jitter
+
+    def compute(self, F, variables):
+        X = variables[self.model.X]
+        N = X.shape[-2]
+        noise_var = variables[self.model.noise_var]
+        X_cond = variables[self.graphs[1].X]
+        L = variables[self.graphs[1].L]
+        LinvY = variables[self.graphs[1].LinvY]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(variables)
+
+        Kxt = kern.K(F, X_cond, X, **kern_params)
+        LinvKxt = F.linalg.trsm(L, Kxt)
+        mu = F.linalg.gemm2(LinvKxt, LinvY, True, False)
+
+        if self.model.mean_func is not None:
+            mean = self.model.mean_func(F, X)
+            mu = mu + mean
+
+        if self.diagonal_variance:
+            Ktt = kern.Kdiag(F, X, **kern_params)
+            var = Ktt - F.sum(F.square(LinvKxt), axis=-2)
+            if not self.noise_free:
+                var += noise_var
+            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:],
+                                               dtype=self.model.F.factor.dtype)
+            print(mu.shape, var.shape, die.shape)
+            samples = mu + die * F.sqrt(F.expand_dims(var, axis=-1))
+        else:
+            Ktt = kern.K(F, X, **kern_params)
+            cov = Ktt - F.linalg.syrk(LinvKxt, True)
+            if not self.noise_free:
+                cov += F.eye(N, dtype=X.dtype) * noise_var
+            if self.jitter > 0.:
+                cov = cov + F.eye(cov.shape[-1], dtype=cov.dtype) * self.jitter
+            L = F.linalg.potrf(cov)
+            out_shape = (self.num_samples,) + mu.shape[1:]
+            L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
+
+            die = self._rand_gen.sample_normal(shape=out_shape,
+                                               dtype=self.model.F.factor.dtype)
+            samples = mu + F.linalg.trmm(L, die)
+
+        outcomes = {self.model.Y.uuid: samples}
+
+        if self.target_variables:
+            return tuple(outcomes[v] for v in self.target_variables)
+        else:
+            return outcomes
+
+
 class GPRegression(Module):
     """
     Gaussian process regression module
