@@ -13,10 +13,10 @@ class Gamma(UnivariateDistribution):
     Gamma distribution parameterized using Alpha and Beta.
     Takes dependency on Scipy to compute the log-gamma function.
 
-    :param a: the alpha parameter of the Gamma distribution.
-    :type a: Variable
-    :param a: beta parameter of the Gamma distribution.
-    :type b: Variable
+    :param alpha: the alpha parameter of the Gamma distribution.
+    :type alpha: Variable
+    :param beta: beta parameter of the Gamma distribution.
+    :type beta: Variable
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
     :type rand_gen: RandomGenerator
     :param dtype: the data type for float point numbers.
@@ -24,13 +24,13 @@ class Gamma(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, a, b, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(a, Variable):
-            a = Variable(value=a)
-        if not isinstance(b, Variable):
-            b = Variable(value=b)
+    def __init__(self, alpha, beta, rand_gen=None, dtype=None, ctx=None):
+        if not isinstance(alpha, Variable):
+            alpha = Variable(value=alpha)
+        if not isinstance(beta, Variable):
+            beta = Variable(value=beta)
 
-        inputs = [('a', a), ('b', b)]
+        inputs = [('alpha', alpha), ('beta', beta)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(Gamma, self).__init__(inputs=inputs, outputs=None,
@@ -39,7 +39,7 @@ class Gamma(UnivariateDistribution):
                                      rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
     @UnivariateLogPDFDecorator()
-    def log_pdf(self, a, b, random_variable, F=None):
+    def log_pdf(self, alpha, beta, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the Gamma distribution.
 
@@ -51,12 +51,12 @@ class Gamma(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
 
-        g_a = F.gammaln(a)
-        p1 = (a - 1.) * F.log(random_variable)
-        return (p1 - b * random_variable) - (g_a - a * F.log(b))
+        g_alpha = F.gammaln(alpha)
+        p1 = (alpha - 1.) * F.log(random_variable)
+        return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
 
     @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, a, b, rv_shape, num_samples=1, F=None):
+    def draw_samples(self, alpha, beta, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the Gamma distribution.
         :param rv_shape: the shape of each sample.
@@ -68,10 +68,10 @@ class Gamma(UnivariateDistribution):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
-        return F.random.gamma(alpha=a, beta=b, dtype=self.dtype, ctx=self.ctx)
+        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype, ctx=self.ctx)
 
     @staticmethod
-    def define_variable(a=0., b=1., shape=None, rand_gen=None,
+    def define_variable(alpha=0., beta=1., shape=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
         Creates and returns a random variable drawn from a Gamma distribution parameterized with a and b parameters.
@@ -87,7 +87,7 @@ class Gamma(UnivariateDistribution):
         :returns: the random variables drawn from the Gamma distribution.
         :rtypes: Variable
         """
-        dist = Gamma(a=a, b=b, rand_gen=rand_gen,
+        dist = Gamma(alpha=alpha, beta=beta, rand_gen=rand_gen,
                         dtype=dtype, ctx=ctx)
         dist._generate_outputs(shape=shape)
         return dist.random_variable

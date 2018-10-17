@@ -129,7 +129,7 @@ class TestGammaDistribution(object):
         rv_mx = mx.nd.array(rv, dtype=dtype)
         if not rv_isSamples:
             rv_mx = add_sample_dimension(mx.nd, rv_mx)
-        variables = {gamma.a.uuid: alpha_mx, gamma.b.uuid: beta_mx, gamma.random_variable.uuid: rv_mx}
+        variables = {gamma.alpha.uuid: alpha_mx, gamma.beta.uuid: beta_mx, gamma.random_variable.uuid: rv_mx}
         log_pdf_rt = gamma.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
@@ -165,7 +165,7 @@ class TestGammaDistribution(object):
         beta_mx = mx.nd.array(beta, dtype=dtype)
         if not beta_isSamples:
             beta_mx = add_sample_dimension(mx.nd, beta_mx)
-        variables = {gamma.a.uuid: alpha_mx, gamma.b.uuid: beta_mx}
+        variables = {gamma.alpha.uuid: alpha_mx, gamma.beta.uuid: beta_mx}
 
         mx.random.seed(0)
         rv_samples_rt = gamma.draw_samples(
