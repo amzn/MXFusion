@@ -6,7 +6,7 @@ from mxfusion.modules.gp_modules import GPRegression
 from mxfusion.components.distributions.gp.kernels import RBF, White
 from mxfusion.components.distributions import GaussianProcess
 from mxfusion.components import Variable
-from mxfusion.inference import Inference, MAP, PredictionAlgorithm, TransferInference
+from mxfusion.inference import Inference, MAP, ModulePredictionAlgorithm, TransferInference
 from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.inference.forward_sampling import ForwardSamplingAlgorithm
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -75,7 +75,7 @@ class TestGPRegressionModule(object):
         X_var = Variable(shape=(10, 3))
         gp = GaussianProcess.define_variable(X=X_var, kernel=kern, shape=(10, 1), dtype=dtype, rand_gen=rand_gen).factor
 
-        variables = {gp.X.uuid: mx.nd.expand_dims(mx.nd.array(X, dtype=dtype), axis=0), gp.sum_rbf_lengthscale.uuid: mx.nd.expand_dims(mx.nd.array(lengthscale, dtype=dtype), axis=0), gp.sum_rbf_variance.uuid: mx.nd.expand_dims(mx.nd.array(variance, dtype=dtype), axis=0), gp.sum_white_variance.uuid: mx.nd.expand_dims(mx.nd.array(noise_var, dtype=dtype), axis=0)}
+        variables = {gp.X.uuid: mx.nd.expand_dims(mx.nd.array(X, dtype=dtype), axis=0), gp.add_rbf_lengthscale.uuid: mx.nd.expand_dims(mx.nd.array(lengthscale, dtype=dtype), axis=0), gp.add_rbf_variance.uuid: mx.nd.expand_dims(mx.nd.array(variance, dtype=dtype), axis=0), gp.add_white_variance.uuid: mx.nd.expand_dims(mx.nd.array(noise_var, dtype=dtype), axis=0)}
         samples_2 = gp.draw_samples(F=mx.nd, variables=variables, num_samples=2).asnumpy()
 
         assert np.allclose(samples, samples_2), (samples, samples_2)
@@ -107,8 +107,9 @@ class TestGPRegressionModule(object):
         # noise_free, diagonal
         mu_gpy, var_gpy = m_gpy.predict_noiseless(Xt)
 
-        infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
-        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
+        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
+        print(res)
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
@@ -117,9 +118,9 @@ class TestGPRegressionModule(object):
         # noisy, diagonal
         mu_gpy, var_gpy = m_gpy.predict(Xt)
 
-        infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         infr2.inference_algorithm.model.Y.factor.gp_predict.noise_free = False
-        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
@@ -128,10 +129,10 @@ class TestGPRegressionModule(object):
         # noise_free, full_cov
         mu_gpy, var_gpy = m_gpy.predict_noiseless(Xt, full_cov=True)
 
-        infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         infr2.inference_algorithm.model.Y.factor.gp_predict.diagonal_variance = False
         infr2.inference_algorithm.model.Y.factor.gp_predict.noise_free = True
-        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
@@ -140,10 +141,10 @@ class TestGPRegressionModule(object):
         # noisy, full_cov
         mu_gpy, var_gpy = m_gpy.predict(Xt, full_cov=True)
 
-        infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         infr2.inference_algorithm.model.Y.factor.gp_predict.diagonal_variance = False
         infr2.inference_algorithm.model.Y.factor.gp_predict.noise_free = False
-        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
         print((var_gpy, var_mf))
 

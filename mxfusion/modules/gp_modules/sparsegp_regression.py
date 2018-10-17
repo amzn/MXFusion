@@ -3,18 +3,18 @@ from mxnet import autograd
 from ..module import Module
 from ...models import Model, Posterior
 from ...components.variables.variable import Variable
-from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess, MultivariateNormal
+from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess
 from ...inference.forward_sampling import ForwardSamplingAlgorithm
-from ...inference.variational import VariationalInference, VariationalSamplingAlgorithm
-from ...inference.inference_alg import InferenceAlgorithm
+from ...inference.variational import VariationalInference
+from ...inference.inference_alg import InferenceAlgorithm, SamplingAlgorithm
 
 
-class SparseGPRegr_log_pdf(VariationalInference):
+class SparseGPRegressionLogPdf(VariationalInference):
     """
     The inference algorithm for computing the variational lower bound of variational sparse Gaussian process.
     """
     def __init__(self, model, posterior, observed, jitter=0.):
-        super(SparseGPRegr_log_pdf, self).__init__(
+        super(SparseGPRegressionLogPdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
         self.jitter = jitter
 
@@ -64,10 +64,10 @@ class SparseGPRegr_log_pdf(VariationalInference):
         return logL
 
 
-class SparseGPRegr_prediction(InferenceAlgorithm):
-    def __init__(self, model, posterior, observed, noise_free=True,
-                 diagonal_variance=True):
-        super(SparseGPRegr_prediction, self).__init__(
+class SparseGPRegressionMeanVariancePrediction(SamplingAlgorithm):
+    def __init__(self, model, posterior, observed, target_variables=None,
+                 noise_free=True, diagonal_variance=True):
+        super(SparseGPRegressionMeanVariancePrediction, self).__init__(
             model=model, observed=observed, extra_graphs=[posterior])
         self.noise_free = noise_free
         self.diagonal_variance = diagonal_variance
@@ -106,7 +106,12 @@ class SparseGPRegr_prediction(InferenceAlgorithm):
             if not self.noise_free:
                 var += F.eye(N, dtype=X.dtype) * noise_var
 
-        return mu, var
+        outcomes = {self.model.Y.uuid: (mu, var)}
+
+        if self.target_variables:
+            return tuple(outcomes[v] for v in self.target_variables)
+        else:
+            return outcomes
 
 
 class SparseGPRegression(Module):
@@ -206,13 +211,16 @@ class SparseGPRegression(Module):
 
     def _attach_default_inference_algorithms(self):
         """
-        The internal method for attaching default inference algorithms of the module. This method needs to be overridden by specific probabilistic modules.
+        Attach the default inference algorithms for SparseGPRegression Module:
+        log_pdf <- SparseGPRegressionLogPdf
+        draw_samples <- ForwardSamplingAlgorithm
+        prediction <- SparseGPRegressionMeanVariancePrediction
         """
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SparseGPRegr_log_pdf(self._module_graph, self._extra_graphs[0], observed), alg_name='sgp_log_pdf')
+            algorithm=SparseGPRegressionLogPdf(self._module_graph, self._extra_graphs[0], observed), alg_name='sgp_log_pdf')
 
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
@@ -222,8 +230,8 @@ class SparseGPRegression(Module):
             alg_name='sgp_sampling')
 
         self.attach_prediction_algorithms(
-            conditionals=self.input_names,
-            algorithm=SparseGPRegr_prediction(
+            targets=self.output_names, conditionals=self.input_names,
+            algorithm=SparseGPRegressionMeanVariancePrediction(
                 self._module_graph, self._extra_graphs[0], observed),
             alg_name='sgp_predict')
 

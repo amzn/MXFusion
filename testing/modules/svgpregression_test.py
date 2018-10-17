@@ -5,7 +5,7 @@ from mxfusion.models import Model
 from mxfusion.modules.gp_modules import SVGPRegression
 from mxfusion.components.distributions.gp.kernels import RBF
 from mxfusion.components import Variable
-from mxfusion.inference import Inference, MAP, PredictionAlgorithm, TransferInference
+from mxfusion.inference import Inference, MAP, ModulePredictionAlgorithm, TransferInference
 from mxfusion.components.variables.var_trans import PositiveTransformation
 
 
@@ -99,8 +99,8 @@ class TestSVGPRegressionModule(object):
         # noise_free, diagonal
         mu_gpy, var_gpy = m_gpy.predict_noiseless(Xt)
 
-        infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
-        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
+        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
@@ -109,9 +109,9 @@ class TestSVGPRegressionModule(object):
         # noisy, diagonal
         mu_gpy, var_gpy = m_gpy.predict(Xt)
 
-        infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         infr2.inference_algorithm.model.Y.factor.svgp_predict.noise_free = False
-        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
@@ -122,10 +122,10 @@ class TestSVGPRegressionModule(object):
         # # noise_free, full_cov
         # mu_gpy, var_gpy = m_gpy.predict_noiseless(Xt, full_cov=True)
         #
-        # infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
+        # infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         # infr2.inference_algorithm.model.Y.factor.svgp_predict.diagonal_variance = False
         # infr2.inference_algorithm.model.Y.factor.svgp_predict.noise_free = True
-        # res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        # res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         # mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
         #
         # assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
@@ -134,10 +134,10 @@ class TestSVGPRegressionModule(object):
         # # noisy, full_cov
         # mu_gpy, var_gpy = m_gpy.predict(Xt, full_cov=True)
         #
-        # infr2 = TransferInference(PredictionAlgorithm(m, observed=[m.X]), infr_params=infr.params, dtype=np.float64)
+        # infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         # infr2.inference_algorithm.model.Y.factor.svgp_predict.diagonal_variance = False
         # infr2.inference_algorithm.model.Y.factor.svgp_predict.noise_free = False
-        # res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))
+        # res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         # mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
         #
         # assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)

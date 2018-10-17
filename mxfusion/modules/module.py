@@ -13,7 +13,7 @@ class Module(Factor):
     """
     The base class for a probabilistic module.
 
-    A probabilistic module is a combination of model denfition and Inference algorithms. It acts as a factor and are defined as such during model definition, producing random variables like a plain probabilistic distribution.
+    A probabilistic module is a combination of model denfition and Inference algorithms. It acts as a factor and are defined as such during model definition, producing random variables like a plain probabilistic distribution. It differs from a plain distribution in that to compute it's log_pdf and draw_samples functions, it uses a full Inference method.
 
     :param inputs: the input variables
     :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
@@ -42,9 +42,9 @@ class Module(Factor):
         self.ctx = ctx
         self._module_graph = None
         self._extra_graphs = []
-        self._log_pdf_methods = {}
-        self._draw_samples_methods = {}
-        self._prediction_methods = {}
+        self._log_pdf_algorithms = {}
+        self._draw_samples_algorithms = {}
+        self._prediction_algorithms = {}
 
     def _generate_outputs(self, output_shapes):
         """
@@ -174,8 +174,8 @@ class Module(Factor):
             targets = tuple(sorted(targets))
         if conditionals is not None:
             conditionals = tuple(sorted(conditionals))
-        if (targets, conditionals) in self._log_pdf_methods:
-            old_name = self._log_pdf_methods[(targets, conditionals)][1]
+        if (targets, conditionals) in self._log_pdf_algorithms:
+            old_name = self._log_pdf_algorithms[(targets, conditionals)][1]
             if old_name is not None:
                 delattr(self, old_name)
         if alg_name is not None:
@@ -184,7 +184,7 @@ class Module(Factor):
             else:
                 warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
                 alg_name = None
-        self._log_pdf_methods[(targets, conditionals)] = (algorithm, alg_name)
+        self._log_pdf_algorithms[(targets, conditionals)] = (algorithm, alg_name)
 
     def attach_draw_samples_algorithms(self, targets, conditionals, algorithm,
                                        alg_name=None):
@@ -208,8 +208,8 @@ class Module(Factor):
             else:
                 warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
                 alg_name = None
-        if conditionals in self._draw_samples_methods:
-            methods = self._draw_samples_methods[conditionals]
+        if conditionals in self._draw_samples_algorithms:
+            methods = self._draw_samples_algorithms[conditionals]
             no_match = True
             for i, m in enumerate(methods):
                 if targets == m[0]:
@@ -219,34 +219,49 @@ class Module(Factor):
                     no_match = False
                     break
             if no_match:
-                self._draw_samples_methods[conditionals].append(
+                self._draw_samples_algorithms[conditionals].append(
                     (targets, algorithm, alg_name))
         else:
-            self._draw_samples_methods[conditionals] = [(targets, algorithm, alg_name)]
+            self._draw_samples_algorithms[conditionals] = [(targets, algorithm, alg_name)]
 
-    def attach_prediction_algorithms(self, conditionals, algorithm,
+    def attach_prediction_algorithms(self, targets, conditionals, algorithm,
                                      alg_name=None):
         """
         Attach an inference algorithm for prediction from the module.
 
-        :param conditionals: Variables to condition the samples on.
+        :param targets: a list of names of arguments to predict.
+        :type targets: tuple of str
+        :param conditionals: Variables to condition the prediction on.
         :type conditionals: tuple of str
-        :param algorithm: the inference algorithm to draw samples of the chosen target variables from the module.
+        :param algorithm: the inference algorithm to predict the chosen target variables from the module.
         :type algorithm: InferenceAlgorithm
         """
+        if targets is not None:
+            targets = tuple(sorted(targets))
         if conditionals is not None:
             conditionals = tuple(sorted(conditionals))
-        if conditionals in self._prediction_methods:
-            old_name = self._prediction_methods[conditionals][1]
-            if old_name is not None:
-                delattr(self, old_name)
         if alg_name is not None:
             if not hasattr(self, alg_name):
                 setattr(self, alg_name, algorithm)
             else:
                 warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
                 alg_name = None
-        self._prediction_methods[conditionals] = (algorithm, alg_name)
+        if conditionals in self._prediction_algorithms:
+            methods = self._prediction_algorithms[conditionals]
+            no_match = True
+            for i, m in enumerate(methods):
+                if targets == m[0]:
+                    if m[2] is not None:
+                        delattr(self, m[2])
+                    methods[i] = (targets, algorithm, alg_name)
+                    no_match = False
+                    break
+            if no_match:
+                self._prediction_algorithms[conditionals].append(
+                    (targets, algorithm, alg_name))
+        else:
+            self._prediction_algorithms[conditionals] = [(targets, algorithm,
+                                                          alg_name)]
 
     def log_pdf(self, F, variables, targets=None):
         """
@@ -269,8 +284,8 @@ class Module(Factor):
         conditionals_names = self.get_names_from_uuid(variables.keys())
         conditionals_names = tuple(sorted(set(conditionals_names) - set(target_names)))
 
-        if (target_names, conditionals_names) in self._log_pdf_methods:
-            alg = self._log_pdf_methods[(target_names, conditionals_names)][0]
+        if (target_names, conditionals_names) in self._log_pdf_algorithms:
+            alg = self._log_pdf_algorithms[(target_names, conditionals_names)][0]
         else:
             raise ModelSpecificationError("The targets, conditionals pattern for log_pdf computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
         return alg.compute(F, variables)
@@ -296,8 +311,8 @@ class Module(Factor):
             target_names = self.get_names_from_uuid(targets)
         conditionals_names = self.get_names_from_uuid(variables.keys())
 
-        if conditionals_names in self._draw_samples_methods:
-            algs = self._draw_samples_methods[conditionals_names]
+        if conditionals_names in self._draw_samples_algorithms:
+            algs = self._draw_samples_algorithms[conditionals_names]
             target_names = set(target_names)
             for t, alg, _ in algs:
                 if target_names <= set(t):
@@ -306,24 +321,35 @@ class Module(Factor):
                     return alg.compute(F, variables)
         raise ModelSpecificationError("The targets-conditionals pattern for draw_samples computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
 
-    def predict(self, F, variables):
+    def predict(self, F, variables, num_samples=1, targets=None):
         """
         prediction
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
         :type variables: {UUID : MXNet NDArray or MXNet Symbol}
+        :param num_samples: The number of samples to draw for the target variables if sampling is used for prediction. (optional)
+        :type num_samples: int
+        :param targets: a list of Variables to predict.
+        :type targets: [UUID]
         :returns: the sum of the log probability of all the target variables.
         :rtype: mxnet NDArray or mxnet Symbol
         """
-        conditionals_names = self.get_names_from_uuid(variables.keys())
-        conditionals_names = tuple(sorted(conditionals_names))
-
-        if conditionals_names in self._prediction_methods:
-            alg = self._prediction_methods[conditionals_names][0]
+        if targets is None:
+            target_names = tuple(sorted(self.output_names.copy()))
         else:
-            raise ModelSpecificationError("The targets, conditionals pattern for log_pdf computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
-        return alg.compute(F, variables)
+            target_names = self.get_names_from_uuid(targets)
+        conditionals_names = self.get_names_from_uuid(variables.keys())
+
+        if conditionals_names in self._prediction_algorithms:
+            algs = self._prediction_algorithms[conditionals_names]
+            target_names = set(target_names)
+            for t, alg, _ in algs:
+                if target_names <= set(t):
+                    alg.target_variables = targets
+                    alg.num_samples = num_samples
+                    return alg.compute(F, variables)
+        raise ModelSpecificationError("The targets-conditionals pattern for prediction "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
 
     def prepare_executor(self, rv_scaling=None):
         """

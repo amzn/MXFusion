@@ -30,4 +30,4 @@ from .grad_based_inference import GradBasedInference
 from .variational import StochasticVariationalInference
 from .inference_parameters import InferenceParameters
 from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
-from .prediction import PredictionAlgorithm
+from .prediction import ModulePredictionAlgorithm

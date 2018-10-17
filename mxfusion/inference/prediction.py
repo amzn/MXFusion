@@ -3,9 +3,9 @@ from ..inference.inference_alg import SamplingAlgorithm
 from ..modules.module import Module
 
 
-class PredictionAlgorithm(SamplingAlgorithm):
+class ModulePredictionAlgorithm(SamplingAlgorithm):
     """
-    The class of the forward sampling algorithm.
+    A prediction algorithm for modules. The algorithm evaluates all the functions, draws samples from distributions and runs the predict method on all the modules.
 
     :param model: the definition of the probabilistic model
     :type model: Model
@@ -31,6 +31,7 @@ class PredictionAlgorithm(SamplingAlgorithm):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
+        outcomes = {}
         for f in self.model.ordered_factors:
             if isinstance(f, FunctionEvaluation):
                 outcome = f.eval(F=F, variables=variables,
@@ -38,6 +39,7 @@ class PredictionAlgorithm(SamplingAlgorithm):
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
+                    outcomes[uuid] = v
             elif isinstance(f, Distribution):
                 known = [v in variables for _, v in f.outputs]
                 if all(known):
@@ -49,7 +51,15 @@ class PredictionAlgorithm(SamplingAlgorithm):
                     F=F, num_samples=self.num_samples, variables=variables, always_return_tuple=True)
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
+                    outcomes[uuid] = v
             elif isinstance(f, Module):
+                outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.predict(
-                    F=F, variables=variables)
-                return outcome
+                    F=F, variables=variables, targets=outcome_uuid)
+                for v, uuid in zip(outcome, outcome_uuid):
+                    variables[uuid] = v
+                    outcomes[uuid] = v
+        if self.target_variables:
+            return tuple(outcomes[uuid] for uuid in self.target_variables)
+        else:
+            return outcomes

@@ -12,7 +12,7 @@ from ...inference.variational import VariationalInference
 from ...util.customop import broadcast_to_w_samples
 
 
-class GPRegr_log_pdf(VariationalInference):
+class GPRegressionLogPdf(VariationalInference):
     """
     The method to compute the logarithm of the probability density function of
     a Gaussian process model with Gaussian likelihood.
@@ -43,14 +43,14 @@ class GPRegr_log_pdf(VariationalInference):
         return logL
 
 
-class GPRegr_sampling(SamplingAlgorithm):
+class GPRegressionSampling(SamplingAlgorithm):
     """
     The method for drawing samples from the prior distribution of a Gaussian process regression model.
     """
     def __init__(self, model, observed, num_samples=1, target_variables=None,
                  rand_gen=None):
 
-        super(GPRegr_sampling, self).__init__(
+        super(GPRegressionSampling, self).__init__(
             model=model, observed=observed, num_samples=num_samples,
             target_variables=target_variables)
         self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
@@ -85,11 +85,11 @@ class GPRegr_sampling(SamplingAlgorithm):
             return samples
 
 
-class GPRegr_prediction(InferenceAlgorithm):
+class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
     def __init__(self, model, posterior, observed, noise_free=True,
                  diagonal_variance=True):
-        super(GPRegr_prediction, self).__init__(model=model, observed=observed,
-                                                extra_graphs=[posterior])
+        super(GPRegressionMeanVariancePrediction, self).__init__(
+            model=model, observed=observed, extra_graphs=[posterior])
         self.noise_free = noise_free
         self.diagonal_variance = diagonal_variance
 
@@ -121,7 +121,13 @@ class GPRegr_prediction(InferenceAlgorithm):
             var = Ktt - F.linalg.syrk(LinvKxt, True)
             if not self.noise_free:
                 var += F.eye(N, dtype=X.dtype) * noise_var
-        return mu, var
+
+        outcomes = {self.model.Y.uuid: (mu, var)}
+
+        if self.target_variables:
+            return tuple(outcomes[v] for v in self.target_variables)
+        else:
+            return outcomes
 
 
 class GPRegression(Module):
@@ -201,26 +207,29 @@ class GPRegression(Module):
 
     def _attach_default_inference_algorithms(self):
         """
-        The internal method for attaching default inference algorithms of the module. This method needs to be overridden by specific probabilistic modules.
+        Attach the default inference algorithms for GPRegression Module:
+        log_pdf <- GPRegressionLogPdf
+        draw_samples <- GPRegressionSampling
+        prediction <- GPRegressionMeanVariancePrediction
         """
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=GPRegr_log_pdf(self._module_graph, self._extra_graphs[0],
+            algorithm=GPRegressionLogPdf(self._module_graph, self._extra_graphs[0],
                                      observed),
             alg_name='gp_log_pdf')
 
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=GPRegr_sampling(self._module_graph, observed,
+            algorithm=GPRegressionSampling(self._module_graph, observed,
                                       rand_gen=self._rand_gen),
             alg_name='gp_sampling')
 
         self.attach_prediction_algorithms(
-            conditionals=self.input_names,
-            algorithm=GPRegr_prediction(
+            targets=self.output_names, conditionals=self.input_names,
+            algorithm=GPRegressionMeanVariancePrediction(
                 self._module_graph, self._extra_graphs[0], observed),
             alg_name='gp_predict')
 

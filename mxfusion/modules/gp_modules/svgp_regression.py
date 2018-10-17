@@ -1,22 +1,21 @@
 import numpy as np
-from mxnet import autograd
 from ..module import Module
 from ...models import Model, Posterior
 from ...components.variables.variable import Variable
 from ...components.variables.var_trans import PositiveTransformation
-from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess, MultivariateNormal
-from ...inference.variational import VariationalInference, VariationalSamplingAlgorithm
+from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess
+from ...inference.variational import VariationalInference
 from ...inference.forward_sampling import ForwardSamplingAlgorithm
-from ...inference.inference_alg import InferenceAlgorithm
+from ...inference.inference_alg import InferenceAlgorithm, SamplingAlgorithm
 from ...util.customop import make_diagonal
 
 
-class SVGPRegr_log_pdf(VariationalInference):
+class SVGPRegressionLogPdf(VariationalInference):
     """
     The inference algorithm for computing the variational lower bound of the stochastic variational Gaussian process with Gaussian likelihood.
     """
     def __init__(self, model, posterior, observed, jitter=0.):
-        super(SVGPRegr_log_pdf, self).__init__(
+        super(SVGPRegressionLogPdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
         self.log_pdf_scaling = 1
         self.jitter = jitter
@@ -75,10 +74,10 @@ class SVGPRegr_log_pdf(VariationalInference):
         return logL
 
 
-class SVGPRegr_prediction(InferenceAlgorithm):
+class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
     def __init__(self, model, posterior, observed, jitter=0., noise_free=True,
                  diagonal_variance=True):
-        super(SVGPRegr_prediction, self).__init__(
+        super(SVGPRegressionMeanVariancePrediction, self).__init__(
             model=model, observed=observed, extra_graphs=[posterior])
         self.jitter = jitter
         self.noise_free = noise_free
@@ -131,7 +130,12 @@ class SVGPRegr_prediction(InferenceAlgorithm):
             if not self.noise_free:
                 var += F.eye(N, dtype=X.dtype) * noise_var
 
-        return mu, var
+        outcomes = {self.model.Y.uuid: (mu, var)}
+
+        if self.target_variables:
+            return tuple(outcomes[v] for v in self.target_variables)
+        else:
+            return outcomes
 
 
 class SVGPRegression(Module):
@@ -225,13 +229,16 @@ class SVGPRegression(Module):
 
     def _attach_default_inference_algorithms(self):
         """
-        Generate a model graph for stochastic variational GP regression module.
+        Attach the default inference algorithms for SVGPRegression Module:
+        log_pdf <- SVGPRegressionLogPdf
+        draw_samples <- ForwardSamplingAlgorithm
+        prediction <- SVGPRegressionMeanVariancePrediction
         """
         observed = [v for k, v in self.inputs] + \
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SVGPRegr_log_pdf(
+            algorithm=SVGPRegressionLogPdf(
                 self._module_graph, self._extra_graphs[0], observed),
             alg_name='svgp_log_pdf')
 
@@ -243,8 +250,8 @@ class SVGPRegression(Module):
             alg_name='svgp_sampling')
 
         self.attach_prediction_algorithms(
-            conditionals=self.input_names,
-            algorithm=SVGPRegr_prediction(
+            targets=self.output_names, conditionals=self.input_names,
+            algorithm=SVGPRegressionMeanVariancePrediction(
                 self._module_graph, self._extra_graphs[0], observed),
             alg_name='svgp_predict')
 
