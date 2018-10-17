@@ -44,6 +44,7 @@ class Module(Factor):
         self._extra_graphs = []
         self._log_pdf_methods = {}
         self._draw_samples_methods = {}
+        self._prediction_methods = {}
 
     def _generate_outputs(self, output_shapes):
         """
@@ -112,24 +113,29 @@ class Module(Factor):
                         include_inherited=True))
         return [v.uuid for v in vars]
 
-    def initialize_hidden_parameters(self, param_dict=None, constants=None):
+    def initialize_hidden_parameters(self, param_dict=None, excluded=None,
+                                     constants=None):
         """
         Initialize all the hidden parameters.
 
         :param param_dict: the MXNet ParameterDict for parameter initialization
         :type param_dict: MXNet ParameterDict
+        :param excluded: the set of variables that are excluded from initialization
+        :type excluded: set(str(UUID))
         :param constants: the constants discovered during initialization, to be used for shape inference
         :type constants: {str(UUID): float or int}
         """
         if param_dict is None:
             param_dict = ParameterDict()
+        if excluded is None:
+            excluded = set()
         if constants is None:
             constants = {}
         for g in [self._module_graph]+self._extra_graphs:
             for var in g.get_parameters(
                     excluded=set([v.uuid for _, v in self.inputs] +
                                  [v.uuid for _, v in self.outputs]
-                                 ).union(constants.keys()),
+                                 ).union(constants.keys()).union(excluded),
                     include_inherited=True):
 
                 var_shape = realize_shape(var.shape, constants)
@@ -218,6 +224,30 @@ class Module(Factor):
         else:
             self._draw_samples_methods[conditionals] = [(targets, algorithm, alg_name)]
 
+    def attach_prediction_algorithms(self, conditionals, algorithm,
+                                     alg_name=None):
+        """
+        Attach an inference algorithm for prediction from the module.
+
+        :param conditionals: Variables to condition the samples on.
+        :type conditionals: tuple of str
+        :param algorithm: the inference algorithm to draw samples of the chosen target variables from the module.
+        :type algorithm: InferenceAlgorithm
+        """
+        if conditionals is not None:
+            conditionals = tuple(sorted(conditionals))
+        if conditionals in self._prediction_methods:
+            old_name = self._prediction_methods[conditionals][1]
+            if old_name is not None:
+                delattr(self, old_name)
+        if alg_name is not None:
+            if not hasattr(self, alg_name):
+                setattr(self, alg_name, algorithm)
+            else:
+                warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
+                alg_name = None
+        self._prediction_methods[conditionals] = (algorithm, alg_name)
+
     def log_pdf(self, F, variables, targets=None):
         """
         Compute the logarithm of the probability/probability density of a set of random variables in the Module. The set of random
@@ -276,6 +306,25 @@ class Module(Factor):
                     return alg.compute(F, variables)
         raise ModelSpecificationError("The targets-conditionals pattern for draw_samples computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
 
+    def predict(self, F, variables):
+        """
+        prediction
+
+        :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
+        :param variables: The set of variables
+        :type variables: {UUID : MXNet NDArray or MXNet Symbol}
+        :returns: the sum of the log probability of all the target variables.
+        :rtype: mxnet NDArray or mxnet Symbol
+        """
+        conditionals_names = self.get_names_from_uuid(variables.keys())
+        conditionals_names = tuple(sorted(conditionals_names))
+
+        if conditionals_names in self._prediction_methods:
+            alg = self._prediction_methods[conditionals_names][0]
+        else:
+            raise ModelSpecificationError("The targets, conditionals pattern for log_pdf computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
+        return alg.compute(F, variables)
+
     def prepare_executor(self, rv_scaling=None):
         """
         Prepare the creation of an executor. This includes collecting the list of variable transformations and the list of the variables that are inherited from external Gluon blocks, and setting log_pdf_scaling for random variables.
@@ -300,3 +349,18 @@ class Module(Factor):
                     else:
                         v.factor.log_pdf_scaling = 1
         return var_trans, excluded
+
+    def replicate_self(self, attribute_map=None):
+        """
+        The copy constructor for the fuction.
+        """
+        rep = super(Module, self).replicate_self(attribute_map)
+
+        rep._rand_gen = self._rand_gen
+        rep.dtype = self.dtype
+        rep.ctx = self.ctx
+        rep._module_graph = self._module_graph.replicate_self(attribute_map)
+        rep._extra_graphs = [m.replicate_self(attribute_map) for m in
+                             self._extra_graphs]
+        rep._attach_default_inference_algorithms()
+        return rep
