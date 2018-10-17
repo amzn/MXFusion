@@ -54,16 +54,19 @@ class TestBetaDistribution(object):
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
 
     @pytest.mark.parametrize(
-        "dtype, a, a_is_samples, b, b_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.uniform(0.5, 2, size=(int(1e4), 2)), True, np.random.uniform(0.5, 2, size=(2,)), False, (3, 2), int(1e4)),
-            # (np.float64, np.random.uniform(0.2, 2, size=(2,)), False, np.random.uniform(0.5, 2, size=(int(1e4), 2)), True, (3, 2), int(1e4)),
-            # (np.float64, np.random.uniform(0.2, 2, size=(2,)), False, np.random.uniform(0.5, 2, size=(2,)), False, (3, 2), int(1e7)),
-            # (np.float64, np.random.uniform(0.5, 2, size=(int(1e5), 2)), True, np.random.uniform(0.5, 2, size=(int(1e5), 3, 2)), True, (3, 2), int(1e5)),
-            # (np.float32, np.random.uniform(0.5, 2, size=(int(1e4), 2)), True, np.random.uniform(0.5, 2, size=(2,)), False, (3, 2), int(1e4)),
+        "dtype, a_shape, a_is_samples, b_shape, b_is_samples, rv_shape, num_samples", [
+            (np.float64, (int(1e4), 2), True, (2,), False, (3, 2), int(1e4)),
+            # (np.float64, (2,), False, (int(1e4), 2), True, (3, 2), int(1e4)),
+            # (np.float64, (2,), False, (2,), False, (3, 2), int(1e7)),
+            # (np.float64, (int(1e5), 2), True, (int(1e5), 3, 2), True, (3, 2), int(1e5)),
+            # (np.float32, (int(1e4), 2), True, (2,), False, (3, 2), int(1e4)),
         ])
-    def test_draw_samples(self, dtype, a, a_is_samples, b, b_is_samples, rv_shape, num_samples):
-        # Note: Tests above have been commented as they are very slow to run. They *can* fail due to bad luck generating
-        # the random uniform variables (these don't seem to have random state set?)
+    def test_draw_samples(self, dtype, a_shape, a_is_samples, b_shape, b_is_samples, rv_shape, num_samples):
+        # Note: Tests above have been commented as they are very slow to run.
+        # Note: Moved random number generation to here as the seed wasn't set if used above
+        a = np.random.uniform(0.5, 2, size=a_shape)
+        b = np.random.uniform(0.5, 2, size=b_shape)
+
         n_dim = 1 + len(rv_shape)
         a_np = numpy_array_reshape(a, a_is_samples, n_dim)
         b_np = numpy_array_reshape(b, b_is_samples, n_dim)
