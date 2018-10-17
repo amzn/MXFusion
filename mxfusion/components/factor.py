@@ -151,6 +151,18 @@ class Factor(ModelComponent):
         variables = [variables] if not isinstance(variables, (list, tuple)) else variables
         self.successors = [(name, variable) for name, variable in zip(self.output_names, variables)]
 
+    def set_single_input(self, key, value):
+        """
+        Set a single input variable of a factor.
+
+        :param key: the name of the input variable in the factor
+        :type key: str
+        :param value: the variable to be set
+        :type value: Variable
+        """
+        inputs = [(k, value) if k == key else (k, v) for k, v in self.inputs]
+        self.predecessors = inputs
+
     @property
     def input_names(self):
         """
