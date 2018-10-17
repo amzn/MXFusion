@@ -16,7 +16,7 @@ Submodules
 """
 
 __all__ = ['categorical', 'distribution', 'normal', 'pointmass', 'rand_gen',
-           'univariate','gp']
+           'univariate','gp', 'wishart', 'beta']
 
 from .distribution import Distribution
 from .normal import Normal, MultivariateNormal
@@ -24,3 +24,4 @@ from .pointmass import PointMass
 from .categorical import Categorical
 from .gp import GaussianProcess, ConditionalGaussianProcess
 from .wishart import Wishart
+from .beta import Beta
