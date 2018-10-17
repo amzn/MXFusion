@@ -128,7 +128,7 @@ class Kernel(MXFusionFunction):
             X = slice_axis(F, X, axis=-1, indices=self.active_dims)
         return self._compute_Kdiag(F=F, X=X, **params)
 
-    def add(self, other, name='sum'):
+    def add(self, other, name='add'):
         """
         Construct a new kernel by adding this kernel to another kernel.
 

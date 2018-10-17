@@ -106,7 +106,7 @@ class Variable(ModelComponent):
             v.isInherited = self.isInherited
             v.inherited_name = self.inherited_name
         v._uuid = self.uuid
-        # v.replicant = True
+        v._initial_value = self._initial_value
         return v
 
     @property
