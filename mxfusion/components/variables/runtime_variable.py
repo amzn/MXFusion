@@ -4,7 +4,7 @@ from mxnet.symbol.symbol import Symbol
 
 def add_sample_dimension(F, array):
     """
-    Add an extra dimension with shape one in the front (axis 0) of an array repesenting samples.
+    Add an extra dimension with shape one in the front (axis 0) of an array representing samples.
 
     :param F: the execution mode of MXNet.
     :type F: mxnet.ndarray or mxnet.symbol
