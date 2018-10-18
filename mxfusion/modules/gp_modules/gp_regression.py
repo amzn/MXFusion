@@ -131,9 +131,8 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
 
 
 class GPRegressionSamplingPrediction(SamplingAlgorithm):
-    def __init__(self, model, posterior, observed, num_samples=1,
-                 target_variables=None, rand_gen=None, noise_free=True,
-                 diagonal_variance=True, jitter=0.):
+    def __init__(self, model, posterior, observed, rand_gen=None,
+                 noise_free=True, diagonal_variance=True, jitter=0.):
         super(GPRegressionSamplingPrediction, self).__init__(
             model=model, observed=observed, extra_graphs=[posterior])
         self.noise_free = noise_free
@@ -165,9 +164,7 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
             var = Ktt - F.sum(F.square(LinvKxt), axis=-2)
             if not self.noise_free:
                 var += noise_var
-            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:],
-                                               dtype=self.model.F.factor.dtype)
-            print(mu.shape, var.shape, die.shape)
+            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:], dtype=self.model.F.factor.dtype)
             samples = mu + die * F.sqrt(F.expand_dims(var, axis=-1))
         else:
             Ktt = kern.K(F, X, **kern_params)
