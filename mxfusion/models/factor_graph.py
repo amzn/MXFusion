@@ -2,7 +2,9 @@ from future.utils import raise_from
 from uuid import uuid4
 import warnings
 import networkx as nx
-from ..components import Distribution, Factor, ModelComponent, Module, Variable, VariableType
+import networkx.algorithms.dag
+from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
+from ..modules.module import Module
 from ..common.exceptions import ModelSpecificationError, InferenceError
 from ..components.functions import FunctionEvaluation
 from ..components.variables.runtime_variable import expectation
@@ -37,7 +39,7 @@ class FactorGraph(object):
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' = '+str(f)+'\n'
-            elif isinstance(f, Distribution):
+            elif isinstance(f, (Distribution, Module)):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' ~ '+str(f)+'\n'
         return out_str[:-1]
 
@@ -168,29 +170,23 @@ class FactorGraph(object):
 
         return self._var_ties
 
-    def compute_log_prob(self, F, targets, conditionals=None, constants=None):
+    def log_pdf(self, F, variables, targets=None):
         """
         Compute the logarithm of the probability/probability density of a set of random variables in the factor graph. The set of random
         variables are specified in the "target" argument and any necessary conditional variables are specified in the "conditionals" argument.
         Any relevant constants are specified in the "constants" argument.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
+        :param variables: The set of variables
+        :type variables: {UUID : MXNet NDArray or MXNet Symbol}
         :param targets: Variables to compute the log probability of.
-        :type targets: {uuid : RTVariable}
-        :param conditionals: variables to condition the probabilities on.
-        :type conditionals: {uuid : RTVariable}
-        :param constants: the constants that may be used in computation.
-        :type constants: {UUID: float or mxnet NDArray or mxnet Symbol}
+        :type targets: {uuid : mxnet NDArray or mxnet Symbol}
         :returns: the sum of the log probability of all the target variables.
-        :rtype: RTVariable
+        :rtype: mxnet NDArray or mxnet Symbol
         """
-        constants = {} if constants is None else constants
-
-        variables = targets.copy()
-        variables.update(constants)
-        if conditionals is not None:
-            variables.update(conditionals)
-
+        if targets is not None:
+            targets = set(targets) if isinstance(targets, (list, tuple)) \
+                else targets
         logL = 0.
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
@@ -202,39 +198,38 @@ class FactorGraph(object):
                         warnings.warn('Function evaluation in FactorGraph.compute_log_prob_RT: the outcome variable '+str(uuid)+' of the function evaluation '+str(f)+' has already existed in the variable set.')
                     variables[uuid] = v
             elif isinstance(f, Distribution):
-                if f.random_variable.uuid in targets:
+                if targets is None or f.random_variable.uuid in targets:
                     logL = logL + F.sum(expectation(F, f.log_pdf(
                         F=F, variables=variables)))
             elif isinstance(f, Module):
-                raise NotImplementedError("Modules aren't implemented yet!")
+                if targets is None:
+                    module_targets = [v.uuid for _, v in f.outputs
+                                      if v.uuid in variables]
+                else:
+                    module_targets = [v.uuid for _, v in f.outputs
+                                      if v.uuid in targets]
+                if len(module_targets) > 0:
+                    logL = logL + F.sum(expectation(F, f.log_pdf(
+                        F=F, variables=variables, targets=module_targets)))
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         return logL
 
-    def draw_samples(self, F, num_samples=1, targets=None, conditionals=None,
-                     constants=None):
+    def draw_samples(self, F, variables, num_samples=1, targets=None):
         """
         Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples from all the variables
-        that are *not* in the ``conditionals`` argument.
+        that are *not* in the conditional variables. If the ``targets`` argument is given, this method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict of samples where the keys are the UUIDs of variables and the values are the samples.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
+        :param variables: The set of variables
+        :type variables: {UUID : MXNet NDArray or MXNet Symbol}
         :param num_samples: The number of samples to draw for the target variables.
         :type num_samples: int
         :param targets: a list of Variables to draw samples from.
         :type targets: [UUID]
-        :param conditionals: Variables to condition the samples on.
-        :type conditionals: {UUID : RTVariable}
-        :param constants: the constants that may be used in computation.
-        :type constants: {UUID: float or mxnet NDArray or mxnet Symbol}
         :returns: the samples of the target variables.
-        :rtype: {UUID : RTVariable}
+        :rtype: (MXNet NDArray or MXNet Symbol,) or {str(UUID): MXNet NDArray or MXNet Symbol}
         """
-        constants = {} if constants is None else constants
-        variables = {}
-        variables.update(constants)
-        if conditionals is not None:
-            variables.update(conditionals)
-
         samples = {}
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
@@ -252,20 +247,26 @@ class FactorGraph(object):
                     continue
                 elif any(known):
                     raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ + " has been observed!")
-                outcome = f.draw_samples(
-                    F=F, num_samples=num_samples, variables=variables,
-                    always_return_tuple=True)
                 outcome_uuid = [v.uuid for _, v in f.outputs]
+                outcome = f.draw_samples(
+                    F=F, num_samples=num_samples, variables=variables, always_return_tuple=True)
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
                     samples[uuid] = v
             elif isinstance(f, Module):
-                raise NotImplementedError("Modules aren't implemented yet!")
+                outcome_uuid = [v.uuid for _, v in f.outputs]
+                outcome = f.draw_samples(
+                    F=F, variables=variables, num_samples=num_samples,
+                    targets=outcome_uuid)
+                for v, uuid in zip(outcome, outcome_uuid):
+                    variables[uuid] = v
+                    samples[uuid] = v
             else:
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         if targets:
-            samples = {uuid: samples[uuid] for uuid in targets}
-        return samples
+            return tuple(samples[uuid] for uuid in targets)
+        else:
+            return samples
 
     def remove_component(self, component):
         """
@@ -297,6 +298,29 @@ class FactorGraph(object):
         """
         return FactorGraph(**kwargs)
 
+    def get_markov_blanket(self, node):
+        """
+        Gets the Markov Blanket for a node, which is the node's predecessors, the nodes successors, and those successors' other predecessors.
+        """
+        def get_variable_predecessors(node):
+            return [v2 for k1,v1 in node.predecessors for k2,v2 in v1.predecessors if isinstance(v2, Variable)]
+        def get_variable_successors(node):
+            return [v2 for k1,v1 in node.successors for k2,v2 in v1.successors if isinstance(v2, Variable)]
+        def flatten(node_list):
+            return set([p for varset in node_list for p in varset])
+        successors = set(get_variable_successors(node))
+        n = set([node])
+        pred = set(get_variable_predecessors(node))
+        succs_preds = flatten([get_variable_predecessors(s) for s in successors])
+        return n.union(pred.union(successors.union(succs_preds)))
+
+    def get_descendants(self, node):
+        """
+        Recursively gets all successors in the graph for the given node.
+        :rtype: set of all nodes in the graph descended from the node.
+        """
+        return set(filter(lambda x: isinstance(x, Variable),
+               networkx.algorithms.dag.descendants(self.components_graph, node).union({node})))
     def remove_subgraph(self, node):
         """
         Removes a node and its parent graph recursively.

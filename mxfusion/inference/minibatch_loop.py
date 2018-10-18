@@ -60,10 +60,10 @@ class MinibatchInferenceLoop(GradLoop):
             n_batches = 0
             for i, data_batch in enumerate(data_loader):
                 with mx.autograd.record():
-                    loss = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
-                    loss.backward()
+                    loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
+                    loss_for_gradient.backward()
                 if verbose:
-                    print('\repoch {} Iteration {} logL: {}\t\t'.format(
+                    print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
                           e + 1, i + 1, loss.asscalar() / self.batch_size),
                           end='')
                 trainer.step(batch_size=self.batch_size,

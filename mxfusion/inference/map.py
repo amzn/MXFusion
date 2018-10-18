@@ -43,7 +43,7 @@ class MAP(InferenceAlgorithm):
             q[v].assign_factor(PointMass(location=Variable(shape=v.shape)))
         return q
 
-    def compute(self, F, data, parameters, constants):
+    def compute(self, F, variables):
         """
         The method for the computation of the inference algorithm
 
@@ -61,17 +61,9 @@ class MAP(InferenceAlgorithm):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
-        knowns = data.copy()
-        knowns.update(constants)
-
         for v in self.model.variables.values():
-            if v.type == VariableType.RANDVAR and v not in data:
-                # TODO: check self._post_graph[v].factor is a PointMass distribution
-                knowns[v.uuid] = parameters[self.posterior[v].factor.location.uuid]
-            elif v.type == VariableType.PARAMETER and v not in data and v not in constants:
-                if not v.isInherited:
-                    knowns[v.uuid] = parameters[v.uuid]
+            if v.type == VariableType.RANDVAR and v not in self._observed:
+                variables[v.uuid] = variables[self.posterior[v].factor.location.uuid]
 
-        logL = self.model.compute_log_prob(F=F, targets=knowns,
-                                           constants=constants)
-        return -logL
+        logL = self.model.log_pdf(F=F, variables=variables)
+        return -logL, -logL

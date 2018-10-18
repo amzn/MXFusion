@@ -61,6 +61,14 @@ class MockMXNetRandomGenerator(RandomGenerator):
                            F=None):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
 
+    def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
+        if shape is None:
+            shape = (1,)
+        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
+        if out is not None:
+            out[:] = res
+        return res
+
 
 def make_net():
     D=100
@@ -92,7 +100,7 @@ def make_bnn_model(finalize=True, verbose=True):
     m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
     m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
     m.r = m.f(m.x)
-    for _, v in m.r.factor.block_variables:
+    for _, v in m.r.factor.parameters.items():
         v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0]), variance=m.prior_variance))
     m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=m.v, shape=(m.N,))
     return m

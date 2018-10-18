@@ -37,6 +37,12 @@ class InferenceParameters(object):
         self._params = ParameterDict()
 
     def update_constants(self, constants):
+        """
+        Update the constants.
+
+        :param constants: The constants to be updated.
+        :type constants: {Variable: float or MXNet NDArray}
+        """
         self.constants.update({
             (k.uuid if isinstance(k, ModelComponent) else k): v
             for k, v in constants.items()})
@@ -57,7 +63,7 @@ class InferenceParameters(object):
             for f in g.functions.values():
                 if isinstance(f, GluonFunctionEvaluation):
                     self._params.update(
-                        f.function_wrapper.collect_internal_parameters())
+                        f.function.collect_gluon_parameters())
 
             for var in g.get_constants():
                 self._constants[var.uuid] = var.constant
@@ -66,11 +72,13 @@ class InferenceParameters(object):
             for var in g.get_parameters(excluded=excluded,
                                         include_inherited=False):
                 var_shape = realize_shape(var.shape, self._constants)
-                init = initializer.Constant(var.initial_value) if var.initial_value is not None else None
+                init = initializer.Constant(var.initial_value_before_transformation) if var.initial_value is not None else None
 
                 self._params.get(name=var.uuid, shape=var_shape,
                                  dtype=self.dtype,
                                  allow_deferred_init=True, init=init)
+            for m in g.modules.values():
+                m.initialize_hidden_parameters(self._params, excluded, self._constants)
 
         self._params.initialize(ctx=self.mxnet_context)
 
@@ -91,6 +99,8 @@ class InferenceParameters(object):
         var_uuid = set()
         for g in graphs:
             var_uuid = var_uuid.union(set(g.variables.keys()))
+            for m in g.modules.values():
+                var_uuid = var_uuid.union(set(m.hidden_parameters))
 
         carryover_pairs = {}
         for carryover in carryover_params:

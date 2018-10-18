@@ -24,6 +24,8 @@ class Bias(NativeKernel):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    broadcastable = True
+
     def __init__(self, input_dim, variance=1., name='bias', active_dims=None,
                  dtype=None, ctx=None):
         super(Bias, self).__init__(input_dim=input_dim, name=name,
@@ -75,7 +77,7 @@ class White(NativeKernel):
     White kernel, which produces a constant value for the diagonal of the covariance matrix.
 
     .. math::
-       K = \sigma^2 I
+       K = \\sigma^2 I
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).
     :type input_dim: int
@@ -90,6 +92,8 @@ class White(NativeKernel):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    broadcastable = True
+
     def __init__(self, input_dim, variance=1., name='white', active_dims=None,
                  dtype=None, ctx=None):
         super(White, self).__init__(input_dim=input_dim, name=name,
