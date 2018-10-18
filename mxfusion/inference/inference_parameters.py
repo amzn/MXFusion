@@ -15,7 +15,8 @@ class InferenceParameters(object):
     """
     The parameters and outcomes of an inference method.
 
-    InferenceParameters is a pool of memory that contains a mapping from uuid to two types of memories (MXNet ParameterDict and Constants).
+    InferenceParameters is a pool of memory that contains a mapping from uuid to two types of memories
+    (MXNet ParameterDict and Constants).
 
     :param constants: Specify a list of model variables as constants
     :type constants: {ModelComponent.uuid : mxnet.ndarray}
@@ -72,7 +73,8 @@ class InferenceParameters(object):
             for var in g.get_parameters(excluded=excluded,
                                         include_inherited=False):
                 var_shape = realize_shape(var.shape, self._constants)
-                init = initializer.Constant(var.initial_value_before_transformation) if var.initial_value is not None else None
+                init = initializer.Constant(var.initial_value_before_transformation) \
+                    if var.initial_value is not None else None
 
                 self._params.get(name=var.uuid, shape=var_shape,
                                  dtype=self.dtype,
@@ -89,7 +91,8 @@ class InferenceParameters(object):
         :type graphs: a list of FactorGraph
         :param observed_uuid: Parameter Variables that are passed in directly as data, not to be inferred.
         :type observed_uuid: {UUID : mx.ndarray}
-        :param var_ties: A dictionary of variable maps that are tied together and use the MXNet Parameter of the dict value's uuid.
+        :param var_ties: A dictionary of variable maps that are tied together and use the MXNet Parameter of the dict
+        value's uuid.
         :type var_ties: { UUID to tie from : UUID to tie to }
         :param carryover_params: list of InferenceParameters containing the outcomes of previous inference algorithms.
         :type carryover_params: [InferenceParameters]
@@ -173,11 +176,16 @@ class InferenceParameters(object):
                         current_params=None):
         """
         Loads back a sest of InferenceParameters from files.
-        :param parameters_file: These are the parameters of the previous inference algorithm.  These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved in a binary format.
-        :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm. These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved in a binary format.
-        :param variable_constants_file: These are the constants in primitive format from the previous inference algorithm.
+        :param parameters_file: These are the parameters of the previous inference algorithm.
+        These are in a {uuid: mx.nd.array} mapping.
+        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
+        in a binary format.
+        :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm.
+        These are in a {uuid: mx.nd.array} mapping.
+        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
+        in a binary format.
+        :param variable_constants_file: These are the constants in primitive format from the previous
+        inference algorithm.
         :type variable_constants_file: json dict of {uuid: constant_primitive}
         """
         def with_uuid_map(item, uuid_map):
@@ -218,7 +226,9 @@ class InferenceParameters(object):
 
     def save(self, prefix):
         """
-        Saves the parameters and constants down to json files as maps from {uuid : value}, where value is an mx.ndarray for parameters and either primitive number types or mx.ndarray for constants. Saves up to 3 files: prefix+["_params.json", "_variable_constants.json", "_mxnet_constants.json"]
+        Saves the parameters and constants down to json files as maps from {uuid : value},
+        where value is an mx.ndarray for parameters and either primitive number types or mx.ndarray for constants.
+        Saves up to 3 files: prefix+["_params.json", "_variable_constants.json", "_mxnet_constants.json"]
 
         :param prefix: The directory and any appending tag for the files to save this Inference as.
         :type prefix: str , ex. "../saved_inferences/experiment_1"

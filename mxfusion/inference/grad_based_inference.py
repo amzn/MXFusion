@@ -43,7 +43,7 @@ class GradBasedInference(Inference):
             rv_scaling = self._grad_loop.rv_scaling
         else:
             rv_scaling = None
-        infr = self._infr_alg.create_executor(
+        infr = self._inference_algorithm.create_executor(
             data_def=self.observed_variable_UUIDs, params=self.params,
             var_ties=self.params.var_ties, rv_scaling=rv_scaling)
         if self._hybridize:
@@ -52,7 +52,7 @@ class GradBasedInference(Inference):
         return infr
 
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
-            verbose=False, **kw):
+            verbose=False, **kwargs):
         """
         Run the inference method.
 
@@ -67,8 +67,8 @@ class GradBasedInference(Inference):
         :param **kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of the corresponding
             variable in model definition and the value of the argument is the data in numpy array format.
         """
-        data = [kw[v] for v in self.observed_variable_names]
-        self.initialize(**kw)
+        data = [kwargs[v] for v in self.observed_variable_names]
+        self.initialize(**kwargs)
 
         infr = self.create_executor()
         return self._grad_loop.run(
