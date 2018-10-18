@@ -14,5 +14,5 @@ Submodules
 __all__ = ['runtime_variable', 'var_trans', 'variable']
 
 from .runtime_variable import add_sample_dimension, add_sample_dimension_to_arrays, expectation, is_sampled_array, get_num_samples, as_samples
-from .var_trans import Softplus, PositiveTransformation
+from .var_trans import Softplus, PositiveTransformation, Logistic
 from .variable import Variable, VariableType

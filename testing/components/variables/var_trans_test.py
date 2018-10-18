@@ -2,7 +2,7 @@ import pytest
 import mxnet as mx
 import numpy as np
 import numpy.testing as npt
-from mxfusion.components.variables.var_trans import PositiveTransformation
+from mxfusion.components.variables.var_trans import PositiveTransformation, Logistic
 
 
 @pytest.mark.usefixtures("set_seed")
@@ -38,3 +38,16 @@ class TestVariableTransformation(object):
         npt.assert_allclose(mf_pos.asnumpy(), np_pos, rtol=rtol, atol=atol)
         npt.assert_allclose(mf_inv.asnumpy(), np_inv, rtol=rtol, atol=atol)
         npt.assert_allclose(mf_inv.asnumpy(), x.asnumpy(), rtol=rtol, atol=atol)
+
+    @pytest.mark.parametrize("x, upper, lower, rtol, atol", [
+        (mx.nd.array([10], dtype=np.float64), 2, 20, 1e-7, 1e-10),
+        (mx.nd.array([1e-3], dtype=np.float64), 1e-6, 1e-2, 1e-7, 1e-10),
+        (mx.nd.array([1], dtype=np.float32), 1, 200000, 1e-4, 1e-5),
+        (mx.nd.array([5], dtype=np.float32), 2, 10000, 1e-4, 1e-5)
+    ])
+    def test_logistic(self, x, upper, lower, rtol, atol):
+        transform = Logistic(upper, lower)
+        x_trans = transform.transform(x)
+        x_inversed = transform.inverseTransform(x_trans)
+        assert x_inversed.dtype == x.dtype
+        assert np.isclose(x.asnumpy(), x_inversed.asnumpy(), rtol=rtol, atol=atol)
