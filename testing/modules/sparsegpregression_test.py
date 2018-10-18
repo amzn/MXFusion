@@ -7,6 +7,8 @@ from mxfusion.components.distributions.gp.kernels import RBF
 from mxfusion.components import Variable
 from mxfusion.inference import Inference, MAP, ModulePredictionAlgorithm, TransferInference
 from mxfusion.components.variables.var_trans import PositiveTransformation
+from mxfusion.modules.gp_modules.sparsegp_regression import SparseGPRegressionSamplingPrediction
+
 
 import matplotlib
 matplotlib.use('Agg')
@@ -120,3 +122,48 @@ class TestSparseGPRegressionModule(object):
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
         assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
+
+    def test_sampling_prediction(self):
+        np.random.seed(0)
+        X = np.random.rand(10, 3)
+        Y = np.random.rand(10, 1)
+        Z = np.random.rand(3, 3)
+        noise_var = np.random.rand(1)
+        lengthscale = np.random.rand(3)/10.
+        variance = np.random.rand(1)
+        Xt = np.random.rand(20, 3)
+
+        m_gpy = GPy.models.SparseGPRegression(X=X, Y=Y, Z=Z, kernel=GPy.kern.RBF(3, ARD=True, lengthscale=lengthscale, variance=variance), num_inducing=3)
+        m_gpy.likelihood.variance = noise_var
+
+        dtype = 'float64'
+        m = Model()
+        m.N = Variable()
+        m.X = Variable(shape=(m.N, 3))
+        m.Z = Variable(shape=(3, 3), initial_value=mx.nd.array(Z, dtype=dtype))
+        m.noise_var = Variable(transformation=PositiveTransformation(), initial_value=mx.nd.array(noise_var, dtype=dtype))
+        kernel = RBF(input_dim=3, ARD=True, variance=mx.nd.array(variance, dtype=dtype), lengthscale=mx.nd.array(lengthscale, dtype=dtype), dtype=dtype)
+        m.Y = SparseGPRegression.define_variable(X=m.X, kernel=kernel, noise_var=m.noise_var, inducing_inputs=m.Z, shape=(m.N, 1), dtype=dtype)
+        m.Y.factor.sgp_log_pdf.jitter = 1e-8
+
+        observed = [m.X, m.Y]
+        infr = Inference(MAP(model=m, observed=observed), dtype=dtype)
+
+        loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
+
+        # noise_free, diagonal
+
+        infr_pred = TransferInference(ModulePredictionAlgorithm(model=m, observed=[m.X], target_variables=[m.Y], num_samples=5),
+                                      infr_params=infr.params)
+        gp = m.Y.factor
+        gp.attach_prediction_algorithms(
+            targets=gp.output_names, conditionals=gp.input_names,
+            algorithm=SparseGPRegressionSamplingPrediction(
+                gp._module_graph, gp._extra_graphs[0], [gp._module_graph.X]),
+            alg_name='sgp_predict')
+        gp.sgp_predict.diagonal_variance = False
+        gp.sgp_predict.jitter = 1e-6
+
+        y_samples = infr_pred.run(X=mx.nd.array(Xt, dtype=dtype))[0].asnumpy()
+
+        # TODO: Check the correctness of the sampling
