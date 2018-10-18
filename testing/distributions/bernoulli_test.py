@@ -69,4 +69,5 @@ class TestBernoulliDistribution(object):
 
         assert is_sampled_array(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
+        # TODO: should we have to cast to bool? or can mxnet handle bool natively?
         assert np.array_equal(rv_samples_np, rv_samples_rt.asnumpy().astype(bool))
