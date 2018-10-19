@@ -13,10 +13,11 @@ Submodules
     random_gen
     univariate
     gp
+    laplace
 """
 
-__all__ = ['categorical', 'distribution', 'normal', 'pointmass', 'rand_gen',
-           'univariate','gp', 'wishart', 'beta']
+__all__ = ['categorical', 'distribution', 'normal', 'pointmass', 'random_gen',
+           'univariate', 'gp', 'wishart', 'beta', 'laplace']
 
 from .distribution import Distribution
 from .gamma import Gamma, GammaMeanVariance
@@ -26,3 +27,4 @@ from .categorical import Categorical
 from .gp import GaussianProcess, ConditionalGaussianProcess
 from .wishart import Wishart
 from .beta import Beta
+from .laplace import Laplace

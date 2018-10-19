@@ -48,8 +48,7 @@ class MockMXNetRandomGenerator(RandomGenerator):
     def __init__(self, samples):
         self._samples = samples
 
-    def sample_normal(self, loc=0, scale=1, shape=None, dtype=None, out=None,
-                      ctx=None, F=None):
+    def _sample_univariate(self, shape=None, out=None):
         if shape is None:
             shape = (1,)
         res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
@@ -57,17 +56,21 @@ class MockMXNetRandomGenerator(RandomGenerator):
             out[:] = res
         return res
 
-    def sample_multinomial(self, data, shape=None, get_prob=True, dtype='int32',
-                           F=None):
+    def sample_normal(self, loc=0, scale=1, shape=None, dtype=None, out=None, ctx=None, F=None):
+        return self._sample_univariate(shape=shape, out=out)
+
+    def sample_multinomial(self, data, shape=None, get_prob=True, dtype='int32', F=None):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
 
     def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
-        if shape is None:
-            shape = (1,)
-        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
-        if out is not None:
-            out[:] = res
-        return res
+        return self._sample_univariate(shape=shape, out=out)
+
+    def sample_uniform(self, low=0., high=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        return self._sample_univariate(shape=shape, out=out)
+
+    def sample_laplace(self, location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        return self._sample_univariate(shape=shape, out=out)
+
 
 
 def make_net():
