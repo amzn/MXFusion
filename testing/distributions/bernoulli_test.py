@@ -84,3 +84,4 @@ class TestBernoulliDistribution(object):
 
         assert is_sampled_array(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
+        assert rv_samples_rt.dtype == dtype
