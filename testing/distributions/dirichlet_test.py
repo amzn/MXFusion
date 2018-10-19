@@ -106,60 +106,50 @@ class TestDirichletDistribution(object):
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
 
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv_shape, num_samples", [
-        (np.float64, np.random.rand(2), False, (5, 3, 2), 5),
+        (np.float64, np.random.rand(2), False, (3, 2), 5)
         ])
     def test_draw_samples_with_broadcast(self, dtype, a, a_is_samples, rv_shape, num_samples):
-
         a_mx = mx.nd.array(a, dtype=dtype)
         if not a_is_samples:
             a_mx = add_sample_dimension(mx.nd, a_mx)
 
-        is_samples_any = a_is_samples
-        rand = np.random.rand(num_samples, *rv_shape)
+        rand = np.random.gamma(shape=a, scale=np.ones(a.shape), size=(num_samples,)+rv_shape)
+        draw_samples_np = rand / np.sum(rand)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
         dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {dirichlet.a.uuid: a_mx}
-        draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables)
+        draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == is_samples_any
-        if is_samples_any:
-            assert get_num_samples(mx.nd, draw_samples_rt) == num_samples,\
-                (get_num_samples(mx.nd, draw_samples_rt), num_samples)
+        assert draw_samples_rt.shape == (5,) + rv_shape
+        assert np.allclose(draw_samples_np, draw_samples_rt.asnumpy())
 
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv_shape, num_samples", [
-        (np.float64, np.random.rand(2), False, (5, 3, 2), 5),
-        (np.float64, np.random.rand(5, 2), True, (5, 3, 2), 5),
-        (np.float64, np.random.rand(2), False, (5, 3, 2), 5),
-        (np.float64, np.random.rand(5, 2), True, (5, 3, 2), 5),
+        (np.float64, np.random.rand(5, 2), True, (3, 2), 5)
         ])
     def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype, a, a_is_samples, rv_shape, num_samples):
         a_mx = mx.nd.array(a, dtype=dtype)
         if not a_is_samples:
             a_mx = add_sample_dimension(mx.nd, a_mx)
 
-        rand = np.random.rand(num_samples, *rv_shape)
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype).factor
         variables = {dirichlet.a.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) is True
+        assert draw_samples_rt.shape == (5,) + rv_shape
 
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv_shape, num_samples", [
-        (np.float64, np.random.rand(2), False, (3, 2), 5),
-        (np.float64, np.random.rand(5, 3, 2), True, (5, 3, 2), 5),
+        (np.float64, np.random.rand(5, 3, 2), True, (3, 2), 5)
         ])
     def test_draw_samples_no_broadcast(self, dtype, a, a_is_samples, rv_shape, num_samples):
         a_mx = mx.nd.array(a, dtype=dtype)
         if not a_is_samples:
             a_mx = add_sample_dimension(mx.nd, a_mx)
 
-        # n_dim = 1 + len(rv.shape) if is_samples_any else len(rv.shape)
-        rand = np.random.rand(num_samples, *rv_shape)
+        rand = np.random.gamma(shape=a, scale=np.ones(a.shape), size=(num_samples,)+rv_shape)
+        draw_samples_np = rand / np.sum(rand)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
         dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
@@ -167,6 +157,4 @@ class TestDirichletDistribution(object):
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) is True
-        assert get_num_samples(mx.nd, draw_samples_rt) == num_samples,\
-            (get_num_samples(mx.nd, draw_samples_rt), num_samples)
+        assert np.allclose(draw_samples_np, draw_samples_rt.asnumpy())

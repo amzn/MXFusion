@@ -79,7 +79,6 @@ class DirichletDrawSamplesDecorator(DrawSamplesDecorator):
 
             shapes_map = {}
             shapes_map['a'] = (num_samples,) + rv_shape
-            shapes_map['random_variable'] = (num_samples,) + rv_shape
             variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
                          for name, v in variables.items()}
 
@@ -147,22 +146,19 @@ class Dirichlet(Distribution):
 
         :param a: the a parameter (alpha) of the Dirichlet distribution.
         :type a: MXNet NDArray or MXNet Symbol
-        :param tuple rv_shape: the shape of each sample.
+        :param tuple rv_shape: the shape of each sample (this variable is not used because the shape of the random var
+            is given by the shape of a)
         :param int num_samples: the number of drawn samples (default: one).
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the Dirichlet distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
-        out_shape = (num_samples,) + rv_shape + (1,)
 
         ones = F.ones_like(a)
-
         y = self._rand_gen.sample_gamma(alpha=a, beta=ones,
-                                        shape=out_shape,
                                         dtype=self.dtype, ctx=self.ctx)
-        x = F.broadcast_div(y, F.sum(y))
-        return x
+        return F.broadcast_div(y, F.sum(y))
 
     @staticmethod
     def define_variable(a, shape=None, normalization=True,
