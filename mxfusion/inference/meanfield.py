@@ -6,7 +6,7 @@ from ..util.inference import variables_to_UUID
 from ..common.config import get_default_dtype
 
 
-def create_Gaussian_meanfield(model, observed, dtype):
+def create_Gaussian_meanfield(model, observed, dtype=None):
     """
     Create the Meanfield posterior for Variational Inference.
 

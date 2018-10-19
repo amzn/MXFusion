@@ -2,9 +2,16 @@ import mxnet
 
 MXNET_DEFAULT_DTYPE = 'float32'
 MXNET_DEFAULT_MODE = mxnet.ndarray
-MXNET_DEFAULT_DEVICE = mxnet.cpu()
+MXNET_DEFAULT_DEVICE = None
+
 
 def get_default_dtype():
+    """
+    Return the default dtype. The default dtype is float32.
+
+    :returns: the default dtype
+    :rtypes: str
+    """
     return MXNET_DEFAULT_DTYPE
 
 
@@ -24,4 +31,7 @@ def get_default_device():
 
     :returns: an MXNet cpu or gpu, indicating the default device.
     """
-    return MXNET_DEFAULT_DEVICE
+    if MXNET_DEFAULT_DEVICE:
+        return MXNET_DEFAULT_DEVICE
+    else:
+        return mxnet.context.Context.default_ctx
