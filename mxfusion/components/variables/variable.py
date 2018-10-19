@@ -28,7 +28,7 @@ class Variable(ModelComponent):
     following a probabilistic distribution.
 
     :param value: The value of variable. If it is a numpy or MXNet array, the variable is considered as a constant. If it is a function evaluation, the
-        varaible is considered as the outcome of a function evaluation. If it is a probabilitistic distribution, the variable is considered as a random
+        variable is considered as the outcome of a function evaluation. If it is a probabilistic distribution, the variable is considered as a random
         variable. If it is None, the variable is considered as a parameter.
     :type value: (optional) None or numpy array or MXNet array or float or int or FunctionEvaluation or Distribution.
     :param shape: The expected shape of the Variable.
@@ -84,7 +84,7 @@ class Variable(ModelComponent):
 
         Replicates this Factor, using new inputs, outputs, and a new uuid. Used during model replication to functionally replicate a factor into a new graph.
 
-        :param attribute_map: A mapping from attributes of this object that were Variables to thier replicants.
+        :param attribute_map: A mapping from attributes of this object that were Variables to their replicants.
         :type attribute_map: {Variable: replicated Variable}
         """
         if attribute_map is not None:
@@ -145,14 +145,14 @@ class Variable(ModelComponent):
 
     def _initialize_as_randvar(self, value, shape, transformation):
         if transformation is not None:
-            raise NotImplementedError('Contraints on random variables are not supported!')
+            raise NotImplementedError('Constraints on random variables are not supported!')
 
     def _initialize_as_funcvar(self, value, shape, transformation):
         self._inputs = [value]
         if shape is None:
             raise ModelSpecificationError("The shape argument was not given when defining a variable as the outcome of a function evaluation.")
         if transformation is not None:
-            raise NotImplementedError('Contraints on function outputs are not supported!')
+            raise NotImplementedError('Constraints on function outputs are not supported!')
 
     def set_prior(self, distribution):
         """

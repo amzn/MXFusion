@@ -1,4 +1,4 @@
-"""This module contains utlity functions used throughout MXFusion.
+"""This module contains utility functions used throughout MXFusion.
 
 Submodules
 ==========

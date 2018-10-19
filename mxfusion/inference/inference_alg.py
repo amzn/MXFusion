@@ -51,7 +51,7 @@ class ObjectiveBlock(HybridBlock):
         :type x: MXNet NDArray or MXNet Symbol
         :param *arg: all the positional arguments, which correspond to the data provided to the InferenceAlgorithm.
         :type *arg: list of MXNet NDArray or MXNet Symbol
-        :parma **kw: all the keyword arguments, which correspond to the parameters that may require gradients.
+        :param **kw: all the keyword arguments, which correspond to the parameters that may require gradients.
         :type kw: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the InferenceAlgorithm that are determined by the inference algorithm.
         :rtypes: {str: MXNet NDArray or MXNet Symbol}
@@ -139,7 +139,7 @@ class InferenceAlgorithm(ABC):
 
         :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling or mini-batch learning.
         :type rv_scaling: {UUID: float}
-        :returns: the list of the variable transformations and the list of the variables that are excluded from being setted as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
+        :returns: the list of the variable transformations and the list of the variables that are excluded from being set as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
         :rtypes: {str(UUID): Transformation}, set(str(UUID))
         """
         excluded = set()
@@ -210,7 +210,7 @@ class InferenceAlgorithm(ABC):
         :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :param target_variable: the variable that a value is set to
         :type target_variable: Variable
-        :param target_value: the value to be setted
+        :param target_value: the value to be set
         :type target_value: MXNet NDArray or float
         """
         variables[target_variable.uuid] = target_value
