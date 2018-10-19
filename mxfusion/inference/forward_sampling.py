@@ -61,7 +61,7 @@ class ForwardSampling(TransferInference):
     :type hybridize: boolean
     :param constants: Specify a list of model variables as constants
     :type constants: {Variable: mxnet.ndarray}
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
@@ -116,7 +116,7 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
     :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}

@@ -24,7 +24,7 @@ class Inference(object):
     :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
@@ -88,7 +88,7 @@ class Inference(object):
     def initialize(self, **kw):
         """
         Initialize the inference method with the shapes of observed variables. The inputs of the keyword arguments are the names of the
-        variables in the model defintion. The values of the keyword arguments are the data of the corresponding variables (mxnet.ndarray)
+        variables in the model definition. The values of the keyword arguments are the data of the corresponding variables (mxnet.ndarray)
         or their shape (tuples).
         """
         if not self._initialized:
@@ -117,9 +117,9 @@ class Inference(object):
         """
         Run the inference method.
 
-        :param **kwargs: The keyword arguments specify the data for inferenceself. The key of each argument is the name of the corresponding
+        :param **kwargs: The keyword arguments specify the data for inference self. The key of each argument is the name of the corresponding
             variable in model definition and the value of the argument is the data in numpy array format.
-        :returns: the samples of target variables (if not spcified, the samples of all the latent variables)
+        :returns: the samples of target variables (if not specified, the samples of all the latent variables)
         :rtype: {UUID: samples}
         """
         data = [kw[v] for v in self.observed_variable_names]
@@ -220,7 +220,7 @@ class Inference(object):
 
 class TransferInference(Inference):
     """
-    The abstract Inference method for transfering the outcome of one inference
+    The abstract Inference method for transferring the outcome of one inference
     method to another.
 
     :param inference_algorithm: The applied inference algorithm
@@ -233,7 +233,7 @@ class TransferInference(Inference):
     :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}

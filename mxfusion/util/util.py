@@ -16,7 +16,7 @@ def slice_axis(F, array, axis, indices):
     :param indices: the indices used in slicing
     :type indices: list or MXNet Array
     """
-    assert F == mx.nd, "The slice_axis helper funcion only works on imperative mode, because fancy indexing only exists in NDArray API."
+    assert F == mx.nd, "The slice_axis helper function only works on imperative mode, because fancy indexing only exists in NDArray API."
     if isinstance(indices, (list, tuple)):
         num_indices = len(indices)
     elif isinstance(indices, (NDArray, Symbol)):
@@ -129,7 +129,7 @@ def create_variables_with_names(names):
 
 def create_constant_from_values(var):
     """
-    Utility function to createa a constant variable from a raw value.
+    Utility function to create a constant variable from a raw value.
 
     :param: var the value of the constant
     """

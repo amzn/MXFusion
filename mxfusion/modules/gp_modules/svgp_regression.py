@@ -370,7 +370,7 @@ class SVGPRegression(Module):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         rep = super(SVGPRegression, self).replicate_self(attribute_map)
 

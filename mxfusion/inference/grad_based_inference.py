@@ -14,13 +14,13 @@ class GradBasedInference(Inference):
     :type graphs: [FactorGraph]
     :param observed: A list of observed variables
     :type observed: [Variable]
-    :param grad_loop: The reference to the main loop of gradient optmization
+    :param grad_loop: The reference to the main loop of gradient optimization
     :type grad_loop: GradLoop
     :param constants: Specify a list of model variables as constants
     :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}

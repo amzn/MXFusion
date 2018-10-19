@@ -19,7 +19,7 @@ class InferenceParameters(object):
 
     :param constants: Specify a list of model variables as constants
     :type constants: {ModelComponent.uuid : mxnet.ndarray}
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
@@ -172,7 +172,7 @@ class InferenceParameters(object):
                         context=None, dtype=None,
                         current_params=None):
         """
-        Loads back a sest of InferenceParameters from files.
+        Loads back a set of InferenceParameters from files.
         :param parameters_file: These are the parameters of the previous inference algorithm.  These are in a {uuid: mx.nd.array} mapping.
         :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved in a binary format.
         :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm. These are in a {uuid: mx.nd.array} mapping.
