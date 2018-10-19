@@ -181,7 +181,6 @@ class MultivariateNormalDrawSamplesDecorator(DrawSamplesDecorator):
             shapes_map = {}
             shapes_map['mean'] = (num_samples,) + rv_shape
             shapes_map['covariance'] = (num_samples,) + rv_shape + (rv_shape[-1],)
-            shapes_map['random_variable'] = (num_samples,) + rv_shape
             variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
                          for name, v in variables.items()}
 
