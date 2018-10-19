@@ -160,7 +160,7 @@ class Kernel(MXFusionFunction):
         """
         if not isinstance(other, Kernel):
             raise ModelSpecificationError(
-                "Only a Gaussian Process Kernel can be added to a Gaussian Process Kernel.")
+                "Only a Gaussian Process Kernel can be multiplied with a Gaussian Process Kernel.")
         from .multiply_kernel import MultiplyKernel
         return MultiplyKernel([self, other], name=name, ctx=self.ctx,
                          dtype=self.dtype)
