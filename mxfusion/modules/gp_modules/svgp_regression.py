@@ -6,8 +6,10 @@ from ...components.variables.var_trans import PositiveTransformation
 from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess
 from ...inference.variational import VariationalInference
 from ...inference.forward_sampling import ForwardSamplingAlgorithm
-from ...inference.inference_alg import InferenceAlgorithm, SamplingAlgorithm
+from ...inference.inference_alg import SamplingAlgorithm
 from ...util.customop import make_diagonal
+from ...util.customop import broadcast_to_w_samples
+from ...components.distributions.random_gen import MXNetRandomGenerator
 
 
 class SVGPRegressionLogPdf(VariationalInference):
@@ -75,8 +77,8 @@ class SVGPRegressionLogPdf(VariationalInference):
 
 
 class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
-    def __init__(self, model, posterior, observed, jitter=0., noise_free=True,
-                 diagonal_variance=True):
+    def __init__(self, model, posterior, observed, noise_free=True,
+                 diagonal_variance=True, jitter=0.):
         super(SVGPRegressionMeanVariancePrediction, self).__init__(
             model=model, observed=observed, extra_graphs=[posterior])
         self.jitter = jitter
@@ -131,6 +133,81 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
                 var += F.eye(N, dtype=X.dtype) * noise_var
 
         outcomes = {self.model.Y.uuid: (mu, var)}
+
+        if self.target_variables:
+            return tuple(outcomes[v] for v in self.target_variables)
+        else:
+            return outcomes
+
+
+class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
+    def __init__(self, model, posterior, observed, rand_gen=None,
+                 noise_free=True, diagonal_variance=True, jitter=0.):
+        super(SVGPRegressionSamplingPrediction, self).__init__(
+            model=model, observed=observed, extra_graphs=[posterior])
+        self.noise_free = noise_free
+        self.diagonal_variance = diagonal_variance
+        self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
+            rand_gen
+        self.jitter = jitter
+
+    def compute(self, F, variables):
+        X = variables[self.model.X]
+        N = X.shape[-2]
+        Z = variables[self.model.inducing_inputs]
+        noise_var = variables[self.model.noise_var]
+        mu = variables[self.graphs[1].qU_mean]
+        S_W = variables[self.graphs[1].qU_cov_W]
+        S_diag = variables[self.graphs[1].qU_cov_diag]
+        M = Z.shape[-2]
+        kern = self.model.kernel
+        kern_params = kern.fetch_parameters(variables)
+
+        S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
+
+        Kuu = kern.K(F, Z, **kern_params)
+        if self.jitter > 0.:
+            Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
+
+        L = F.linalg.potrf(Kuu)
+        Ls = F.linalg.potrf(S)
+        LinvLs = F.linalg.trsm(L, Ls)
+        Linvmu = F.linalg.trsm(L, mu)
+        LinvSLinvT = F.linalg.syrk(LinvLs)
+        wv = F.linalg.trsm(L, Linvmu, transpose=True)
+
+        Kxt = kern.K(F, Z, X, **kern_params)
+        mu = F.linalg.gemm2(Kxt, wv, True, False)
+        if self.model.mean_func is not None:
+            mean = self.model.mean_func(F, X)
+            mu = mu + mean
+
+        LinvKxt = F.linalg.trsm(L, Kxt)
+        if self.diagonal_variance:
+            Ktt = kern.Kdiag(F, X, **kern_params)
+            tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
+            var = Ktt - F.sum(F.square(LinvKxt), axis=-2) + \
+                F.sum(tmp*LinvKxt, axis=-2)
+            if not self.noise_free:
+                var += noise_var
+            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:], dtype=self.model.F.factor.dtype)
+            samples = mu + die * F.sqrt(F.expand_dims(var, axis=-1))
+        else:
+            Ktt = kern.K(F, X, **kern_params)
+            tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
+            cov = Ktt - F.linalg.syrk(LinvKxt, True) + \
+                F.linalg.gemm2(LinvKxt, tmp, True, False)
+            if not self.noise_free:
+                cov += F.eye(N, dtype=X.dtype) * noise_var
+            L = F.linalg.potrf(cov)
+            out_shape = (self.num_samples,) + mu.shape[1:]
+            L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
+
+            die = self._rand_gen.sample_normal(shape=out_shape,
+                                               dtype=self.model.F.factor.dtype)
+            samples = mu + F.linalg.trmm(L, die)
+
+        outcomes = {self.model.Y.uuid: samples}
 
         if self.target_variables:
             return tuple(outcomes[v] for v in self.target_variables)

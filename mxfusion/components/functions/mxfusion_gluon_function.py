@@ -39,6 +39,10 @@ class MXFusionGluonFunction(MXFusionFunction):
         self._gluon_parameter_names = sorted(self._gluon_parameters.keys())
 
     @property
+    def gluon_block(self):
+        return self._gluon_block
+
+    @property
     def input_names(self):
         """
         The names of all the inputs that the function takes including the function parameters
