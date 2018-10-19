@@ -56,12 +56,9 @@ class DirichletDrawSamplesDecorator(DrawSamplesDecorator):
             Draw a number of samples from the distribution. The inputs and outputs variables are in RTVariable format.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param num_samples: the number of drawn samples (default: one)
-            :int num_samples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
+            :param tuple rv_shape: the shape of each sample
+            :param int num_samples: the number of drawn samples (default: one)
+            :param boolean always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
             :param kw: the dict of input variables of the distribution
             :type kw: {name: MXNet NDArray or MXNet Symbol}
             :returns: a set samples of the distribution
@@ -95,9 +92,19 @@ class DirichletDrawSamplesDecorator(DrawSamplesDecorator):
 
 
 class Dirichlet(Distribution):
+    """
+    The Dirichlet distribution.
+
+    :param Variable a: alpha, the concentration parameters of the distribution.
+    :param boolean normalization: If true, L1 normalization is applied.
+    :param RandomGenerator rand_gen: the random generator (default: MXNetRandomGenerator).
+    :param dtype: the data type for float point numbers.
+    :type dtype: numpy.float32 or numpy.float64
+    :param ctx: the mxnet context (default: None/current context).
+    :type ctx: None or mxnet.cpu or mxnet.gpu
+    """
     def __init__(self, a, normalization=True,
                  rand_gen=None, dtype=None, ctx=None):
-        # self.minibatch_ratio = minibatch_ratio
         if not isinstance(a, Variable):
             a = Variable(value=a)
 
@@ -111,6 +118,17 @@ class Dirichlet(Distribution):
 
     @DirichletLogPDFDecorator()
     def log_pdf(self, a, random_variable, F=None):
+        """
+        Computes the logarithm of the probability density function (pdf) of the Dirichlet distribution.
+
+        :param a: the a parameter (alpha) of the Dirichlet distribution.
+        :type a: MXNet NDArray or MXNet Symbol
+        :param random_variable: the random variable of the Dirichlet distribution.
+        :type random_variable: MXNet NDArray or MXNet Symbol
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :returns: log pdf of the distribution.
+        :rtypes: MXNet NDArray or MXNet Symbol
+        """
         F = get_default_MXNet_mode() if F is None else F
 
         if self.normalization:
@@ -124,6 +142,17 @@ class Dirichlet(Distribution):
 
     @DirichletDrawSamplesDecorator()
     def draw_samples(self, a, rv_shape, num_samples=1, F=None):
+        """
+        Draw samples from the Dirichlet distribution.
+
+        :param a: the a parameter (alpha) of the Dirichlet distribution.
+        :type a: MXNet NDArray or MXNet Symbol
+        :param tuple rv_shape: the shape of each sample.
+        :param int num_samples: the number of drawn samples (default: one).
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :returns: a set samples of the Dirichlet distribution.
+        :rtypes: MXNet NDArray or MXNet Symbol
+        """
         F = get_default_MXNet_mode() if F is None else F
         out_shape = (num_samples,) + rv_shape + (1,)
 
@@ -138,6 +167,19 @@ class Dirichlet(Distribution):
     @staticmethod
     def define_variable(a, shape=None, normalization=True,
                         rand_gen=None, dtype=None, ctx=None):
+        """
+        Creates and returns a random variable drawn from a Dirichlet distribution.
+
+        :param Variable a: alpha, the concentration parameters of the distribution.
+        :param boolean normalization: If true, L1 normalization is applied.
+        :param RandomGenerator rand_gen: the random generator (default: MXNetRandomGenerator).
+        :param dtype: the data type for float point numbers.
+        :type dtype: numpy.float32 or numpy.float64
+        :param ctx: the mxnet context (default: None/current context).
+        :type ctx: None or mxnet.cpu or mxnet.gpu
+        :returns: the random variables drawn from the Dirichlet distribution.
+        :rtypes: Variable
+        """
         dirichlet = Dirichlet(a=a, normalization=normalization,
                               rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         dirichlet._generate_outputs(shape=shape)
