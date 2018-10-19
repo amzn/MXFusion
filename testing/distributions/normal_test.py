@@ -1,7 +1,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Normal, MultivariateNormal
 from mxfusion.util.testutils import numpy_array_reshape
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -42,7 +42,7 @@ class TestNormalDistribution(object):
         log_pdf_rt = normal.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         if np.issubdtype(dtype, np.float64):
@@ -84,7 +84,7 @@ class TestNormalDistribution(object):
             F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
         if np.issubdtype(dtype, np.float64):
@@ -151,7 +151,7 @@ class TestMultivariateNormalDistribution(object):
         log_pdf_rt = normal.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
@@ -204,7 +204,7 @@ class TestMultivariateNormalDistribution(object):
         log_pdf_rt = normal.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
@@ -260,7 +260,7 @@ class TestMultivariateNormalDistribution(object):
         draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) is True
+        assert array_has_samples(mx.nd, draw_samples_rt) is True
         assert draw_samples_rt.shape == (5,) + rv_shape
 
     @pytest.mark.parametrize(
@@ -293,5 +293,5 @@ class TestMultivariateNormalDistribution(object):
         draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == True
+        assert array_has_samples(mx.nd, draw_samples_rt) == True
         assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)

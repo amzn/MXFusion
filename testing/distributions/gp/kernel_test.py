@@ -2,7 +2,7 @@ import pytest
 import mxnet as mx
 import numpy as np
 from mxfusion.components.variables import Variable
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions.gp.kernels import RBF, Linear, Bias, White
 from mxfusion.util.testutils import numpy_array_reshape, prepare_mxnet_array
 

@@ -1,7 +1,7 @@
 from ..variables import Variable
 from ...common.config import get_default_MXNet_mode
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import is_sampled_array, get_num_samples
+from ..variables import array_has_samples, get_num_samples
 from ...util.customop import broadcast_to_w_samples
 from ...common.exceptions import InferenceError
 
@@ -67,7 +67,7 @@ class DirichletDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])

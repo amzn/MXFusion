@@ -4,7 +4,7 @@ import numpy as np
 import mxnet as mx
 from scipy.stats import dirichlet as scipy_dirichlet
 
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Dirichlet
 from mxfusion.util.testutils import numpy_array_reshape
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -55,7 +55,7 @@ class TestDirichletDistribution(object):
         log_pdf_rt = dirichlet.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == is_samples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == is_samples_any
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
@@ -100,7 +100,7 @@ class TestDirichletDistribution(object):
         log_pdf_rt = dirichlet.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == is_samples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == is_samples_any
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
