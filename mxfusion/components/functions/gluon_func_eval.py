@@ -1,3 +1,4 @@
+from ..variables.variable import VariableType
 from .function_evaluation import FunctionEvaluationWithParameters, \
     FunctionEvaluationDecorator
 
@@ -21,14 +22,11 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
             func=func, input_variables=input_variables,
             output_variables=output_variables, broadcastable=broadcastable
         )
-        self._input_to_gluon_names = [k for k, v in self.inputs if not
-                                      v.isInherited]
 
-    def replicate_self(self, attribute_map=None):
-        replicant = super(
-            GluonFunctionEvaluation, self).replicate_self(attribute_map)
-        replicant._input_to_gluon_names = self._input_to_gluon_names
-        return replicant
+    @property
+    def _input_to_gluon_names(self):
+        return [k for k, v in self.inputs if (not v.isInherited) or
+                v.type != VariableType.PARAMETER]
 
     @FunctionEvaluationDecorator()
     def eval(self, F, **input_kws):

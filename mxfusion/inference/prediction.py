@@ -1,6 +1,7 @@
 from ..components import FunctionEvaluation, Distribution
 from ..inference.inference_alg import SamplingAlgorithm
 from ..modules.module import Module
+from ..common.exceptions import InferenceError
 
 
 class ModulePredictionAlgorithm(SamplingAlgorithm):
@@ -48,14 +49,16 @@ class ModulePredictionAlgorithm(SamplingAlgorithm):
                     raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ + " has been observed!")
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.draw_samples(
-                    F=F, num_samples=self.num_samples, variables=variables, always_return_tuple=True)
+                    F=F, num_samples=self.num_samples, variables=variables,
+                    always_return_tuple=True)
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
                     outcomes[uuid] = v
             elif isinstance(f, Module):
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.predict(
-                    F=F, variables=variables, targets=outcome_uuid)
+                    F=F, variables=variables, targets=outcome_uuid,
+                    num_samples=self.num_samples)
                 for v, uuid in zip(outcome, outcome_uuid):
                     variables[uuid] = v
                     outcomes[uuid] = v

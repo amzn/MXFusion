@@ -63,7 +63,7 @@ class MinibatchInferenceLoop(GradLoop):
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                     loss_for_gradient.backward()
                 if verbose:
-                    print('\repoch {} Iteration {} logL: {}\t\t'.format(
+                    print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
                           e + 1, i + 1, loss.asscalar() / self.batch_size),
                           end='')
                 trainer.step(batch_size=self.batch_size,
