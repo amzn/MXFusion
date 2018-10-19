@@ -13,7 +13,11 @@ class Module(Factor):
     """
     The base class for a probabilistic module.
 
-    A probabilistic module is a combination of model denfition and Inference algorithms. It acts as a factor and are defined as such during model definition, producing random variables like a plain probabilistic distribution. It differs from a plain distribution in that to compute it's log_pdf and draw_samples functions, it uses a full Inference method.
+    A probabilistic module is a combination of model definition and Inference algorithms.
+    It acts as a factor and are defined as such during model definition,
+    producing random variables like a plain probabilistic distribution.
+    It differs from a plain distribution in that to compute it's log_pdf
+    and draw_samples functions, it uses a full Inference method.
 
     :param inputs: the input variables
     :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
