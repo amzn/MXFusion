@@ -10,7 +10,7 @@ class UnivariateLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kws):
             """
-            Computes the logrithm of the probability density/mass function
+            Computes the logarithm of the probability density/mass function
             (PDF/PMF) of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)

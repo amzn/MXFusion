@@ -262,5 +262,27 @@ try:
             gpy_comb_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
                                  num_samples, dtype, create_rbf_plus_linear,
                                  create_gpy_rbf_plus_linear)
+
+        @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples,  rbf_lengthscale, rbf_lengthscale_isSamples, rbf_variance, rbf_variance_isSamples, linear_variances, linear_variances_isSamples, num_samples, input_dim",
+            [(np.float64, np.random.rand(5, 2), False, np.random.rand(4, 2), False, np.random.rand(2) + 1e-4, False, np.random.rand(1) + 1e-4, False, np.random.rand(2) + 1e-4, False, 1, 2),
+             (np.float64, np.random.rand(3, 5, 2), True, np.random.rand(3, 4, 2), True, np.random.rand(2) + 1e-4, False, np.random.rand(1) + 1e-4, False, np.random.rand(2) + 1e-4, False, 3, 2),
+             (np.float64, np.random.rand(5, 2), False, np.random.rand(4, 2), False, np.random.rand(3, 2) + 1e-4, True, np.random.rand(1) + 1e-4, False, np.random.rand(2) + 1e-4, False, 3, 2),
+             (np.float64, np.random.rand(5, 2), False, np.random.rand(4, 2), False, np.random.rand(2) + 1e-4, False, np.random.rand(1) + 1e-4, False, np.random.rand(3, 2) + 1e-4, True, 3, 2),
+             (np.float64, np.random.rand(3, 5, 2), True, np.random.rand(3, 4, 2), True, np.random.rand(3, 2) + 1e-4, True, np.random.rand(3, 1) + 1e-4, True, np.random.rand(3, 2) + 1e-4, True, 3, 2)])
+        def test_mul_kernel(self, dtype, X, X_isSamples, X2, X2_isSamples,  rbf_lengthscale, rbf_lengthscale_isSamples, rbf_variance, rbf_variance_isSamples, linear_variances, linear_variances_isSamples, num_samples, input_dim):
+            def create_rbf_plus_linear():
+                return RBF(input_dim, True, 1., 1., 'rbf', None, dtype) * Linear(input_dim, True, 1, 'linear', None, dtype)
+
+            def create_gpy_rbf_plus_linear():
+                return GPy.kern.RBF(input_dim=input_dim, ARD=True) * GPy.kern.Linear(input_dim=input_dim, ARD=True)
+
+            kernel_params = {'rbf': {'lengthscale': (rbf_lengthscale, rbf_lengthscale_isSamples), 'variance': (rbf_variance, rbf_variance_isSamples)},
+                             'linear': {'variances': (linear_variances, linear_variances_isSamples)}
+                             }
+
+            gpy_comb_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
+                                 num_samples, dtype, create_rbf_plus_linear,
+                                 create_gpy_rbf_plus_linear)
+
 except ImportError:
     pass
