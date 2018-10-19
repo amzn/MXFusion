@@ -1,4 +1,6 @@
 import mxnet as mx
+
+from mxfusion.common.exceptions import InferenceError
 from .inference_alg import InferenceAlgorithm
 from .variational import StochasticVariationalInference
 from ..components.variables import VariableType
@@ -164,12 +166,12 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
 
     def _extract_descendant_blanket_params(self, graph, node):
         """
-        Returns a set of the markov blankets of all of the descendents of the node in the graph, mapped to their parameter form.
+        Returns a set of the markov blankets of all of the descendants of the node in the graph, mapped to their parameter form.
         """
         if node.graph != graph.components_graph:
-            raise InferenceError("Graph of node and graph to find it's descendents in differ. These should match so something went wrong.")
+            raise InferenceError("Graph of node and graph to find it's descendants in differ. These should match so something went wrong.")
 
-        descendents = graph.get_descendants(node)
-        varset = [graph.get_markov_blanket(d) for d in descendents]
+        descendants = graph.get_descendants(node)
+        varset = [graph.get_markov_blanket(d) for d in descendants]
         varset = set(item for s in varset for item in s)
         return varset

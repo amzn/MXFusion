@@ -21,7 +21,7 @@ class PointMass(UnivariateDistribution):
     @UnivariateLogPDFDecorator()
     def log_pdf(self, location, random_variable, F=None):
         """
-        Computes the logaorithm of probabilistic density function of the normal distribution.
+        Computes the logarithm of probabilistic density function of the normal distribution.
 
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param location: the location of the point mass.
