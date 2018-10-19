@@ -50,6 +50,7 @@ class TestBernoulliDistribution(object):
             (np.float64, np.random.rand(4, 3), False, (4, 1), 5),
             (np.float64, np.random.rand(5, 4, 3), True, (4, 3), 5),
             (np.float64, np.random.rand(4, 3), False, (4, 3), 5),
+            (np.float32, np.random.rand(4, 3), False, (4, 3), 5),
         ])
     def test_draw_samples(self, dtype, prob_true, prob_true_is_samples, rv_shape, num_samples):
         rv_full_shape = (num_samples,) + rv_shape
@@ -69,5 +70,17 @@ class TestBernoulliDistribution(object):
 
         assert is_sampled_array(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
-        # TODO: should we have to cast to bool? or can mxnet handle bool natively?
         assert np.array_equal(rv_samples_np, rv_samples_rt.asnumpy().astype(bool))
+
+        # Also make sure the non-mock sampler works
+        rand_gen = None
+        var = Bernoulli.define_variable(0, shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
+        prob_true_mx = mx.nd.array(prob_true, dtype=dtype)
+        if not prob_true_is_samples:
+            prob_true_mx = add_sample_dimension(mx.nd, prob_true_mx)
+        variables = {var.prob_true.uuid: prob_true_mx}
+        rv_samples_rt = var.draw_samples(
+            F=mx.nd, variables=variables, num_samples=num_samples)
+
+        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples

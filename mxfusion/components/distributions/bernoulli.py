@@ -156,7 +156,7 @@ class Bernoulli(UnivariateDistribution):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
-        return self._rand_gen.sample_bernoulli(prob_true, shape=(num_samples,) + rv_shape, F=F)
+        return self._rand_gen.sample_bernoulli(prob_true, shape=(num_samples,) + rv_shape, dtype=self.dtype, F=F)
 
     @staticmethod
     def define_variable(prob_true, shape=None, rand_gen=None, dtype=None, ctx=None):

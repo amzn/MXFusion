@@ -92,7 +92,7 @@ class MXNetRandomGenerator(RandomGenerator):
             data=data, get_prob=get_prob, dtype=dtype)
 
     @staticmethod
-    def sample_bernoulli(prob_true=0.5, dtype='bool', shape=None, F=None):
+    def sample_bernoulli(prob_true=0.5, dtype=None, shape=None, F=None):
         """
         Sample Bernoulli distributed variables
 
@@ -103,7 +103,7 @@ class MXNetRandomGenerator(RandomGenerator):
         :return: Array of samples
         """
         F = get_default_MXNet_mode() if F is None else F
-        return F.random.uniform(low=0, high=1, shape=shape) > prob_true
+        return F.random.uniform(low=0, high=1, shape=shape, dtype=dtype) > prob_true
 
     @staticmethod
     def sample_gamma(alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
