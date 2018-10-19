@@ -26,3 +26,4 @@ from .categorical import Categorical
 from .gp import GaussianProcess, ConditionalGaussianProcess
 from .wishart import Wishart
 from .beta import Beta
+from .dirichlet import Dirichlet
