@@ -62,9 +62,7 @@ class MockMXNetRandomGenerator(RandomGenerator):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
 
     def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
-        if shape is None:
-            shape = (1,)
-        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
+        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=alpha.shape)
         if out is not None:
             out[:] = res
         return res
