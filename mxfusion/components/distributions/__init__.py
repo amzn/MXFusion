@@ -13,6 +13,9 @@ Submodules
     random_gen
     univariate
     gp
+    wishart
+    beta
+    dirichlet
 """
 
 __all__ = ['categorical', 'distribution', 'normal', 'pointmass', 'rand_gen',
