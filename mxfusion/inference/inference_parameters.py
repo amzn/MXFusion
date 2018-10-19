@@ -20,7 +20,7 @@ class InferenceParameters(object):
 
     :param constants: Specify a list of model variables as constants
     :type constants: {ModelComponent.uuid : mxnet.ndarray}
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
