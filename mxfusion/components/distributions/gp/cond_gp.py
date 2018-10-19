@@ -175,7 +175,7 @@ class ConditionalGaussianProcess(Distribution):
     def log_pdf(self, X, X_cond, Y_cond, random_variable, F=None,
                 **kernel_params):
         """
-        Computes the logarithm of the probability density function (PDF) of the condtional Gaussian process.
+        Computes the logarithm of the probability density function (PDF) of the conditional Gaussian process.
 
         .. math::
            \\log p(Y| X_c, Y_c, X) = \\log \\mathcal{N}(Y| K_{*c}K_{cc}^{-1}(Y_C - g(X_c)) + g(X), K_{**} - K_{*c}K_{cc}^{-1}K_{*c}^\\top)
@@ -221,7 +221,7 @@ class ConditionalGaussianProcess(Distribution):
     def draw_samples(self, X, X_cond, Y_cond, rv_shape, num_samples=1, F=None,
                      **kernel_params):
         """
-        Draw a number of samples from the condtional Gaussian process.
+        Draw a number of samples from the conditional Gaussian process.
 
         :param X: the input variables on which the random variables are conditioned.
         :type X: MXNet NDArray or MXNet Symbol
