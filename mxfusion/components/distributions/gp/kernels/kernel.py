@@ -149,6 +149,28 @@ class Kernel(MXFusionFunction):
         """
         return self.add(other)
 
+    def multiply(self, other, name='mul'):
+        """
+        Construct a new kernel by multiplying this kernel with another kernel.
+
+        :param other: the other kernel to be added.
+        :type other: Kernel
+        :return: the kernel which is the sum of the current kernel with the specified kernel.
+        :rtype: Kernel
+        """
+        if not isinstance(other, Kernel):
+            raise ModelSpecificationError(
+                "Only a Gaussian Process Kernel can be multiplied with a Gaussian Process Kernel.")
+        from .multiply_kernel import MultiplyKernel
+        return MultiplyKernel([self, other], name=name, ctx=self.ctx,
+                         dtype=self.dtype)
+
+    def __mul__(self, other):
+        """
+        Overload the "*" operator to perform multiplication of kernels
+        """
+        return self.multiply(other)
+
     def _compute_K(self, F, X, X2=None, **kernel_params):
         """
         The internal interface for the actual covariance matrix computation.
