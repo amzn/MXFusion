@@ -11,15 +11,18 @@ class DirichletLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kw):
             """
-            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
+            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs
+            and outputs variables are in RTVariable format.
 
             Shape assumptions:
             * a is S x N x D
             * random_variable is S x N x D
 
             Where:
-            * S, the number of samples, is optional. If more than one of the variables has samples, the number of samples in each variable must be the same. S is 1 by default if not a sampled variable.
-            * N is the number of data points. N can be any number of dimensions (N_1, N_2, ...) but must be broadcastable to the shape of random_variable.
+            * S, the number of samples, is optional. If more than one of the variables has samples, the number of
+                samples in each variable must be the same. S is 1 by default if not a sampled variable.
+            * N is the number of data points. N can be any number of dimensions (N_1, N_2, ...) but must be
+                broadcastable to the shape of random_variable.
             * D is the dimension of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
@@ -72,7 +75,10 @@ class DirichletDrawSamplesDecorator(DrawSamplesDecorator):
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])
                 if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Normal distribution must be the same as the number of samples given to the inputs. nSamples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
+                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Dirichlet",
+                                         "distribution must be the same as the number of samples given to the inputs. ",
+                                         "nSamples: "+str(num_samples)+" the inferred number of samples from inputs: " +
+                                         str(num_samples_inferred)+".")
 
             shapes_map = {}
             shapes_map['a'] = (num_samples,) + rv_shape
@@ -126,7 +132,7 @@ class Dirichlet(Distribution):
         y = self._rand_gen.sample_gamma(alpha=a, beta=ones,
                                         shape=out_shape,
                                         dtype=self.dtype, ctx=self.ctx)
-        x = F.broadcast_div(y, F.broadcast_sum(y))
+        x = F.broadcast_div(y, F.sum(y))
         return x
 
     @staticmethod
