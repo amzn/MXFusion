@@ -32,7 +32,8 @@ class TestExpectationInference(object):
     @pytest.mark.parametrize("v2, v3", [
         (mx.nd.random.uniform(1,100) * 2, mx.nd.random.uniform(1,100) * 0.5),
         ])
-    def test_score_function_gradient(self, v2, v3):
+    def test_inference_basic_run(self, v2, v3):
+        # TODO test correctness
 
         m = self.make_model()
         observed = [m.v2, m.v3]

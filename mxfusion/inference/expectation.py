@@ -86,7 +86,7 @@ class ExpectationScoreFunctionAlgorithm(SamplingAlgorithm):
 
         gradient_lambda = F.mean(q_z_lambda * F.stop_gradient(p_x_z), axis=0)
 
-        gradient_theta = F.mean(p_x_z, axis=0)
+        gradient_theta = F.mean(p_x_z, axis=0) # TODO known issue. This will double count the gradient of any distribution using the reparameterization trick (i.e. Normal). Issue #91
 
         gradient_log_L = gradient_lambda + gradient_theta
 
