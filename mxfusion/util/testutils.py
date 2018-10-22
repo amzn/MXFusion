@@ -138,3 +138,29 @@ class TestBlock(mx.gluon.HybridBlock):
         """
 
         return x + var1 + var2
+
+
+def plot_univariate(samples, dist, buffer=0, **kwargs):
+    """
+    Visual inspection by plotting the distribution: plots a histogram of the samples along with
+
+    :param samples: Samples from the distribution
+    :type samples: (mx.nd.NDArray, np.ndarray)
+    :param buffer: additional range to plot the distribution over
+    :param dist: Distribution that these are samples from (scipy.stats)
+    :param kwargs: Keyword arguments for the distribution (e.g. loc, scale)
+    """
+    if isinstance(samples, mx.nd.NDArray):
+        samples = samples.asnumpy().ravel()
+    elif isinstance(samples, np.ndarray):
+        samples = samples.ravel()
+    else:
+        raise ValueError("Unexpected type for samples: {}, expected mx.nd.NDArrray or np.ndarray".format(type(samples)))
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    ax.hist(samples, bins=301, normed=True)
+    x = np.linspace(samples.min() - buffer, samples.max() + buffer, num=301)
+    ax.plot(x, dist.pdf(x, **kwargs).reshape(-1, 1))
+    plt.show()

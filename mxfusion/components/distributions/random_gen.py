@@ -46,10 +46,10 @@ class MXNetRandomGenerator(RandomGenerator):
         """
         dtype = get_default_dtype() if dtype is None else dtype
 
-        if F is mx.ndarray:
-            return func(shape=shape, dtype=dtype, ctx=ctx, out=out, **kwargs)
+        if shape is None:
+            return func(dtype=dtype, ctx=ctx, out=out, **kwargs)
         else:
-            return func(shape=shape, dtype=dtype, out=out, **kwargs)
+            return func(shape=shape, dtype=dtype, ctx=ctx, out=out, **kwargs)
 
     @staticmethod
     def sample_normal(loc=0, scale=1, shape=None, dtype=None, out=None, ctx=None, F=None):
@@ -105,7 +105,6 @@ class MXNetRandomGenerator(RandomGenerator):
         :param F: MXNet node
         :return: Array of samples
         """
-        F = get_default_MXNet_mode() if F is None else F
         return MXNetRandomGenerator._sample_univariate(
             func=F.random.gamma, alpha=alpha, beta=beta,
             shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
@@ -125,8 +124,13 @@ class MXNetRandomGenerator(RandomGenerator):
         :param F: MXNet node
         :return: Array of samples
         """
-        return MXNetRandomGenerator._sample_univariate(func=F.random.uniform, low=low, high=high,
-                                                       shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
+        F = get_default_MXNet_mode() if F is None else F
+
+        samples = MXNetRandomGenerator._sample_univariate(
+            func=F.random.uniform, shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
+        # samples = F.broadcast_add(F.broadcast_mul(samples, F.broadcast_sub(high, low)), low)
+        samples = samples * (high - low) + low
+        return samples
 
     @staticmethod
     def sample_laplace(location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
@@ -149,7 +153,17 @@ class MXNetRandomGenerator(RandomGenerator):
         # has a Laplace distribution with parameters \mu and b
 
         U = MXNetRandomGenerator.sample_uniform(low=-0.5, high=0.5, shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
-        b_sgn_U = F.broadcast_mul(scale, F.sign(U))
+
+        if isinstance(scale, F.NDArray):
+            b_sgn_U = F.broadcast_mul(scale, F.sign(U))
+        else:
+            b_sgn_U = scale * F.sign(U)
+
         ln_1_2_U = F.log(1 - 2 * F.abs(U))
 
-        return F.broadcast_minus(location,  F.broadcast_mul(b_sgn_U, ln_1_2_U))
+        if isinstance(location, F.NDArray):
+            samples = F.broadcast_minus(location, F.broadcast_mul(b_sgn_U, ln_1_2_U))
+        else:
+            samples = location - F.broadcast_mul(b_sgn_U, ln_1_2_U)
+
+        return samples

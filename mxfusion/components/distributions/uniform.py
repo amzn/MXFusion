@@ -83,7 +83,7 @@ class Uniform(UnivariateDistribution):
         F = get_default_MXNet_mode() if F is None else F
         out_shape = (num_samples,) + rv_shape
         return self._rand_gen.sample_uniform(low=low, high=high,
-                                             shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+                                             shape=out_shape, dtype=self.dtype, ctx=self.ctx, F=F)
 
     @staticmethod
     def define_variable(low=0, high=1, shape=None, rand_gen=None,
