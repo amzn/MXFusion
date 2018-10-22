@@ -9,7 +9,7 @@ from ..components.variables.runtime_variable import expectation
 
 class ExpectationAlgorithm(SamplingAlgorithm):
     """
-    Sampling inference algorithm that returns the expectation of each variable in the model.
+    Sampling-based inference algorithm that returns the expectation of each variable in the model.
 
     :param model: the definition of the probabilistic model
     :type model: Model
