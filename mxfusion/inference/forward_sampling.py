@@ -51,8 +51,8 @@ class ForwardSampling(TransferInference):
     :type model: Model
     :param observed: A list of observed variables
     :type observed: [Variable]
-    :param var_ties: A dictionary of variables that are tied together and use the MXNet Parameter of the dict value's uuid.
-    :type var_ties: { UUID to tie from : UUID to tie to }
+    :param var_tie: A dictionary of variables that are tied together and use the MXNet Parameter of the dict value's uuid.
+    :type var_tie: { UUID to tie from : UUID to tie to }
     :param infr_params: list or single of InferenceParameters objects from previous Inference runs.
     :type infr_params: InferenceParameters or [InferenceParameters]
     :param target_variables: (optional) the target variables to sample
@@ -61,7 +61,7 @@ class ForwardSampling(TransferInference):
     :type hybridize: boolean
     :param constants: Specify a list of model variables as constants
     :type constants: {Variable: mxnet.ndarray}
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
@@ -116,7 +116,7 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
     :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
