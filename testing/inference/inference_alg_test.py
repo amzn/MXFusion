@@ -47,7 +47,7 @@ class InferenceAlgorithmTests(unittest.TestCase):
         assert np.allclose(x_res.asnumpy(), x_np)
         assert np.allclose(y_res.asnumpy(), y_np)
 
-    def test_chagne_default_dtype(self):
+    def test_change_default_dtype(self):
         from mxfusion.common import config
         config.DEFAULT_DTYPE = 'float64'
 
