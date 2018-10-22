@@ -41,10 +41,12 @@ class Variable(ModelComponent):
     """
     def __init__(self, value=None, shape=None, transformation=None, isInherited=False, initial_value=None):
         super(Variable, self).__init__()
-
-        # TODO If no shape we assume a scalar but this could be incorrect if we really just mean the shape is unknown.
-        self.shape = shape if shape is not None else (1,)
-        self.attributes = [s for s in self.shape if isinstance(s, Variable)]
+        self.shape = shape  # For constants, if shape is None then it is inferred from the value
+        if self.shape is not None:
+            assert isinstance(self.shape, tuple), "Shape is expected to be a tuple or None"
+            self.attributes = [s for s in self.shape if isinstance(s, Variable)]
+        else:
+            self.attributes = []
         # whether the variable is inherited from a Gluon block.
         self.isInherited = isInherited
         self._transformation = transformation
@@ -58,11 +60,11 @@ class Variable(ModelComponent):
         from ...modules.module import Module
         from ..functions.function_evaluation import FunctionEvaluation
         if isinstance(value, (Distribution, Module)):
-            self._initialize_as_randvar(value, shape, transformation)
+            self._initialize_as_randvar(value, self.shape, transformation)
         elif isinstance(value, FunctionEvaluation):
-            self._initialize_as_funcvar(value, shape, transformation)
+            self._initialize_as_funcvar(value, self.shape, transformation)
         else:
-            self._initialize_as_param(value, shape, transformation)
+            self._initialize_as_param(value, self.shape, transformation)
 
     @property
     def type(self):
@@ -130,20 +132,27 @@ class Variable(ModelComponent):
         if value is None:
             # Initialize as VariableType.PARAMETER
             if shape is None:
-                self.shape = (1,)
+                shape = (1,)
         else:
             # Initialize as VariableType.CONSTANT
             self.isConstant = True
             if isinstance(value, np.ndarray):
-                if shape is not None and shape != value.shape:
-                    raise ModelSpecificationError("Shape mismatch in Variable creation. The numpy array shape " + str(value.shape) + " does not no match with the shape argument " + str(shape) + ".")
+                if shape is None:
+                    shape = value.shape
+                if shape != value.shape:
+                    raise ModelSpecificationError("Shape mismatch in Variable creation. The numpy array shape " + str(value.shape) + " does not match with the shape argument " + str(shape) + ".")
                 value = mx.nd.array(value)
             elif isinstance(value, mx.nd.NDArray):
-                if shape is not None and shape != value.shape:
-                    raise ModelSpecificationError("Shape mismatch in Variable creation. The MXNet array shape " + str(value.shape) + " does not no match with the shape argument " + str(shape) + ".")
+                if shape is None:
+                    shape = value.shape
+                if shape != value.shape:
+                    raise ModelSpecificationError("Shape mismatch in Variable creation. The MXNet array shape " + str(value.shape) + " does not match with the shape argument " + str(shape) + ".")
             elif isinstance(value, (float, int)):
-                self.shape = (1,)
+                shape = (1,)
+            else:
+                raise ModelSpecificationError("Variable type {} not supported".format(type(value)))
             self._value = value
+        self.shape = shape  # Update self.shape with the latest shape
 
     def _initialize_as_randvar(self, value, shape, transformation):
         if transformation is not None:

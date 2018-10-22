@@ -1,7 +1,9 @@
 import unittest
 import mxnet as mx
+import numpy as np
 import mxfusion.components as mfc
 import mxfusion as mf
+import mxfusion.common.exceptions as mf_exception
 
 
 class VariableTests(unittest.TestCase):
@@ -40,3 +42,26 @@ class VariableTests(unittest.TestCase):
         self.assertTrue(x2.uuid == m.x.uuid)
         self.assertTrue(x2.shape == m.x.shape, (x2.shape, m.x.shape))
         self.assertTrue(y in m)
+
+    def test_array_variable_shape(self):
+        mxnet_array_shape = (3, 2)
+        numpy_array_shape = (10, )
+        mxnet_array = mx.nd.zeros(shape=mxnet_array_shape)
+        numpy_array = np.zeros(shape=numpy_array_shape)
+
+        # Test Case 1: Shape param not explicitly passed to Variable class
+        variable = mf.Variable(value=mxnet_array)
+        self.assertTrue(variable.shape == mxnet_array_shape)
+        variable = mf.Variable(value=numpy_array)
+        self.assertTrue(variable.shape == numpy_array_shape)
+
+        # Test Case 2: Correct shape passed to Variable class
+        variable = mf.Variable(value=mxnet_array, shape=mxnet_array_shape)
+        self.assertTrue(variable.shape == mxnet_array_shape)
+        variable = mf.Variable(value=numpy_array, shape=numpy_array_shape)
+        self.assertTrue(variable.shape == numpy_array_shape)
+
+        # Test Case 3: Incorrect shape passed to Variable class
+        incorrect_shape = (1234, 1234)
+        self.assertRaises(mf_exception.ModelSpecificationError, mf.Variable, value=mxnet_array, shape=incorrect_shape)
+        self.assertRaises(mf_exception.ModelSpecificationError, mf.Variable, value=numpy_array, shape=incorrect_shape)
