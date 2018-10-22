@@ -48,7 +48,7 @@ class ExpectationAlgorithm(SamplingAlgorithm):
 
 class ExpectationScoreFunctionAlgorithm(SamplingAlgorithm):
     """
-    Sampling inference algorithm that computes the expectation of the model w.r.t. some loss function in that model, specified as the target variable. It does so via the score function trick sampling the necessary inputs to the function and using them to compute a Monte Carlo estimate of the loss function's gradient.
+    Sampling-based inference algorithm that computes the expectation of the model w.r.t. some loss function in that model, specified as the target variable. It does so via the score function trick sampling the necessary inputs to the function and using them to compute a Monte Carlo estimate of the loss function's gradient.
 
     :param model: the definition of the probabilistic model
     :type model: Model
