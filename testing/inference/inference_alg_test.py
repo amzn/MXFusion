@@ -49,7 +49,7 @@ class InferenceAlgorithmTests(unittest.TestCase):
 
     def test_chagne_default_dtype(self):
         from mxfusion.common import config
-        config.MXNET_DEFAULT_DTYPE = 'float64'
+        config.DEFAULT_DTYPE = 'float64'
 
         np.random.seed(0)
         mean_groundtruth = 3.
@@ -65,4 +65,4 @@ class InferenceAlgorithmTests(unittest.TestCase):
         infr = GradBasedInference(inference_algorithm=MAP(model=m, observed=[m.Y]))
         infr.run(Y=mx.nd.array(data, dtype='float64'), learning_rate=0.1, max_iters=1)
 
-        config.MXNET_DEFAULT_DTYPE = 'float32'
+        config.DEFAULT_DTYPE = 'float32'

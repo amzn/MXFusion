@@ -1,6 +1,6 @@
 import mxnet
 
-MXNET_DEFAULT_DTYPE = 'float32'
+DEFAULT_DTYPE = 'float32'
 MXNET_DEFAULT_MODE = mxnet.ndarray
 MXNET_DEFAULT_DEVICE = None
 
@@ -12,7 +12,7 @@ def get_default_dtype():
     :returns: the default dtype
     :rtypes: str
     """
-    return MXNET_DEFAULT_DTYPE
+    return DEFAULT_DTYPE
 
 
 def get_default_MXNet_mode():
