@@ -63,6 +63,6 @@ class InferenceAlgorithmTests(unittest.TestCase):
         m.Y = Normal.define_variable(mean=m.mu, variance=m.s, shape=(100,))
 
         infr = GradBasedInference(inference_algorithm=MAP(model=m, observed=[m.Y]))
-        infr.run(Y=mx.nd.array(data, dtype='float64'), learning_rate=0.1, max_iters=1)
+        infr.run(Y=mx.nd.array(data, dtype='float64'), learning_rate=0.1, max_iters=2)
 
         config.DEFAULT_DTYPE = 'float32'
