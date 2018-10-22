@@ -20,7 +20,7 @@ class Beta(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, a, b, rand_gen=None, dtype=None, ctx=None):
+    def __init__(self, a=1, b=1, rand_gen=None, dtype=None, ctx=None):
         if not isinstance(a, Variable):
             a = Variable(value=a)
         if not isinstance(b, Variable):
@@ -63,8 +63,8 @@ class Beta(UnivariateDistribution):
         """
         Draw samples from the beta distribution.
 
-        If X and Y are independent, with $X \sim \Gamma(\alpha, \theta)$ and $Y \sim \Gamma(\beta, \theta)$ then
-        $\frac {X}{X+Y}}\sim \mathrm {B} (\alpha ,\beta ).}$
+        If X and Y are independent, with X ~ Gamma(alpha, theta)$ and Y ~ Gamma(beta, theta) then
+        X/(X+Y) ~ Beta(alpha, beta).
 
         :param a: the a parameter (alpha) of the beta distribution.
         :type a: MXNet NDArray or MXNet Symbol
@@ -90,10 +90,10 @@ class Beta(UnivariateDistribution):
         ones = F.ones_like(a)
 
         # Sample X from Gamma(a, 1)
-        x = self._rand_gen.sample_gamma(alpha=a, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+        x = self._rand_gen.sample_gamma(alpha=a, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx, F=F)
 
         # Sample Y from Gamma(b, 1)
-        y = self._rand_gen.sample_gamma(alpha=b, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+        y = self._rand_gen.sample_gamma(alpha=b, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx, F=F)
 
         # Return X / (X + Y)
         return F.broadcast_div(x, F.broadcast_add(x, y))

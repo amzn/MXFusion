@@ -160,7 +160,7 @@ def plot_univariate(samples, dist, buffer=0, **kwargs):
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111)
-    ax.hist(samples, bins=301, normed=True)
+    ax.hist(samples, bins=301, density=True)
     x = np.linspace(samples.min() - buffer, samples.max() + buffer, num=301)
     ax.plot(x, dist.pdf(x, **kwargs).reshape(-1, 1))
     plt.show()

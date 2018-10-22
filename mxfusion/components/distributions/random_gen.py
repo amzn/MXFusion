@@ -105,6 +105,8 @@ class MXNetRandomGenerator(RandomGenerator):
         :param F: MXNet node
         :return: Array of samples
         """
+        F = get_default_MXNet_mode() if F is None else F
+
         return MXNetRandomGenerator._sample_univariate(
             func=F.random.gamma, alpha=alpha, beta=beta,
             shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
