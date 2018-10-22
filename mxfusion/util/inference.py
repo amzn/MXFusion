@@ -39,7 +39,7 @@ def discover_shape_constants(data_shapes, graphs):
         for s1, s2 in zip(def_shape, shape):
             if isinstance(s1, int):
                 if s1 != s2:
-                    raise ModelSpecificationError("Variable shape mismatch! s1 : {} s2 : {}".format(str(s1), str(s2)))
+                    raise ModelSpecificationError("Variable ({}) shape mismatch between expected and found! s1 : {} s2 : {}".format(str(variables[var_id]),str(s1), str(s2)))
             elif isinstance(s1, Variable):
                 shape_constants[s1] = s2
             else:
