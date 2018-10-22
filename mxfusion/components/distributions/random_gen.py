@@ -39,7 +39,7 @@ class MXNetRandomGenerator(RandomGenerator):
         dtype = get_default_dtype() if dtype is None else dtype
 
         if F is mx.ndarray:
-            # This is required MXNet uses _Null instead of None as shape default
+            # This is required because MXNet uses _Null instead of None as shape default
             if shape is None:
                 return func(dtype=dtype, ctx=ctx, out=out, **kwargs)
             else:
