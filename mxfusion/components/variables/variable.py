@@ -3,6 +3,7 @@ import mxnet as mx
 import numpy as np
 from ...common.exceptions import ModelSpecificationError
 from ..model_component import ModelComponent
+from ...common.config import get_default_dtype
 
 
 class VariableType(Enum):
@@ -49,7 +50,8 @@ class Variable(ModelComponent):
         self._transformation = transformation
         self._value = None
         if isinstance(initial_value, (int, float)):
-            initial_value = mx.nd.array([initial_value])
+            initial_value = mx.nd.array([initial_value],
+                                        dtype=get_default_dtype())
         self._initial_value = initial_value
         self.isConstant = False
         from ..distributions import Distribution
