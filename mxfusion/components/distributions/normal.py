@@ -488,7 +488,7 @@ class MultivariateNormalMeanPrecisionDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])
