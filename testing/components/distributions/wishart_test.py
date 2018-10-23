@@ -148,7 +148,7 @@ class TestWishartDistribution(object):
     @pytest.mark.parametrize(
         "dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape, num_samples", [
             (np.int64, np.float64, 3, make_spd_matrix(3, 0), False, (3, 3), 5),
-            (np.int64, np.float64, 3, make_spd_matrices_4d(5, 3, 3, 0), True, (5, 3, 3), 5),
+            (np.int64, np.float64, 3, make_spd_matrices_4d(5, 5, 3, 0), True, (5, 3, 3), 5),
         ])
     def test_draw_samples_no_broadcast(self, dtype_dof, dtype, degrees_of_freedom, scale,
                                        scale_is_samples, rv_shape, num_samples):
@@ -170,7 +170,7 @@ class TestWishartDistribution(object):
         assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt),
                                                                         num_samples)
 
-    def test_draw_samples_1D(self, plot=True):
+    def test_draw_samples_1D(self, plot=False):
         # Also make sure the non-mock sampler works by drawing 1D samples (should collapse to chi^2)
         dtype = np.float32
         dtype_dof = np.int32
@@ -189,7 +189,7 @@ class TestWishartDistribution(object):
         variables = {var.degrees_of_freedom.uuid: dof_mx, var.scale.uuid: scale_mx}
         rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert rv_samples_rt.dtype == dtype
 

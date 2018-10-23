@@ -235,12 +235,11 @@ class Wishart(Distribution):
                         A[ix] = F.random.normal()
 
         # Broadcast A
-        # A = A.broadcast_like(L)
         LA = F.linalg.trmm(L, A)
         samples = F.linalg.gemm2(LA, LA, transpose_b=True)
 
-        from scipy.stats import wishart
-        wishart.rvs(df=degrees_of_freedom.asnumpy()[0], scale=scale.asnumpy()[0][0], size=rv_shape[0])
+        # from scipy.stats import wishart
+        # wishart.rvs(df=degrees_of_freedom.asnumpy()[0], scale=scale.asnumpy()[0][0], size=rv_shape[0])
 
         return samples
 
