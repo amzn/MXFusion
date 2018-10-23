@@ -57,9 +57,11 @@ class MockMXNetRandomGenerator(RandomGenerator):
             out[:] = res
         return res
 
-    def sample_multinomial(self, data, shape=None, get_prob=True, dtype='int32',
-                           F=None):
+    def sample_multinomial(self, data, shape=None, get_prob=True, dtype=None, F=None):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
+
+    def sample_bernoulli(self, prob_true=0.5, shape=None, dtype=None, out=None, F=None):
+        return mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
 
     def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
         if shape is None:

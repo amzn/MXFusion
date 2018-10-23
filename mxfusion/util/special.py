@@ -16,7 +16,7 @@ def log_determinant(A, F=None):
     """
     F = get_default_MXNet_mode() if F is None else F
 
-    return 2 * F.linalg.sumlogdiag(F.linalg.potrf(A))
+    return 2 * F.linalg.sumlogdiag(F.abs(F.linalg.potrf(A)))
 
 
 # noinspection PyPep8Naming
