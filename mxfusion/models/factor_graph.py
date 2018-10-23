@@ -410,7 +410,7 @@ class FactorGraph(object):
         :type excluded: set(UUID) or [UUID]
         :param include_inherited: whether inherited variables are included.
         :type include_inherited: boolean
-        :returns: the list of contant variables.
+        :returns: the list of constant variables.
         :rtype: [Variable]
         """
         if include_inherited:
@@ -420,7 +420,7 @@ class FactorGraph(object):
 
     def get_constants(self):
         """
-        Get all the contants in the factor graph.
+        Get all the constants in the factor graph.
 
         :returns: the list of constant variables.
         :rtype: [Variable]
@@ -432,7 +432,7 @@ class FactorGraph(object):
         """
         Reconciles two sets of graphs, matching the model components in the previous graph to the current graph.
         This is primarily used when loading back a graph from a file and matching it to an existing in-memory graph in order to load the previous
-        graph's paramters correctly.
+        graph's parameters correctly.
 
         :param current_graphs: A list of the graphs we are reconciling a loaded factor graph against. This must be a fully built set of graphs
             generated through the model definition process.

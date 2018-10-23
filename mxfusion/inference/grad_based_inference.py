@@ -14,7 +14,7 @@ class GradBasedInference(Inference):
     :type graphs: [FactorGraph]
     :param observed: A list of observed variables
     :type observed: [Variable]
-    :param grad_loop: The reference to the main loop of gradient optmization
+    :param grad_loop: The reference to the main loop of gradient optimization
     :type grad_loop: GradLoop
     :param constants: Specify a list of model variables as constants
     :type constants: {Variable: mxnet.ndarray}
