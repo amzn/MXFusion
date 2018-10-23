@@ -135,3 +135,60 @@ class TestBlock(mx.gluon.HybridBlock):
         """
 
         return x + var1 + var2
+
+
+def plot_univariate(samples, dist, buffer=0, **kwargs):
+    """
+    Visual inspection by plotting the distribution: plots a histogram of the samples along with
+
+    :param samples: Samples from the distribution
+    :type samples: (mx.nd.NDArray, np.ndarray)
+    :param buffer: additional range to plot the distribution over
+    :param dist: Distribution that these are samples from (scipy.stats)
+    :param kwargs: Keyword arguments for the distribution (e.g. loc, scale)
+    """
+    if isinstance(samples, mx.nd.NDArray):
+        samples = samples.asnumpy().ravel()
+    elif isinstance(samples, np.ndarray):
+        samples = samples.ravel()
+    else:
+        raise ValueError("Unexpected type for samples: {}, expected mx.nd.NDArray or np.ndarray".format(type(samples)))
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    ax.hist(samples, bins=301, density=True)
+    x = np.linspace(samples.min() - buffer, samples.max() + buffer, num=301)
+    ax.plot(x, dist.pdf(x, **kwargs).reshape(-1, 1))
+    plt.show()
+
+
+def plot_bivariate(samples, dist, buffer=0, **kwargs):
+    """
+    Visual inspection by plotting the distribution: plots a scatter plot of samples along with a contour plot
+
+    :param samples: Samples from the distribution
+    :type samples: (mx.nd.NDArray, np.ndarray)
+    :param buffer: additional range to plot the distribution over
+    :param dist: Distribution that these are samples from (scipy.stats)
+    :param kwargs: Keyword arguments for the distribution (e.g. loc, scale)
+    """
+    if isinstance(samples, mx.nd.NDArray):
+        samples = samples.asnumpy()
+    elif isinstance(samples, np.ndarray):
+        pass
+    else:
+        raise ValueError("Unexpected type for samples: {}, expected mx.nd.NDArray or np.ndarray".format(type(samples)))
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    s_min = samples.min(axis=0)
+    s_max = samples.max(axis=0)
+    x = np.linspace(s_min[0] - buffer, s_max[0] + buffer, num=301)
+    y = np.linspace(s_min[1] - buffer, s_max[1] + buffer, num=301)
+    x, y = np.meshgrid(x, y)
+    z = dist.pdf(x=np.vstack([x.ravel(), y.ravel()]).T, **kwargs).reshape(x.shape)
+    ax.contour(x, y, z, levels=10, linewidth=10)
+    ax.scatter(samples[:, 0], samples[:, 1], alpha=0.05)
+    plt.show()
