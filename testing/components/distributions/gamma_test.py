@@ -207,7 +207,7 @@ class TestGammaDistribution(object):
 
         alpha_est, location_est, scale_est = gamma.fit(rv_samples_rt.asnumpy().ravel())
         beta_est = scale_est
-        alpha_tol = 1e-1
-        beta_tol = 1e-1
+        alpha_tol = 0.2
+        beta_tol = 0.2
         assert np.abs(alpha[0] - alpha_est) < alpha_tol
         assert np.abs(beta[0] - beta_est) < beta_tol
