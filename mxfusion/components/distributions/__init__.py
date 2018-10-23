@@ -10,18 +10,21 @@ Submodules
     categorical
     distribution
     normal
+    gamma
     pointmass
     random_gen
     univariate
     gp
+    wishart
+    beta
 """
 
-__all__ = ['bernoulli', 'categorical', 'distribution', 'normal', 'pointmass', 'random_gen',
+__all__ = ['bernoulli', 'categorical', 'distribution', 'normal', 'gamma', 'pointmass', 'random_gen',
            'univariate', 'gp', 'wishart', 'beta']
 
 from .distribution import Distribution
+from .normal import Normal, MultivariateNormal, NormalMeanPrecision, MultivariateNormalMeanPrecision
 from .gamma import Gamma, GammaMeanVariance
-from .normal import Normal, MultivariateNormal
 from .pointmass import PointMass
 from .bernoulli import Bernoulli
 from .categorical import Categorical
