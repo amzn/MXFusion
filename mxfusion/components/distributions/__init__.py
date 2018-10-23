@@ -34,3 +34,5 @@ from .gp import GaussianProcess, ConditionalGaussianProcess
 from .wishart import Wishart
 from .beta import Beta
 from .dirichlet import Dirichlet
+from .uniform import Uniform
+from .laplace import Laplace
