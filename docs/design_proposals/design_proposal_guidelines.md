@@ -12,6 +12,8 @@
 ## Overview
 If you want to propose making a major change to the codebase rather than a simple feature addition, it's helpful to fill out and send around a design proposal document **before you go through all the work of implementing it**. This allows the community to better evaluate the idea, highight any potential downsides, or propose alternative solutions ahead of time and save unneeded effort.
 
+For smaller feature requests just file an issue and fill out the feature request template.
+
 ### What is considered a "major change" that needs a design proposal?
 
 Any of the following should be considered a major change:

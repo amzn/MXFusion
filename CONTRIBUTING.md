@@ -26,13 +26,13 @@ If you're wishing for a feature that doesn't exist yet in MXFusion, there are pr
 
 If you're thinking about adding code to MXFusion, here are some guidelines to get you started.
 
-* If the change is a major feature, create a [design document](design/design_documents/design_doc_guidelines) in the docs/design/design_documents folder and post it as a PR, optionally with a prototype implementation of your proposed changes. This is to get community feedback on the changes  and document the design reasoning of MXFusion for future reference.
+* If the change is a major feature, create a [design proposal](design_proposal/design_proposal_guidelines) in the design_proposals folder and post it as a PR, optionally with a prototype implementation of your proposed changes. This is to get community feedback on the changes and document the design reasoning of MXFusion for future reference.
 
 * Keep pull requests small, preferably one feature per pull request. This lowers the bar to entry for a reviewer, and keeps feedback focused for each feature.
 
 Some major areas where we appreciate contributions:
 * [Adding new Distributions/Functions/Modules](examples/notebooks/writing_a_new_distribution.ipynb)
-* [Adding new Inference Algorithms](inference link TODO)
+* [Adding new Inference Algorithms](design_documents/inference)
 * Example notebooks showing how to build/train a particular model.
 
 If you're still not sure where to begin, have a look at our [issues](issues TODO) page for open work.

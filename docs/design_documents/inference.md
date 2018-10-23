@@ -4,15 +4,15 @@
 
 Inference in MXFusion is broken down into a few logical pieces that can be combined together as necessary.
 
-The highest level object you'll deal with will be derived from the ```mxfusion.inference.Inference``` class. This is the outer loop that drives the inference algorithm, holds the relevant parameters and models for training, and handles serialization after training. At a minimum, ```Inference``` objects take as input the ```InferenceAlgorithm``` to run and the model it will be run on. On creation, an ```InferenceParameters``` object is created and attached to the ```Inference``` method which will store and manage (MXNet) parameters during inference.
+The highest level object you'll deal with will be derived from the ```mxfusion.inference.Inference``` class. This is the outer loop that drives the inference algorithm, holds the relevant parameters and models for training, and handles serialization after training. At a minimum, ```Inference``` objects take as input the ```InferenceAlgorithm``` to run. On creation, an ```InferenceParameters``` object is created and attached to the ```Inference``` method which will store and manage (MXNet) parameters during inference.
 
 Currently there are two main Inference subclasses: ```GradBasedInference``` and ```TransferInference```. An obvious third choice would be some kind of MCMC sampling Inference method.
 
-The first primary class of Inference methods is ```GradBasedInference```, which is for those methods use the gradient of some loss funtion in an optimization loop. We only use MXNet based optimizers for now. When using gradient based inference methods (```GradBasedInference```), the Inference class takes in a ```GradLoop``` in addition to the ```InferenceAlgorithm```. The ```GradLoop``` determines whether to use full or mini-batches of the data for the ```InferenceAlgorithm```.
+The first primary class of Inference methods is ```GradBasedInference```, which is for those methods that involve a gradient-based optimization. We only support the gradient optimizers that are available in MXNet for now. When using gradient-based inference methods (```GradBasedInference```), the Inference class takes in a ```GradLoop``` in addition to the ```InferenceAlgorithm```. The ```GradLoop``` determines how the gradient computed in the ```InferenceAlgorithm``` is used to update model parameters. The two available implementations of ```GradLoop``` are ```BatchInferenceLoop``` and ```MinibatchInferenceLoop```, which correspond to gradient-based optimization in batch or mini-batch mode.
 
 The second type of Inference method is ```TransferInference```. These are methods that take as an additional parameter the ```InferenceParameters``` object from a previous Inference method. An example of a ```TransferInference``` method is the ```VariationalPosteriorForwardSampling``` method, which takes as input a VariationalInference method that has already been trained and performs forward sampling through the variational posterior.
 
-A basic example to run variational inference with a meanfield posterior over some model looks like the following. See the next section for mathematical details on VariationalInference.
+A basic example to run variational inference with a meanfield posterior over some model looks like the following. See the next section for mathematical details on variational inference.
 
 ### First Example
 
