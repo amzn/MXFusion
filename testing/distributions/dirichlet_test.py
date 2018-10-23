@@ -12,7 +12,8 @@ from mxfusion.util.testutils import MockMXNetRandomGenerator
 
 @pytest.mark.usefixtures("set_seed")
 class TestDirichletDistribution(object):
-    # dtype must be float64 to ensure that sum of x_i is always 1
+    # scipy implementation of dirichlet throws an error if x_i does not sum to one and float32 is 
+    # not precise enough to have sum close enough to 1 after normalisation so using float64
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv, rv_is_samples, num_samples", [
         (np.float64, np.random.rand(2), False, np.random.rand(5, 3, 2), True, 5),
         (np.float64, np.random.rand(2), False, np.random.rand(10, 3, 2), True, 10),
