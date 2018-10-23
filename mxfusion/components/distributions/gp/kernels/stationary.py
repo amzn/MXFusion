@@ -9,7 +9,7 @@ class StationaryKernel(NativeKernel):
     The base class for Stationary kernels (covariance functions).
 
     Stationary kernels (covariance functions).
-    Stationary covariance fucntion depend only on r^2, where r^2 is defined as
+    Stationary covariance function depend only on r^2, where r^2 is defined as
     .. math::
         r2(x, x') = \\sum_{q=1}^Q (x_q - x'_q)^2
     The covariance function k(x, x' can then be written k(r).
@@ -17,7 +17,7 @@ class StationaryKernel(NativeKernel):
     In this implementation, r is scaled by the lengthscales parameter(s):
     .. math::
         r2(x, x') = \\sum_{q=1}^Q \\frac{(x_q - x'_q)^2}{\\ell_q^2}.
-    By default, there's only one lengthscale: seaprate lengthscales for each dimension can be enables by setting ARD=True.
+    By default, there's only one lengthscale: separate lengthscales for each dimension can be enables by setting ARD=True.
 
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).
