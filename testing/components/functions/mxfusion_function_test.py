@@ -7,7 +7,7 @@ from mxnet.gluon.nn import Lambda
 from mxnet.initializer import Zero
 from mxfusion.components.functions.mxfusion_function import MXFusionFunction
 from mxfusion.components import Variable
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples
 
 
 class TestMXFusionFunctionTests(unittest.TestCase):

@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import wishart, chi2
 
 from mxfusion.components.distributions import Wishart
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.util.testutils import MockMXNetRandomGenerator, numpy_array_reshape, plot_univariate
 
 
@@ -79,7 +79,7 @@ class TestWishartDistribution(object):
         log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == is_samples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == is_samples_any
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
@@ -112,7 +112,7 @@ class TestWishartDistribution(object):
         draw_samples_rt = var.draw_samples(F=mx.nd, variables=variables)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == scale_is_samples
+        assert array_has_samples(mx.nd, draw_samples_rt) == scale_is_samples
         if scale_is_samples:
             assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt),
                                                                             num_samples)
@@ -143,7 +143,7 @@ class TestWishartDistribution(object):
         draw_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt)
+        assert array_has_samples(mx.nd, draw_samples_rt)
 
     @pytest.mark.parametrize(
         "dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape, num_samples", [
@@ -166,7 +166,7 @@ class TestWishartDistribution(object):
         draw_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt)
+        assert array_has_samples(mx.nd, draw_samples_rt)
         assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt),
                                                                         num_samples)
 

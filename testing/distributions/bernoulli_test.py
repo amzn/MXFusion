@@ -3,7 +3,7 @@ import mxnet as mx
 import numpy as np
 from scipy.stats import bernoulli
 
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Bernoulli
 from mxfusion.util.testutils import numpy_array_reshape
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -68,7 +68,7 @@ class TestBernoulliDistribution(object):
         rv_samples_rt = var.draw_samples(
             F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert np.array_equal(rv_samples_np, rv_samples_rt.asnumpy().astype(bool))
 
@@ -82,6 +82,6 @@ class TestBernoulliDistribution(object):
         rv_samples_rt = var.draw_samples(
             F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert rv_samples_rt.dtype == dtype
