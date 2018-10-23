@@ -120,8 +120,8 @@ class TestNormalDistribution(object):
             plot_univariate(samples=rv_samples_rt, dist=norm, loc=mean[0], scale=np.sqrt(variance[0]))
 
         mean_est, scale_est = norm.fit(rv_samples_rt.asnumpy().ravel())
-        mean_tol = 1e-2
-        variance_tol = 1e-2
+        mean_tol = 1e-1
+        variance_tol = 1e-1
         assert np.abs(mean[0] - mean_est) < mean_tol
         assert np.abs(variance[0] - scale_est ** 2) < variance_tol
 
@@ -357,7 +357,7 @@ class TestMultivariateNormalDistribution(object):
         # mean_est, scale_est = multivariate_normal.fit(rv_samples_rt.asnumpy().ravel())
         mean_est = np.mean(rv_samples_rt.asnumpy(), axis=0)
         cov_est = np.cov(rv_samples_rt.asnumpy(), rowvar=False)
-        mean_tol = 1e-2
-        covariance_tol = 1e-2
+        mean_tol = 1e-1
+        covariance_tol = 1e-1
         assert np.allclose(mean, mean_est, atol=mean_tol)
         assert np.allclose(covariance, cov_est, covariance_tol)

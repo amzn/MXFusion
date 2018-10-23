@@ -124,7 +124,7 @@ class TestBetaDistribution(object):
             plot_univariate(samples=rv_samples_rt, dist=beta, a=a[0], b=b[0])
 
         a_est, b_est, _, _ = beta.fit(rv_samples_rt.asnumpy().ravel())
-        a_tol = 1e-1
-        b_tol = 1e-1
+        a_tol = 0.2
+        b_tol = 0.2
         assert np.abs(a[0] - a_est) < a_tol
         assert np.abs(b[0] - b_est) < b_tol

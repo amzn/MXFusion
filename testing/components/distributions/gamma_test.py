@@ -40,9 +40,9 @@ class TestGammaDistribution(object):
         rv_mx = mx.nd.array(rv, dtype=dtype)
         if not rv_isSamples:
             rv_mx = add_sample_dimension(mx.nd, rv_mx)
-        gamma = GammaMeanVariance.define_variable(mean=mean_mx, variance=variance_mx, shape=rv_shape, dtype=dtype).factor
-        variables = {gamma.mean.uuid: mean_mx, gamma.variance.uuid: variance_mx, gamma.random_variable.uuid: rv_mx}
-        log_pdf_rt = gamma.log_pdf(F=mx.nd, variables=variables)
+        var = GammaMeanVariance.define_variable(mean=mean_mx, variance=variance_mx, shape=rv_shape, dtype=dtype).factor
+        variables = {var.mean.uuid: mean_mx, var.variance.uuid: variance_mx, var.random_variable.uuid: rv_mx}
+        log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
         assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
@@ -63,23 +63,23 @@ class TestGammaDistribution(object):
         (np.float32, np.random.rand(5,2), True, np.random.rand(2)+0.1, False, (3,2), 5),
         ])
     def test_draw_samples_mean_variance(self, dtype, mean, mean_isSamples, variance,
-                          variance_isSamples, rv_shape, num_samples):
+                                        variance_isSamples, rv_shape, num_samples):
         n_dim = 1 + len(rv_shape)
         out_shape = (num_samples,) + rv_shape
         mean_np = mx.nd.array(np.broadcast_to(numpy_array_reshape(mean, mean_isSamples, n_dim), shape=out_shape), dtype=dtype)
         variance_np = mx.nd.array(np.broadcast_to(numpy_array_reshape(variance, variance_isSamples, n_dim), shape=out_shape), dtype=dtype)
 
-        gamma = GammaMeanVariance.define_variable(shape=rv_shape, dtype=dtype).factor
+        var = GammaMeanVariance.define_variable(shape=rv_shape, dtype=dtype).factor
         mean_mx = mx.nd.array(mean, dtype=dtype)
         if not mean_isSamples:
             mean_mx = add_sample_dimension(mx.nd, mean_mx)
         variance_mx = mx.nd.array(variance, dtype=dtype)
         if not variance_isSamples:
             variance_mx = add_sample_dimension(mx.nd, variance_mx)
-        variables = {gamma.mean.uuid: mean_mx, gamma.variance.uuid: variance_mx}
+        variables = {var.mean.uuid: mean_mx, var.variance.uuid: variance_mx}
 
         mx.random.seed(0)
-        rv_samples_rt = gamma.draw_samples(
+        rv_samples_rt = var.draw_samples(
             F=mx.nd, variables=variables, num_samples=num_samples)
 
         mx.random.seed(0)
@@ -115,7 +115,7 @@ class TestGammaDistribution(object):
         rv_np = numpy_array_reshape(rv, rv_isSamples, n_dim)
         log_pdf_np = gamma.logpdf(rv_np, a=alpha_np, loc=0, scale=1. / beta_np)
 
-        gamma = Gamma.define_variable(shape=rv_shape, dtype=dtype).factor
+        var = Gamma.define_variable(shape=rv_shape, dtype=dtype).factor
         alpha_mx = mx.nd.array(alpha, dtype=dtype)
         if not alpha_isSamples:
             alpha_mx = add_sample_dimension(mx.nd, alpha_mx)
@@ -125,8 +125,8 @@ class TestGammaDistribution(object):
         rv_mx = mx.nd.array(rv, dtype=dtype)
         if not rv_isSamples:
             rv_mx = add_sample_dimension(mx.nd, rv_mx)
-        variables = {gamma.alpha.uuid: alpha_mx, gamma.beta.uuid: beta_mx, gamma.random_variable.uuid: rv_mx}
-        log_pdf_rt = gamma.log_pdf(F=mx.nd, variables=variables)
+        variables = {var.alpha.uuid: alpha_mx, var.beta.uuid: beta_mx, var.random_variable.uuid: rv_mx}
+        log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
         assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
@@ -154,17 +154,17 @@ class TestGammaDistribution(object):
         alpha_np = mx.nd.array(np.broadcast_to(numpy_array_reshape(alpha, alpha_isSamples, n_dim), shape=out_shape), dtype=dtype)
         beta_np = mx.nd.array(np.broadcast_to(numpy_array_reshape(beta, beta_isSamples, n_dim), shape=out_shape), dtype=dtype)
 
-        gamma = Gamma.define_variable(shape=rv_shape, dtype=dtype).factor
+        var = Gamma.define_variable(shape=rv_shape, dtype=dtype).factor
         alpha_mx = mx.nd.array(alpha, dtype=dtype)
         if not alpha_isSamples:
             alpha_mx = add_sample_dimension(mx.nd, alpha_mx)
         beta_mx = mx.nd.array(beta, dtype=dtype)
         if not beta_isSamples:
             beta_mx = add_sample_dimension(mx.nd, beta_mx)
-        variables = {gamma.alpha.uuid: alpha_mx, gamma.beta.uuid: beta_mx}
+        variables = {var.alpha.uuid: alpha_mx, var.beta.uuid: beta_mx}
 
         mx.random.seed(0)
-        rv_samples_rt = gamma.draw_samples(
+        rv_samples_rt = var.draw_samples(
             F=mx.nd, variables=variables, num_samples=num_samples)
 
         mx.random.seed(0)
