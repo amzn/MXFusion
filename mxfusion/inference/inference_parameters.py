@@ -7,7 +7,7 @@ from mxnet.gluon import ParameterDict
 from ..components.variables import VariableType, Variable
 from ..components import ModelComponent
 from ..util.inference import realize_shape
-from ..common.config import get_default_device
+from ..common.config import get_default_device, get_default_dtype
 from ..components.functions.gluon_func_eval import GluonFunctionEvaluation
 
 
@@ -26,7 +26,7 @@ class InferenceParameters(object):
     :type context: {mxnet.cpu or mxnet.gpu}
     """
     def __init__(self, constants=None, dtype=None, context=None):
-        self.dtype = dtype if dtype is not None else np.float32
+        self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._constants = {}
         self._var_ties = {}

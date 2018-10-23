@@ -6,6 +6,7 @@ import mxnet.gluon.nn as nn
 import mxfusion as mf
 from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.components.functions import MXFusionGluonFunction
+from mxfusion.common.config import get_default_dtype
 
 
 class InferenceSerializationTests(unittest.TestCase):
@@ -22,33 +23,36 @@ class InferenceSerializationTests(unittest.TestCase):
         self.PREFIX = 'test_' + str(uuid.uuid4())
 
     def make_model(self, net):
+        dtype = get_default_dtype()
         m = mf.models.Model(verbose=True)
         m.N = mf.components.Variable()
         m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mf.components.Variable(shape=(m.N,1))
-        m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=mx.nd.array([0.01]))
+        m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=0.01)
         m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
         m.r = m.f(m.x)
         for _, v in m.r.factor.parameters.items():
-            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0]),variance=m.prior_variance))
+            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0], dtype=dtype), variance=m.prior_variance))
         m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=m.v, shape=(m.N,1))
 
         return m
 
     def make_net(self):
         D = 100
+        dtype = get_default_dtype()
         net = nn.HybridSequential(prefix='hybrid0_')
         with net.name_scope():
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(1, flatten=True))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
+            net.add(nn.Dense(1, flatten=True, dtype=dtype))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
 
     def test_meanfield_saving(self):
+        dtype = get_default_dtype()
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         self.net = self.make_net()
         self.net(x_nd)
@@ -71,6 +75,7 @@ class InferenceSerializationTests(unittest.TestCase):
         self.remove_saved_files(self.PREFIX)
 
     def test_meanfield_save_and_load(self):
+        dtype = get_default_dtype()
         from mxfusion.inference.meanfield import create_Gaussian_meanfield
         from mxfusion.inference import StochasticVariationalInference
         from mxfusion.inference.grad_based_inference import GradBasedInference
@@ -78,7 +83,7 @@ class InferenceSerializationTests(unittest.TestCase):
 
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         net = self.make_net()
         net(x_nd)

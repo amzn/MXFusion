@@ -39,7 +39,7 @@ class MXFusionFunction(object):
 
     def __call__(self, *args, **kwargs):
         """
-        The evaluation of the function in a model defition. It takes a list of
+        The evaluation of the function in a model definition. It takes a list of
         arguments in the type of MXFusion Variable and returns the output
         variables.
 
@@ -124,7 +124,7 @@ class MXFusionFunction(object):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         replicant = self.__class__.__new__(self.__class__)
 
