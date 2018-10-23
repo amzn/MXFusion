@@ -170,11 +170,12 @@ class TestWishartDistribution(object):
         assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt),
                                                                         num_samples)
 
-    def test_draw_samples_1D(self, plot=False):
+    @pytest.mark.usefixtures("set_seed")
+    def test_draw_samples_1d(self, plot=False):
         # Also make sure the non-mock sampler works by drawing 1D samples (should collapse to chi^2)
         dtype = np.float32
         dtype_dof = np.int32
-        num_samples = 10000
+        num_samples = 20000
 
         dof = 10
         scale = np.array([[1]])
@@ -198,5 +199,5 @@ class TestWishartDistribution(object):
 
         # Note that the chi-squared fitting doesn't do a great job, so we have a slack tolerance
         dof_est, _, _ = chi2.fit(rv_samples_rt.asnumpy().ravel())
-        dof_tol = 1e-0
+        dof_tol = 1.5
         assert np.abs(dof - dof_est) < dof_tol
