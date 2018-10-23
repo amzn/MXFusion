@@ -169,7 +169,7 @@ class Wishart(Distribution):
         num_samples, num_data_points, dimension, _ = scale.shape
 
         # Note that the degrees of freedom should be a float for most of the remaining calculations
-        df = degrees_of_freedom.astype(random_variable.dtype)
+        df = degrees_of_freedom.astype(self.dtype)
         a = df - dimension - 1
         b = df * dimension * np.log(2)
 
