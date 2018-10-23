@@ -1,7 +1,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Normal, MultivariateNormal
 from mxfusion.util.testutils import numpy_array_reshape, plot_univariate, plot_bivariate
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -42,7 +42,7 @@ class TestNormalDistribution(object):
         log_pdf_rt = normal.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         if np.issubdtype(dtype, np.float64):
@@ -84,7 +84,7 @@ class TestNormalDistribution(object):
             F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
         if np.issubdtype(dtype, np.float64):
@@ -183,7 +183,7 @@ class TestMultivariateNormalDistribution(object):
         log_pdf_rt = normal.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
@@ -236,14 +236,14 @@ class TestMultivariateNormalDistribution(object):
         log_pdf_rt = normal.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
-        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (5,3,2), 5),
+        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (3,2), 5),
         ])
     def test_draw_samples_with_broadcast(self, dtype, mean, mean_isSamples, var,
                              var_isSamples, rv_shape, num_samples):
@@ -256,26 +256,22 @@ class TestMultivariateNormalDistribution(object):
             var_mx = add_sample_dimension(mx.nd, var_mx)
         var = var_mx.asnumpy()
 
-        isSamples_any = any([mean_isSamples, var_isSamples])
         rand = np.random.rand(num_samples, *rv_shape)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
         rv_samples_np = mean + np.matmul(np.linalg.cholesky(var), np.expand_dims(rand, axis=-1)).sum(-1)
 
         normal = MultivariateNormal.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {normal.mean.uuid: mean_mx, normal.covariance.uuid: var_mx}
-        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables)
+        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == isSamples_any
-        if isSamples_any:
-            assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)
+        assert np.allclose(rv_samples_np, draw_samples_rt.asnumpy())
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
-        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (5,3,2), 5),
-        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(2,2)+0.1), False, (5,3,2), 5),
-        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(5,2,2)+0.1), True, (5,3,2), 5),
-        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(5,2,2)+0.1), True, (5,3,2), 5),
+        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(2,2)+0.1), False, (3,2), 5),
+        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(5,2,2)+0.1), True, (3,2), 5),
+        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(5,2,2)+0.1), True, (3,2), 5)
         ])
     def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype, mean, mean_isSamples, var,
                              var_isSamples, rv_shape, num_samples):
@@ -296,12 +292,13 @@ class TestMultivariateNormalDistribution(object):
         draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == True
+        assert array_has_samples(mx.nd, draw_samples_rt) is True
+        assert draw_samples_rt.shape == (5,) + rv_shape
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
         (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (3,2), 5),
-        (np.float64, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, (5,3,2), 5),
+        (np.float64, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, (3,2), 5),
         ])
     def test_draw_samples_no_broadcast(self, dtype, mean, mean_isSamples, var,
                              var_isSamples, rv_shape, num_samples):
@@ -328,7 +325,7 @@ class TestMultivariateNormalDistribution(object):
         draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, draw_samples_rt) == True
+        assert array_has_samples(mx.nd, draw_samples_rt) == True
         assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)
 
     def test_draw_samples_non_mock(self, plot=False):

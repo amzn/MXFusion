@@ -7,9 +7,9 @@ from mxnet.gluon import HybridBlock
 from ..components.distributions.random_gen import RandomGenerator
 from ..components.variables import add_sample_dimension
 
-def prepare_mxnet_array(array, is_sampled_array, dtype):
+def prepare_mxnet_array(array, array_has_samples, dtype):
     a_mx = mx.nd.array(array, dtype=dtype)
-    if not is_sampled_array:
+    if not array_has_samples:
         a_mx = add_sample_dimension(mx.nd, a_mx)
     return a_mx
 
@@ -66,7 +66,10 @@ class MockMXNetRandomGenerator(RandomGenerator):
         return mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
 
     def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
-        return self._sample_univariate(shape=shape, out=out)
+        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=alpha.shape)
+        if out is not None:
+            out[:] = res
+        return res
 
     def sample_uniform(self, low=0., high=1., shape=None, dtype=None, out=None, ctx=None, F=None):
         return self._sample_univariate(shape=shape, out=out)

@@ -8,7 +8,7 @@ from ...common.exceptions import InferenceError
 from ..variables import Variable
 from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import is_sampled_array, get_num_samples
+from ..variables import array_has_samples, get_num_samples
 from ...util.customop import broadcast_to_w_samples
 
 
@@ -174,7 +174,7 @@ class MultivariateNormalDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])
@@ -184,7 +184,6 @@ class MultivariateNormalDrawSamplesDecorator(DrawSamplesDecorator):
             shapes_map = {}
             shapes_map['mean'] = (num_samples,) + rv_shape
             shapes_map['covariance'] = (num_samples,) + rv_shape + (rv_shape[-1],)
-            shapes_map['random_variable'] = (num_samples,) + rv_shape
             variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
                          for name, v in variables.items()}
 
@@ -489,7 +488,7 @@ class MultivariateNormalMeanPrecisionDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])

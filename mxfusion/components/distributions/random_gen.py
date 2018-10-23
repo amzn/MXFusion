@@ -54,10 +54,14 @@ class MXNetRandomGenerator(RandomGenerator):
         """
         dtype = get_default_dtype() if dtype is None else dtype
 
-        if shape is None:
-            return func(dtype=dtype, ctx=ctx, out=out, **kwargs)
+        if F is mx.ndarray:
+            # This is required because MXNet uses _Null instead of None as shape default
+            if shape is None:
+                return func(dtype=dtype, ctx=ctx, out=out, **kwargs)
+            else:
+                return func(shape=shape, dtype=dtype, ctx=ctx, out=out, **kwargs)
         else:
-            return func(shape=shape, dtype=dtype, ctx=ctx, out=out, **kwargs)
+            return func(shape=shape, dtype=dtype, out=out, **kwargs)
 
     @staticmethod
     def sample_normal(loc=0, scale=1, shape=None, dtype=None, out=None, ctx=None, F=None):
@@ -120,7 +124,9 @@ class MXNetRandomGenerator(RandomGenerator):
 
         :param alpha: Also known as shape
         :param beta: Also known as rate
-        :param shape: Array shape of samples
+        :param shape: The number of samples to draw. If shape is, e.g., (m, n) and alpha and beta are scalars, output
+            shape will be (m, n). If alpha and beta are NDArrays with shape, e.g., (x, y), then output will have shape
+            (x, y, m, n), where m*n samples are drawn for each [alpha, beta) pair.
         :param dtype: Data type
         :param out: output variable
         :param ctx: execution context

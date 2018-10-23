@@ -3,7 +3,7 @@ import mxnet as mx
 import numpy as np
 from scipy.stats import gamma
 
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Gamma, GammaMeanVariance
 from mxfusion.util.testutils import numpy_array_reshape, plot_univariate
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -45,7 +45,7 @@ class TestGammaDistribution(object):
         log_pdf_rt = gamma.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         if np.issubdtype(dtype, np.float64):
@@ -88,7 +88,7 @@ class TestGammaDistribution(object):
         rv_samples_mx = mx.nd.random.gamma(alpha=alpha_np, beta=beta_np, dtype=dtype)
 
         assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
         if np.issubdtype(dtype, np.float64):
@@ -129,7 +129,7 @@ class TestGammaDistribution(object):
         log_pdf_rt = gamma.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         if np.issubdtype(dtype, np.float64):
@@ -171,7 +171,7 @@ class TestGammaDistribution(object):
         rv_samples_mx = mx.nd.random.gamma(alpha=alpha_np, beta=beta_np, dtype=dtype)
 
         assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
         if np.issubdtype(dtype, np.float64):

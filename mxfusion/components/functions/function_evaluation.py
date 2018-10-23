@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from ..factor import Factor
-from ..variables import is_sampled_array, get_num_samples, as_samples
+from ..variables import array_has_samples, get_num_samples, as_samples
 from ..variables import VariableType
 
 
@@ -40,7 +40,7 @@ class FunctionEvaluationDecorator(object):
             The method handling the execution of the function with RTVariable
             as its input arguments and return values.
             """
-            has_samples = any([is_sampled_array(F, v) for v in input_kws.values()])
+            has_samples = any([array_has_samples(F, v) for v in input_kws.values()])
             if not has_samples:
                 # If none of the inputs are samples, directly evaluate the function
                 nSamples = 0
@@ -65,7 +65,7 @@ class FunctionEvaluationDecorator(object):
                     for sample_idx in range(nSamples):
                         r = func(
                             self, F=F, **{
-                                n: v[sample_idx] if is_sampled_array(F, v) else
+                                n: v[sample_idx] if array_has_samples(F, v) else
                                 v[0] for n, v in input_kws.items()})
                         if isinstance(r, (list, tuple)):
                             r = [F.expand_dims(i, axis=0) for i in r]

@@ -1,7 +1,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Categorical
 from mxfusion.util.testutils import numpy_array_reshape
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -83,6 +83,6 @@ class TestCategoricalDistribution(object):
         rv_samples_rt = cat.draw_samples(
             F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert np.allclose(rv_samples_np, rv_samples_rt.asnumpy())
