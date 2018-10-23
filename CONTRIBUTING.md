@@ -73,7 +73,7 @@ Before submitting the pull request, please go through this checklist to make the
 * Do all public functions have docstrings including examples? If you added a new module, did you add it to the Sphinx docstring in the ```__init__.py``` file of the module's folder?
 * Is the code style correct (PEP8)?
 * Is the commit message formatted correctly?
-* If this is a large addition, is there a tutorial or more extensive module-level description? Did you discuss the addition in a [design document](design/design_documents/design_doc_guidelines)? Is there an issue related to the change? If so, please link the issue or design doc.
+* If this is a large addition, is there a tutorial or more extensive module-level description? Did you discuss the addition in a [design proposal](design_proposals/design_proposal_guidelines)? Is there an issue related to the change? If so, please link the issue or design doc.
 
 
 ## Setting up a development environment
