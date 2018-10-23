@@ -116,7 +116,7 @@ class TestBetaDistribution(object):
         variables = {var.a.uuid: a_mx, var.b.uuid: b_mx}
         rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert rv_samples_rt.dtype == dtype
 

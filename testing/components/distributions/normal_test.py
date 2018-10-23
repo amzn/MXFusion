@@ -111,7 +111,7 @@ class TestNormalDistribution(object):
         variables = {var.mean.uuid: mean_mx, var.variance.uuid: variance_mx}
         rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert rv_samples_rt.dtype == dtype
 
@@ -346,7 +346,7 @@ class TestMultivariateNormalDistribution(object):
         variables = {var.mean.uuid: mean_mx, var.covariance.uuid: covariance_mx}
         rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert rv_samples_rt.dtype == dtype
 
