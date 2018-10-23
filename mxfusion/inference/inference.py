@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 import mxnet as mx
 from .inference_parameters import InferenceParameters
-from ..common.config import get_default_device
+from ..common.config import get_default_device, get_default_dtype
 from ..common.exceptions import InferenceError
 from ..util.inference import discover_shape_constants, init_outcomes
 from ..models.factor_graph import FactorGraph
@@ -30,7 +30,7 @@ class Inference(object):
     def __init__(self, inference_algorithm, constants=None,
                  hybridize=False, dtype=None, context=None):
 
-        self.dtype = dtype if dtype is not None else np.float32
+        self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._hybridize = hybridize
         self._graphs = inference_algorithm.graphs

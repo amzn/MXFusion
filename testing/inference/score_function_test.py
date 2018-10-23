@@ -8,6 +8,7 @@ from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.components.functions import MXFusionGluonFunction
 from mxfusion.util.testutils import make_basic_model
 from mxfusion.inference import ScoreFunctionInference, ScoreFunctionRBInference, StochasticVariationalInference
+from mxfusion.common.config import get_default_dtype
 
 
 @pytest.mark.usefixtures("set_seed")
@@ -17,25 +18,27 @@ class TestScoreFunction(object):
     """
 
     def make_bnn_model(self, net):
+        dtype = get_default_dtype()
         m = mf.models.Model(verbose=True)
         m.N = mf.components.Variable()
         m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mf.components.Variable(shape=(m.N,1))
-        m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=mx.nd.array([0.01]))
+        m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=0.01)
         m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
         m.r = m.f(m.x)
         for _, v in m.r.factor.parameters.items():
-            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0]),variance=m.prior_variance))
+            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0], dtype=dtype),variance=m.prior_variance))
         m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=m.v, shape=(m.N,1))
         return m
 
     def make_net(self):
+        dtype = get_default_dtype()
         D = 100
         net = nn.HybridSequential(prefix='hybrid0_')
         with net.name_scope():
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(1, flatten=True))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
+            net.add(nn.Dense(1, flatten=True, dtype=dtype))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
 
@@ -54,31 +57,34 @@ class TestScoreFunction(object):
         return x_train
 
     def make_ppca_model(self):
+        dtype = get_default_dtype()
         m = Model()
         m.w = Variable(shape=(self.K,self.D), initial_value=mx.nd.array(np.random.randn(self.K,self.D)))
         dot = nn.HybridLambda(function='dot')
         m.dot = mf.functions.MXFusionGluonFunction(dot, num_outputs=1, broadcastable=False)
-        cov = mx.nd.broadcast_to(mx.nd.expand_dims(mx.nd.array(np.eye(self.K,self.K)), 0),shape=(self.N,self.K,self.K))
-        m.z = mf.distributions.MultivariateNormal.define_variable(mean=mx.nd.zeros(shape=(self.N,self.K)), covariance=cov, shape=(self.N,self.K))
+        cov = mx.nd.broadcast_to(mx.nd.expand_dims(mx.nd.array(np.eye(self.K,self.K), dtype=dtype), 0),shape=(self.N,self.K,self.K))
+        m.z = mf.distributions.MultivariateNormal.define_variable(mean=mx.nd.zeros(shape=(self.N,self.K), dtype=dtype), covariance=cov, shape=(self.N,self.K))
         sigma_2 = Variable(shape=(1,), transformation=PositiveTransformation())
         m.x = mf.distributions.Normal.define_variable(mean=m.dot(m.z, m.w), variance=sigma_2, shape=(self.N,self.D))
         return m
 
     def make_ppca_post(self, m):
         from mxfusion.inference import BatchInferenceLoop, GradBasedInference
+        dtype = get_default_dtype()
         class SymmetricMatrix(mx.gluon.HybridBlock):
             def hybrid_forward(self, F, x, *args, **kwargs):
                 return F.sum((F.expand_dims(x, 3)*F.expand_dims(x, 2)), axis=-3)
         q = mf.models.Posterior(m)
         sym = mf.components.functions.MXFusionGluonFunction(SymmetricMatrix(), num_outputs=1, broadcastable=False)
-        cov = Variable(shape=(self.N,self.K,self.K), initial_value=mx.nd.broadcast_to(mx.nd.expand_dims(mx.nd.array(np.eye(self.K,self.K) * 1e-2), 0),shape=(self.N,self.K,self.K)))
+        cov = Variable(shape=(self.N,self.K,self.K), initial_value=mx.nd.broadcast_to(mx.nd.expand_dims(mx.nd.array(np.eye(self.K,self.K) * 1e-2, dtype=dtype), 0),shape=(self.N,self.K,self.K)))
         q.post_cov = sym(cov)
-        q.post_mean = Variable(shape=(self.N,self.K), initial_value=mx.nd.array(np.random.randn(self.N,self.K)))
+        q.post_mean = Variable(shape=(self.N,self.K), initial_value=mx.nd.array(np.random.randn(self.N,self.K), dtype=dtype))
         q.z.set_prior(mf.distributions.MultivariateNormal(mean=q.post_mean, covariance=q.post_cov))
         return q
 
     def get_ppca_grad(self, x_train, inf_type, num_samples=100):
         import random
+        dtype = get_default_dtype()
         random.seed(0)
         np.random.seed(0)
         mx.random.seed(0)
@@ -91,14 +97,15 @@ class TestScoreFunction(object):
         from mxfusion.inference import BatchInferenceLoop
 
         infr = GradBasedInference(inference_algorithm=alg,  grad_loop=BatchInferenceLoop())
-        infr.initialize(x=mx.nd.array(x_train))
-        infr.run(max_iter=1, learning_rate=1e-2, x=mx.nd.array(x_train), verbose=False)
+        infr.initialize(x=mx.nd.array(x_train, dtype=dtype))
+        infr.run(max_iter=1, learning_rate=1e-2, x=mx.nd.array(x_train, dtype=dtype), verbose=False)
         return infr, q.post_mean
 
     def test_score_function_batch(self):
+        dtype = get_default_dtype()
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         self.net = self.make_net()
         self.net(x_nd)
@@ -117,9 +124,10 @@ class TestScoreFunction(object):
 
 
     def test_score_function_minibatch(self):
+        dtype = get_default_dtype()
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         self.net = self.make_net()
         self.net(x_nd)
@@ -139,9 +147,10 @@ class TestScoreFunction(object):
 
 
     def test_score_function_rb_batch(self):
+        dtype = get_default_dtype()
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         self.net = self.make_net()
         self.net(x_nd)
@@ -159,9 +168,10 @@ class TestScoreFunction(object):
         infr.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
 
     def test_score_function_rb_minibatch(self):
+        dtype = get_default_dtype()
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         self.net = self.make_net()
         self.net(x_nd)
