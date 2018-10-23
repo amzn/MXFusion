@@ -59,8 +59,11 @@ class MockMXNetRandomGenerator(RandomGenerator):
     def sample_normal(self, loc=0, scale=1, shape=None, dtype=None, out=None, ctx=None, F=None):
         return self._sample_univariate(shape=shape, out=out)
 
-    def sample_multinomial(self, data, shape=None, get_prob=True, dtype='int32', F=None):
+    def sample_multinomial(self, data, shape=None, get_prob=True, dtype=None, F=None):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
+
+    def sample_bernoulli(self, prob_true=0.5, shape=None, dtype=None, out=None, F=None):
+        return mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
 
     def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
         return self._sample_univariate(shape=shape, out=out)
@@ -70,7 +73,6 @@ class MockMXNetRandomGenerator(RandomGenerator):
 
     def sample_laplace(self, location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
         return self._sample_univariate(shape=shape, out=out)
-
 
 
 def make_net():

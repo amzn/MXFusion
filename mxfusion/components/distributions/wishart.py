@@ -82,7 +82,7 @@ class WishartDrawSamplesDecorator(DrawSamplesDecorator):
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])
                 if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the num_amples argument of draw_samples of "
+                    raise InferenceError("The number of samples in the num_samples argument of draw_samples of "
                                          "the Wishart distribution must be the same as the number of samples "
                                          "given to the inputs. num_samples: {}, the inferred number of samples "
                                          "from inputs: {}.".format(num_samples, num_samples_inferred))
@@ -169,7 +169,7 @@ class Wishart(Distribution):
         num_samples, num_data_points, dimension, _ = scale.shape
 
         # Note that the degrees of freedom should be a float for most of the remaining calculations
-        df = degrees_of_freedom.astype(random_variable.dtype)
+        df = degrees_of_freedom.astype(self.dtype)
         a = df - dimension - 1
         b = df * dimension * np.log(2)
 

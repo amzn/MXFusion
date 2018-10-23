@@ -13,7 +13,7 @@ class MXFusionGluonFunction(MXFusionFunction):
     wrapper is called in Model definition, it returns a factor corresponding to the function evaluation.
 
     :param block: The MXNet Gluon block to be wrapped.
-    :type block: mxnet.gluon.Blockk or mxnet.gluon.HybridBlock
+    :type block: mxnet.gluon.Block or mxnet.gluon.HybridBlock
     :param num_outputs: The number of output variables of the Gluon block.
     :type num_outputs: int
     :param dtype: the data type of float point numbers used in the Gluon block.
@@ -170,7 +170,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         because otherwise these parameters will be directly exposed to a gradient optimizer as free parameters.
 
         For each parameters of the Gluon bock with probabilistic distribution, this method dynamically sets its values as the outcome of
-        upstream computation and ensure the correct gradient can be estimated via automatic differenciation.
+        upstream computation and ensure the correct gradient can be estimated via automatic differentiation.
 
         :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the
             inputs of FunctionEvaluation.
@@ -193,7 +193,7 @@ class MXFusionGluonFunction(MXFusionFunction):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         replicant = super(
             MXFusionGluonFunction, self).replicate_self(attribute_map)

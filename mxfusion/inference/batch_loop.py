@@ -8,7 +8,7 @@ class BatchInferenceLoop(GradLoop):
     """
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=2000, n_prints=10, verbose=False):
+            learning_rate=1e-3, max_iter=1000, n_prints=10, verbose=False):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
