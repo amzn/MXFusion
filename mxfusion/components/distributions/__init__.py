@@ -17,6 +17,7 @@ Submodules
     gp
     wishart
     beta
+    dirichlet
 """
 
 __all__ = ['bernoulli', 'categorical', 'distribution', 'normal', 'gamma', 'pointmass', 'random_gen',
@@ -31,3 +32,4 @@ from .categorical import Categorical
 from .gp import GaussianProcess, ConditionalGaussianProcess
 from .wishart import Wishart
 from .beta import Beta
+from .dirichlet import Dirichlet

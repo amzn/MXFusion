@@ -2,7 +2,7 @@ import pytest
 import mxnet as mx
 import numpy as np
 from mxfusion.models import Model
-from mxfusion.components.variables.runtime_variable import is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import array_has_samples, get_num_samples
 from mxfusion.components.distributions import ConditionalGaussianProcess
 from mxfusion.components.distributions.gp.kernels import RBF
 from mxfusion.components.variables import Variable
@@ -68,7 +68,7 @@ class TestConditionalGaussianProcessDistribution(object):
         log_pdf_np = np.array(log_pdf_np)
         isSamples_any = any([X_isSamples, rbf_lengthscale_isSamples, rbf_variance_isSamples, rv_isSamples])
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         assert np.allclose(log_pdf_np, log_pdf_rt)
@@ -181,7 +181,7 @@ class TestConditionalGaussianProcessDistribution(object):
         log_pdf_np = np.array(log_pdf_np)
         isSamples_any = any([X_isSamples, rbf_lengthscale_isSamples, rbf_variance_isSamples, rv_isSamples])
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == isSamples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == isSamples_any
         if isSamples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         assert np.allclose(log_pdf_np, log_pdf_rt)
