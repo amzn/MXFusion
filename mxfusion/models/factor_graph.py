@@ -1,7 +1,7 @@
 from uuid import uuid4
 import warnings
 import networkx as nx
-from networkx.exceptions import NetworkXError
+from networkx.exception import NetworkXError
 import networkx.algorithms.dag
 from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
 from ..modules.module import Module
