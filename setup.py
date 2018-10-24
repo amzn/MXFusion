@@ -23,7 +23,7 @@ setup(
     url='https://github.com/amzn/MXFusion',
     packages=find_packages(exclude=['testing*']),
     include_package_data=True,
-    install_requires=['networkx>=2.1'],
+    install_requires=['networkx>=2.1', 'numpy>=1.7'],
     license='Apache License 2.0',
     classifiers=(
        'Development Status :: 5 - Production/Stable',
