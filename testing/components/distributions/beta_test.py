@@ -1,7 +1,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Beta
 from mxfusion.util.testutils import numpy_array_reshape
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -44,7 +44,7 @@ class TestBetaDistribution(object):
         log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, log_pdf_rt) == is_samples_any
+        assert array_has_samples(mx.nd, log_pdf_rt) == is_samples_any
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples
         if np.issubdtype(dtype, np.float64):
@@ -87,7 +87,7 @@ class TestBetaDistribution(object):
         rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert is_sampled_array(mx.nd, rv_samples_rt)
+        assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
         rtol, atol = 1e-1, 1e-1

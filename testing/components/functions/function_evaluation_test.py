@@ -1,7 +1,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples
 
 
 @pytest.mark.usefixtures("set_seed")
@@ -62,5 +62,5 @@ class TestFunctionEvaluation(object):
         variables = {eval.A.uuid: A_mx, eval.B.uuid: B_mx}
         res_rt = eval.eval(F=mx.nd, variables=variables)
 
-        assert np_isSamples == is_sampled_array(mx.nd, res_rt)
+        assert np_isSamples == array_has_samples(mx.nd, res_rt)
         assert np.allclose(res_np, res_rt.asnumpy())
