@@ -13,7 +13,7 @@ class Inference(object):
     Abstract class defining an inference method that can be applied to a model.
     An inference method consists of a few components: the applied inference algorithm,
     the model definition (optionally a definition of posterior
-    approximation), the inference parameters.
+    approximation), and the inference parameters.
 
     :param inference_algorithm: The applied inference algorithm
     :type inference_algorithm: InferenceAlgorithm
