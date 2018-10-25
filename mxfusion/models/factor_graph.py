@@ -1,7 +1,7 @@
-from future.utils import raise_from
 from uuid import uuid4
 import warnings
 import networkx as nx
+from networkx.exception import NetworkXError
 import networkx.algorithms.dag
 from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
 from ..modules.module import Module
@@ -281,13 +281,15 @@ class FactorGraph(object):
 
         try:
             self.components_graph.remove_node(component)  # implicitly removes edges
-        except Exception as e:
-            raise_from(ModelSpecificationError("Attempted to remove a node that isn't in the graph"), e)
+        except NetworkXError as e:
+            raise ModelSpecificationError("Attempted to remove a node "+str(component)+" that isn't in the graph.")
 
         if component.name is not None:
+
             try:
-                self.__delattr__(component.name)
-            except Exception as e:
+                if getattr(self, component.name) is component:
+                    delattr(self, component.name)
+            except AttributeError:
                 pass
 
         component.graph = None
