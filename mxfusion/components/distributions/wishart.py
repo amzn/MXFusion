@@ -6,7 +6,7 @@ from ...util import special as sp
 from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import is_sampled_array, get_num_samples
+from ..variables import array_has_samples, get_num_samples
 from ...util.customop import broadcast_to_w_samples
 
 
@@ -77,12 +77,12 @@ class WishartDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            is_samples = any([is_sampled_array(F, v) for v in variables.values()])
+            is_samples = any([array_has_samples(F, v) for v in variables.values()])
             if is_samples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])
                 if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the num_amples argument of draw_samples of "
+                    raise InferenceError("The number of samples in the num_samples argument of draw_samples of "
                                          "the Wishart distribution must be the same as the number of samples "
                                          "given to the inputs. num_samples: {}, the inferred number of samples "
                                          "from inputs: {}.".format(num_samples, num_samples_inferred))
@@ -169,7 +169,7 @@ class Wishart(Distribution):
         num_samples, num_data_points, dimension, _ = scale.shape
 
         # Note that the degrees of freedom should be a float for most of the remaining calculations
-        df = degrees_of_freedom.astype(random_variable.dtype)
+        df = degrees_of_freedom.astype(self.dtype)
         a = df - dimension - 1
         b = df * dimension * np.log(2)
 

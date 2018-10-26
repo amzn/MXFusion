@@ -7,9 +7,9 @@ from mxnet.gluon import HybridBlock
 from ..components.distributions.random_gen import RandomGenerator
 from ..components.variables import add_sample_dimension
 
-def prepare_mxnet_array(array, is_sampled_array, dtype):
+def prepare_mxnet_array(array, array_has_samples, dtype):
     a_mx = mx.nd.array(array, dtype=dtype)
-    if not is_sampled_array:
+    if not array_has_samples:
         a_mx = add_sample_dimension(mx.nd, a_mx)
     return a_mx
 
@@ -57,14 +57,14 @@ class MockMXNetRandomGenerator(RandomGenerator):
             out[:] = res
         return res
 
-    def sample_multinomial(self, data, shape=None, get_prob=True, dtype='int32',
-                           F=None):
+    def sample_multinomial(self, data, shape=None, get_prob=True, dtype=None, F=None):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
 
+    def sample_bernoulli(self, prob_true=0.5, shape=None, dtype=None, out=None, F=None):
+        return mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
+
     def sample_gamma(self, alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):
-        if shape is None:
-            shape = (1,)
-        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
+        res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=alpha.shape)
         if out is not None:
             out[:] = res
         return res

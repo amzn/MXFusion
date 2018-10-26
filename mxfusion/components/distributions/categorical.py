@@ -2,7 +2,7 @@ from ..variables import Variable
 from .univariate import UnivariateDistribution
 from .distribution import LogPDFDecorator, DrawSamplesDecorator
 from ...util.customop import broadcast_to_w_samples
-from ..variables import get_num_samples, is_sampled_array
+from ..variables import get_num_samples, array_has_samples
 from ...common.config import get_default_MXNet_mode
 from ...common.exceptions import InferenceError
 
@@ -61,7 +61,7 @@ class CategoricalDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                          variables.values()])
@@ -154,7 +154,7 @@ class Categorical(UnivariateDistribution):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param log_prob: the logarithm of the probability being in each of the classes.
         :type log_prob: MXNet NDArray or MXNet Symbol
-        :param random_variable: the point to compute the logpdf for.
+        :param random_variable: the point to compute the log pdf for.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol

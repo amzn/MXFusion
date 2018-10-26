@@ -45,7 +45,7 @@ def expectation(F, array):
     return F.mean(array, axis=0)
 
 
-def is_sampled_array(F, array):
+def array_has_samples(F, array):
     """
     Check if the array is a set of samples.
 
@@ -78,7 +78,7 @@ def as_samples(F, array, num_samples):
     :param num_samples: the number of samples
     :type num_samples: int
     """
-    if is_sampled_array(F, array):
+    if array_has_samples(F, array):
         return array
     else:
         return F.broadcast_axis(array, axis=0, size=num_samples)
