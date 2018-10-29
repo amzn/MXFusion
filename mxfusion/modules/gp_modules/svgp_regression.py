@@ -10,6 +10,7 @@ from ...inference.inference_alg import SamplingAlgorithm
 from ...util.customop import make_diagonal
 from ...util.customop import broadcast_to_w_samples
 from ...components.distributions.random_gen import MXNetRandomGenerator
+from ...components.variables.runtime_variable import arrays_as_samples
 
 
 class SVGPRegressionLogPdf(VariationalInference):
@@ -36,9 +37,15 @@ class SVGPRegressionLogPdf(VariationalInference):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
+        X, Y, Z, noise_var, mu, S_W, S_diag, kern_params = arrays_as_samples(
+            F, [X, Y, Z, noise_var, mu, S_W, S_diag, kern_params])
+
+        noise_var_m = F.expand_dims(noise_var, axis=-2)
+
         Kuu = kern.K(F, Z, **kern_params)
         if self.jitter > 0.:
-            Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
+            Kuu = Kuu + F.expand_dims(F.eye(M, dtype=Z.dtype), axis=0) * \
+                self.jitter
         Kuf = kern.K(F, Z, X, **kern_params)
         Kff_diag = kern.Kdiag(F, X, **kern_params)
 
@@ -55,8 +62,8 @@ class SVGPRegressionLogPdf(VariationalInference):
         Linvmu = F.linalg.trsm(L, mu)
         LinvKuf = F.linalg.trsm(L, Kuf)
 
-        LinvKufY = F.linalg.trsm(L, psi1Y)/noise_var
-        LmInvPsi2LmInvT = F.linalg.syrk(LinvKuf)/noise_var
+        LinvKufY = F.linalg.trsm(L, psi1Y)/noise_var_m
+        LmInvPsi2LmInvT = F.linalg.syrk(LinvKuf)/noise_var_m
         LinvSLinvT = F.linalg.syrk(LinvLs)
         LmInvSmuLmInvT = LinvSLinvT*D + F.linalg.syrk(Linvmu)
 
@@ -65,11 +72,11 @@ class SVGPRegressionLogPdf(VariationalInference):
             - F.sum(F.sum(F.square(Linvmu), axis=-1), axis=-1)/2.
 
         logL = -F.sum(F.sum(F.square(Y)/noise_var + np.log(2. * np.pi) +
-                            F.log(noise_var), axis=-1), axis=-1)/2.
-        logL = logL - D/2.*F.sum(Kff_diag, axis=-1)/noise_var
+                            F.log(noise_var_m), axis=-1), axis=-1)/2.
+        logL = logL - D/2.*F.sum(Kff_diag/noise_var, axis=-1)
         logL = logL - F.sum(F.sum(LmInvSmuLmInvT*LmInvPsi2LmInvT, axis=-1),
                             axis=-1)/2.
-        logL = logL + F.sum(F.sum(F.square(LinvKuf)/noise_var, axis=-1),
+        logL = logL + F.sum(F.sum(F.square(LinvKuf)/noise_var_m, axis=-1),
                             axis=-1)*D/2.
         logL = logL + F.sum(F.sum(Linvmu*LinvKufY, axis=-1), axis=-1)
         logL = logL + self.model.U.factor.log_pdf_scaling*KL_u
@@ -294,7 +301,7 @@ class SVGPRegression(Module):
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=0, variance=graph.noise_var, rand_gen=self._rand_gen,
+            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
