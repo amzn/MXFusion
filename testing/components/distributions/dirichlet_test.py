@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import pytest
 
 import numpy as np
@@ -12,7 +27,7 @@ from mxfusion.util.testutils import MockMXNetRandomGenerator
 
 @pytest.mark.usefixtures("set_seed")
 class TestDirichletDistribution(object):
-    # scipy implementation of dirichlet throws an error if x_i does not sum to one and float32 is 
+    # scipy implementation of dirichlet throws an error if x_i does not sum to one and float32 is
     # not precise enough to have sum close enough to 1 after normalisation so using float64
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv, rv_is_samples, num_samples", [
         (np.float64, np.random.rand(2), False, np.random.rand(5, 3, 2), True, 5),
