@@ -14,14 +14,14 @@
 
 
 import warnings
-from mxnet.gluon import ParameterDict
 from mxnet import initializer
-from ..components.variables.variable import VariableType
-from ..components.factor import Factor
+from mxnet.gluon import ParameterDict
+from ..common.config import get_default_dtype
 from ..components.distributions.random_gen import MXNetRandomGenerator
 from ..common.exceptions import ModelSpecificationError
+from ..components.factor import Factor
+from ..components.variables.variable import VariableType
 from ..util.inference import realize_shape
-from ..common.config import get_default_dtype
 
 
 class Module(Factor):
@@ -189,24 +189,10 @@ class Module(Factor):
         the module.
         :type algorithm: InferenceAlgorithm
         """
-        if targets is not None:
-            targets = tuple(sorted(targets))
-        if conditionals is not None:
-            conditionals = tuple(sorted(conditionals))
-        if (targets, conditionals) in self._log_pdf_algorithms:
-            old_name = self._log_pdf_algorithms[(targets, conditionals)][1]
-            if old_name is not None:
-                delattr(self, old_name)
-        if alg_name is not None:
-            if not hasattr(self, alg_name):
-                setattr(self, alg_name, algorithm)
-            else:
-                warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
-                alg_name = None
-        self._log_pdf_algorithms[(targets, conditionals)] = (algorithm, alg_name)
+        self._attach_algorithm(self._log_pdf_algorithms, targets, conditionals, algorithm, alg_name)
 
     def attach_draw_samples_algorithms(self, targets, conditionals, algorithm,
-                                       alg_name=None):
+                                   alg_name=None):
         """
         Attach an inference algorithm for drawing samples from the module.
 
@@ -217,37 +203,11 @@ class Module(Factor):
         :param algorithm: the inference algorithm to draw samples of the chosen target variables from the module.
         :type algorithm: InferenceAlgorithm
         """
-        from ..inference.inference_alg import InferenceAlgorithm
-        if targets is not None:
-            targets = tuple(sorted(targets))
-        if conditionals is not None:
-            conditionals = tuple(sorted(conditionals))
-        if alg_name is not None:
-            if not hasattr(self, alg_name):
-                setattr(self, alg_name, algorithm)
-            elif isinstance(getattr(self, alg_name), InferenceAlgorithm):
-                setattr(self, alg_name, algorithm)
-            else:
-                warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
-                alg_name = None
-        if conditionals in self._draw_samples_algorithms:
-            methods = self._draw_samples_algorithms[conditionals]
-            no_match = True
-            for i, m in enumerate(methods):
-                if targets == m[0]:
-                    if m[2] is not None and m[2] != alg_name:
-                        delattr(self, m[2])
-                    methods[i] = (targets, algorithm, alg_name)
-                    no_match = False
-                    break
-            if no_match:
-                self._draw_samples_algorithms[conditionals].append(
-                    (targets, algorithm, alg_name))
-        else:
-            self._draw_samples_algorithms[conditionals] = [(targets, algorithm, alg_name)]
+        self._attach_algorithm(self._draw_samples_algorithms, targets, conditionals, algorithm, alg_name)
+
 
     def attach_prediction_algorithms(self, targets, conditionals, algorithm,
-                                     alg_name=None):
+                             alg_name=None):
         """
         Attach an inference algorithm for prediction from the module.
 
@@ -258,35 +218,68 @@ class Module(Factor):
         :param algorithm: the inference algorithm to predict the chosen target variables from the module.
         :type algorithm: InferenceAlgorithm
         """
-        from ..inference.inference_alg import InferenceAlgorithm
+        self._attach_algorithm(self._prediction_algorithms, targets, conditionals, algorithm, alg_name)
+
+    def _attach_algorithm(self, algorithms, targets, conditionals, algorithm, alg_name):
+        """
+        Attaches the given algorithm to the algorithms data structure based on targets, conditionals, and alg_name.
+        Also sets 'm.{alg_name} = algorithm'.
+        """
+        targets, conditionals = self._preprocess_attach_parameters(targets, conditionals)
+        alg_name = self._set_algorithm_name(alg_name, algorithm)
+        if conditionals in algorithms:
+            return self._attach_duplicate_conditional_algorithm(algorithms, targets, conditionals, algorithm, alg_name)
+        else:
+            algorithms[conditionals] = [(targets, algorithm, alg_name)]
+            return algorithms
+
+    def _preprocess_attach_parameters(self, targets, conditionals):
+        """
+        Sorts and returns as tuples the targets and conditionals used during attachment.
+        """
         if targets is not None:
             targets = tuple(sorted(targets))
         if conditionals is not None:
             conditionals = tuple(sorted(conditionals))
+        return targets, conditionals
+
+    def _set_algorithm_name(self, alg_name, algorithm):
+        """
+        Sets the attribute of self with the algorithm name, overriding an old algorithm that had the same name. If something other than an InferenceAlgorithm has that name, prints a warning and returns None for alg_name.
+        """
+
+        from ..inference.inference_alg import InferenceAlgorithm
         if alg_name is not None:
             if not hasattr(self, alg_name):
                 setattr(self, alg_name, algorithm)
             elif isinstance(getattr(self, alg_name), InferenceAlgorithm):
                 setattr(self, alg_name, algorithm)
             else:
-                warnings.warn('The algorithm name '+str(alg_name)+' has already existed in the module '+str(self)+'. Skip the attribute setting.')
+                warnings.warn('Something ({}) in this module ({}) is already using the attribute \"{}\". Skipping setting that name to the algorithm.'.format(str(getattr(self, alg_name)),str(self), str(alg_name)))
                 alg_name = None
-        if conditionals in self._prediction_algorithms:
-            methods = self._prediction_algorithms[conditionals]
-            no_match = True
-            for i, m in enumerate(methods):
-                if targets == m[0]:
-                    if m[2] is not None and m[2] != alg_name:
-                        delattr(self, m[2])
-                    methods[i] = (targets, algorithm, alg_name)
-                    no_match = False
-                    break
-            if no_match:
-                self._prediction_algorithms[conditionals].append(
-                    (targets, algorithm, alg_name))
-        else:
-            self._prediction_algorithms[conditionals] = [(targets, algorithm,
-                                                          alg_name)]
+        return alg_name
+
+    def _attach_duplicate_conditional_algorithm(self, algorithms, targets, conditionals, algorithm, alg_name):
+        """
+        Mutates the algorithms object, adding the new algorithm to it.
+        Also removes the name of an old inference algorithm if it had the same (targets, conditional) pair as the new algorithm.
+        """
+        methods = algorithms[conditionals]
+        no_match = True
+        # For each algorithm that already uses those same conditionals
+        for i, m in enumerate(methods):
+            # If the targets are also the same, remove the old one
+            # because this (targets, conditionals) pair should be unique across algorithms.
+            if targets == m[0]:
+                # remove the name of the old algorithm
+                if m[2] is not None and m[2] != alg_name:
+                    delattr(self, m[2])
+                methods[i] = (targets, algorithm, alg_name)
+                no_match = False
+                break
+        if no_match:
+            algorithms[conditionals].append(
+                (targets, algorithm, alg_name))
 
     def log_pdf(self, F, variables, targets=None):
         """
@@ -302,18 +295,9 @@ class Module(Factor):
         :returns: the sum of the log probability of all the target variables.
         :rtype: mxnet NDArray or mxnet Symbol
         """
-        if targets is None:
-            target_names = tuple(sorted(self.output_names.copy()))
-        else:
-            target_names = self.get_names_from_uuid(targets)
-        conditionals_names = self.get_names_from_uuid(variables.keys())
-        conditionals_names = tuple(sorted(set(conditionals_names) - set(target_names)))
-
-        if (target_names, conditionals_names) in self._log_pdf_algorithms:
-            alg = self._log_pdf_algorithms[(target_names, conditionals_names)][0]
-        else:
-            raise ModelSpecificationError("The targets, conditionals pattern for log_pdf computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
-        return alg.compute(F, variables)
+        alg = self._get_algorithm_for_target_conditional_pair(self._log_pdf_algorithms, targets, variables, exact_match=True)
+        result = alg.compute(F, variables)
+        return result
 
     def draw_samples(self, F, variables, num_samples=1, targets=None):
         """
@@ -330,25 +314,14 @@ class Module(Factor):
         :returns: the samples of the target variables.
         :rtype: (MXNet NDArray or MXNet Symbol,) or {str(UUID): MXNet NDArray or MXNet Symbol}
         """
-        if targets is None:
-            target_names = tuple(sorted(self.output_names.copy()))
-        else:
-            target_names = self.get_names_from_uuid(targets)
-        conditionals_names = self.get_names_from_uuid(variables.keys())
-
-        if conditionals_names in self._draw_samples_algorithms:
-            algs = self._draw_samples_algorithms[conditionals_names]
-            target_names = set(target_names)
-            for t, alg, _ in algs:
-                if target_names <= set(t):
-                    alg.num_samples = num_samples
-                    alg.target_variables = targets
-                    return alg.compute(F, variables)
-        raise ModelSpecificationError("The targets-conditionals pattern for draw_samples computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
+        alg = self._get_algorithm_for_target_conditional_pair(self._draw_samples_algorithms, targets, variables)
+        alg.num_samples = num_samples
+        alg.target_variables = targets
+        return alg.compute(F, variables)
 
     def predict(self, F, variables, num_samples=1, targets=None):
         """
-        prediction
+        Predict some variables.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
@@ -360,21 +333,33 @@ class Module(Factor):
         :returns: the sum of the log probability of all the target variables.
         :rtype: mxnet NDArray or mxnet Symbol
         """
+        alg = self._get_algorithm_for_target_conditional_pair(self._prediction_algorithms, targets, variables)
+        alg.num_samples = num_samples
+        alg.target_variables = targets
+        return alg.compute(F, variables)
+
+    def _get_algorithm_for_target_conditional_pair(self, algorithms, targets, variables, exact_match=False):
+        """
+        Searches through the algorithms to find the right algorithm for the target/conditional pair.
+        :param exact_match: This indicates whether the targets passed in must be precisely those in the algorithm, or whether a subset of targets will suffice.
+        """
         if targets is None:
             target_names = tuple(sorted(self.output_names.copy()))
         else:
             target_names = self.get_names_from_uuid(targets)
         conditionals_names = self.get_names_from_uuid(variables.keys())
+        conditionals_names = conditionals_names if not exact_match else tuple(sorted(set(conditionals_names) - set(target_names)))
 
-        if conditionals_names in self._prediction_algorithms:
-            algs = self._prediction_algorithms[conditionals_names]
+        if conditionals_names in algorithms:
+            algs = algorithms[conditionals_names]
             target_names = set(target_names)
             for t, alg, _ in algs:
-                if target_names <= set(t):
-                    alg.target_variables = targets
-                    alg.num_samples = num_samples
-                    return alg.compute(F, variables)
-        raise ModelSpecificationError("The targets-conditionals pattern for prediction "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
+                if not exact_match and target_names <= set(t):
+                    return alg
+                if exact_match and target_names == set(t):
+                    return alg
+
+        raise ModelSpecificationError("The targets-conditionals pattern for draw_samples computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
 
     def prepare_executor(self, rv_scaling=None):
         """
