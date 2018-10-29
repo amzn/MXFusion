@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 with open('mxfusion/__version__.py', 'r') as rv:
     text = rv.read().split('=')
-    __version__ = re.search(r'\d+\.\d+\.\d+', text[1]).group()
+    __version__ = re.search(r'\d+\.\d+\.\d+', text[-1]).group()
 
 setup(
     name='MXFusion',  # this is the name of the package as you will import it i.e import package-name
