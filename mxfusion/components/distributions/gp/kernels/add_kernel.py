@@ -3,7 +3,7 @@ from .kernel import CombinationKernel
 
 class AddKernel(CombinationKernel):
     """
-    The add kernel that computes a covariance matrix by suming the covariance
+    The add kernel that computes a covariance matrix by summing the covariance
     matrices of a list of kernels.
 
     :param sub_kernels: a list of kernels that are combined to compute a covariance matrix.

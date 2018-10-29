@@ -10,7 +10,7 @@ from mxfusion.common.exceptions import ModelSpecificationError
 from mxfusion.components.distributions.normal import Normal
 from mxfusion.components import Variable
 from mxfusion.models import Model
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array, get_num_samples
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 
 
@@ -214,7 +214,7 @@ class FactorGraphTests(unittest.TestCase):
 
         samples_np = v_np + samples_1_np[:, None] + np.sqrt(0.1)*samples_2_np.reshape(5,10)
 
-        assert is_sampled_array(mx.nd, samples) and get_num_samples(mx.nd, samples)==5
+        assert array_has_samples(mx.nd, samples) and get_num_samples(mx.nd, samples)==5
         assert np.allclose(samples.asnumpy(), samples_np)
 
     def test_reconcile_simple_model(self):

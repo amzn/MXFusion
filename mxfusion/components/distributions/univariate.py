@@ -1,7 +1,7 @@
 from ...common.exceptions import InferenceError
 from ..variables import Variable
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import is_sampled_array, get_num_samples
+from ..variables import array_has_samples, get_num_samples
 from ...util.customop import broadcast_to_w_samples
 
 
@@ -10,7 +10,7 @@ class UnivariateLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kws):
             """
-            Computes the logrithm of the probability density/mass function
+            Computes the logarithm of the probability density/mass function
             (PDF/PMF) of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
@@ -56,7 +56,7 @@ class UnivariateDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kws[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])

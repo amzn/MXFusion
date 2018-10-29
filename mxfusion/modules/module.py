@@ -13,7 +13,11 @@ class Module(Factor):
     """
     The base class for a probabilistic module.
 
-    A probabilistic module is a combination of model denfition and Inference algorithms. It acts as a factor and are defined as such during model definition, producing random variables like a plain probabilistic distribution. It differs from a plain distribution in that to compute it's log_pdf and draw_samples functions, it uses a full Inference method.
+    A probabilistic module is a combination of model dentition and Inference algorithms.
+    It acts as a factor and are defined as such during model definition,
+    producing random variables like a plain probabilistic distribution.
+    It differs from a plain distribution in that to compute it's log_pdf
+    and draw_samples functions, it uses a full Inference method.
 
     :param inputs: the input variables
     :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
@@ -363,7 +367,7 @@ class Module(Factor):
 
         :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling or mini-batch learning.
         :type rv_scaling: {UUID: float}
-        :returns: the list of the variable transformations and the list of the variables that are excluded from being setted as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
+        :returns: the list of the variable transformations and the list of the variables that are excluded from being set as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
         :rtypes: {str(UUID): Transformation}, set(str(UUID))
         """
         excluded = set()
@@ -384,7 +388,7 @@ class Module(Factor):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         rep = super(Module, self).replicate_self(attribute_map)
 

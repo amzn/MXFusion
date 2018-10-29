@@ -1,7 +1,7 @@
-from future.utils import raise_from
 from uuid import uuid4
 import warnings
 import networkx as nx
+from networkx.exception import NetworkXError
 import networkx.algorithms.dag
 from ..components import Distribution, Factor, ModelComponent, Variable, VariableType
 from ..modules.module import Module
@@ -281,13 +281,15 @@ class FactorGraph(object):
 
         try:
             self.components_graph.remove_node(component)  # implicitly removes edges
-        except Exception as e:
-            raise_from(ModelSpecificationError("Attempted to remove a node that isn't in the graph"), e)
+        except NetworkXError as e:
+            raise ModelSpecificationError("Attempted to remove a node "+str(component)+" that isn't in the graph.")
 
         if component.name is not None:
+
             try:
-                self.__delattr__(component.name)
-            except Exception as e:
+                if getattr(self, component.name) is component:
+                    delattr(self, component.name)
+            except AttributeError:
                 pass
 
         component.graph = None
@@ -410,7 +412,7 @@ class FactorGraph(object):
         :type excluded: set(UUID) or [UUID]
         :param include_inherited: whether inherited variables are included.
         :type include_inherited: boolean
-        :returns: the list of contant variables.
+        :returns: the list of constant variables.
         :rtype: [Variable]
         """
         if include_inherited:
@@ -420,7 +422,7 @@ class FactorGraph(object):
 
     def get_constants(self):
         """
-        Get all the contants in the factor graph.
+        Get all the constants in the factor graph.
 
         :returns: the list of constant variables.
         :rtype: [Variable]
@@ -432,7 +434,7 @@ class FactorGraph(object):
         """
         Reconciles two sets of graphs, matching the model components in the previous graph to the current graph.
         This is primarily used when loading back a graph from a file and matching it to an existing in-memory graph in order to load the previous
-        graph's paramters correctly.
+        graph's parameters correctly.
 
         :param current_graphs: A list of the graphs we are reconciling a loaded factor graph against. This must be a fully built set of graphs
             generated through the model definition process.

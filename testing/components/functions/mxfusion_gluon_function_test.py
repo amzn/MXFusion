@@ -6,7 +6,7 @@ from mxnet.gluon import HybridBlock
 from mxnet.initializer import Zero
 from mxfusion.components.functions.mxfusion_gluon_function import MXFusionGluonFunction
 from mxfusion.components import Variable
-from mxfusion.components.variables.runtime_variable import add_sample_dimension, is_sampled_array
+from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples
 
 
 @pytest.mark.usefixtures("set_seed")
@@ -69,7 +69,7 @@ class TestMXFusionGluonFunctionTests(object):
         variables = {eval.dot_input_0.uuid: A_mx, eval.dot_input_1.uuid: B_mx}
         res_rt = eval.eval(F=mx.nd, variables=variables)
 
-        assert np_isSamples == is_sampled_array(mx.nd, res_rt)
+        assert np_isSamples == array_has_samples(mx.nd, res_rt)
         assert np.allclose(res_np, res_rt.asnumpy())
 
     def _make_gluon_function_evaluation_rand_param(self, dtype, broadcastable):
@@ -138,7 +138,7 @@ class TestMXFusionGluonFunctionTests(object):
         variables = {eval.dot_input_0.uuid: A_mx, eval.dot_input_1.uuid: B_mx, eval.dot_const.uuid: C_mx}
         res_rt = eval.eval(F=mx.nd, variables=variables)
 
-        assert np_isSamples == is_sampled_array(mx.nd, res_rt)
+        assert np_isSamples == array_has_samples(mx.nd, res_rt)
         assert np.allclose(res_np, res_rt.asnumpy())
 
     def test_success(self):
