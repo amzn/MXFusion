@@ -23,7 +23,6 @@ Submodules
 
     distributions
     functions
-    modules
     variables
     factor
     model_component

@@ -6,7 +6,7 @@
 MXFusion helps you rapidly build and test new methods at scale, by focusing on the modularity of probabilistic models and their integration with modern deep learning techniques.
 
 * [Installation](installation.md)
-* [Design Overview](design/overview.md)
+* [Design Overview](design_documents/overview.md)
 * [API Reference](api.md)
 * [Tutorials](tutorials.md)
 
