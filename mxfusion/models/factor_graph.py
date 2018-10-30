@@ -394,17 +394,22 @@ class FactorGraph(object):
                 return predecessor_direction, successor_direction
         return variable.replicate(replication_function=extract_distribution_function)
 
+
     def clone(self, leaves=None):
+        new_model = self._replicate_class(name=self.name, verbose=self._verbose)
+        return self._clone(new_model, leaves)
+
+    def _clone(self, new_model, leaves=None):
         """
-        Clones a model, maintaining the same functionality and topology. Replicates all of its ModelComponents with new UUIDs.
+        Clones a model, maintaining the same functionality and topology. Replicates all of its ModelComponents, while maintaining the same UUIDs.
+
         Starts upward from the leaves and copies everything in the graph recursively.
 
         :param leaves: If None, use the leaves in this model, otherwise use the provided leaves.
         :returns: A tuple of (cloned_model, variable_map)
         """
 
-        new_model = self._replicate_class(name=self.name, verbose=self._verbose)
-        var_map = {}  # from old model to new model
+        var_map = {} # from old model to new model
 
         leaves = self.leaves if leaves is None else leaves
         for v in leaves:

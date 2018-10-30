@@ -104,6 +104,18 @@ class InferenceAlgorithm(ABC):
     :type extra_graphs: [FactorGraph]
     """
 
+    def replicate_self(self, model, extra_graphs=None):
+
+        replicant = self.__class__.__new__(self.__class__)
+        replicant._model_graph = model
+        replicant._extra_graphs = extra_graphs if extra_graphs is not None else []
+        observed = [replicant.model[o] for o in self._observed_uuid]
+        replicant._observed = set(observed)
+        replicant._observed_uuid = variables_to_UUID(observed)
+        replicant._observed_names = [v.name for v in observed]
+        return replicant
+
+
     def __init__(self, model, observed, extra_graphs=None):
         self._model_graph = model
         self._extra_graphs = extra_graphs if extra_graphs is not None else []

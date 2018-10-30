@@ -267,13 +267,13 @@ class Module(Factor):
         methods = algorithms[conditionals]
         no_match = True
         # For each algorithm that already uses those same conditionals
-        for i, m in enumerate(methods):
+        for i, (i_targets, i_algorithm, i_name) in enumerate(methods):
             # If the targets are also the same, remove the old one
             # because this (targets, conditionals) pair should be unique across algorithms.
-            if targets == m[0]:
+            if targets == i_targets:
                 # remove the name of the old algorithm
-                if m[2] is not None and m[2] != alg_name:
-                    delattr(self, m[2])
+                if i_name is not None and i_name != alg_name:
+                    delattr(self, i_name)
                 methods[i] = (targets, algorithm, alg_name)
                 no_match = False
                 break
@@ -386,17 +386,34 @@ class Module(Factor):
                         v.factor.log_pdf_scaling = 1
         return var_trans, excluded
 
+    def clone_algorithms(self, algorithms, replicant):
+        """
+        Clones
+        """
+        algs = {}
+        for conditionals, algorithms in algorithms.items():
+            for targets, algorithm, alg_name in algorithms:
+                graphs_index = {g: i for i,g in enumerate(self._extra_graphs)}
+                extra_graphs = [replicant._extra_graphs[graphs_index[graph]] for graph in algorithm.graphs if graph in graphs_index]
+                algs[conditionals] = (targets, algorithm.replicate_self(replicant._module_graph, extra_graphs), alg_name)
+        return algs
+
     def replicate_self(self, attribute_map=None):
         """
         The copy constructor for the function.
         """
-        rep = super(Module, self).replicate_self(attribute_map)
+        replicant = super(Module, self).replicate_self(attribute_map)
 
-        rep._rand_gen = self._rand_gen
-        rep.dtype = self.dtype
-        rep.ctx = self.ctx
-        rep._module_graph = self._module_graph.replicate_self(attribute_map)
-        rep._extra_graphs = [m.replicate_self(attribute_map) for m in
+        replicant._rand_gen = self._rand_gen
+        replicant.dtype = self.dtype
+        replicant.ctx = self.ctx
+        replicant._module_graph, _ = self._module_graph.clone()
+
+        # Note this assumes the extra graphs are A) posteriors and B) derived from self._module_graph.
+        replicant._extra_graphs = [m.clone(self._module_graph) for m in
                              self._extra_graphs]
-        rep._attach_default_inference_algorithms()
-        return rep
+
+        replicant._log_pdf_algorithms = self.clone_algorithms(self._log_pdf_algorithms, replicant)
+        replicant._draw_samples_algorithms = self.clone_algorithms(self._draw_samples_algorithms, replicant)
+        replicant._prediction_algorithms = self.clone_algorithms(self._prediction_algorithms, replicant)
+        return replicant
