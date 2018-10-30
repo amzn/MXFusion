@@ -398,6 +398,14 @@ class Module(Factor):
                 algs[conditionals] = (targets, algorithm.replicate_self(replicant._module_graph, extra_graphs), alg_name)
         return algs
 
+    def reconcile_with_module(self, previous_module):
+        from ..models import FactorGraph
+        current_graphs = [self._module_graph] + self._extra_graphs
+        primary_previous_graph = previous_module._module_graph
+        secondary_previous_graphs = previous_module._extra_graphs
+        primary_current_graph = self._module_graph
+        return FactorGraph.reconcile_graphs(current_graphs, primary_previous_graph, secondary_previous_graphs=None, primary_current_graph=None)
+
     def replicate_self(self, attribute_map=None):
         """
         The copy constructor for the function.

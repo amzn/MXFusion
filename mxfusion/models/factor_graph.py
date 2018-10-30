@@ -50,7 +50,7 @@ class FactorGraph(object):
         """
         Return a string summary of this object
         """
-        out_str = ''
+        out_str = '{} ({})\n'.format(self.__class__.__name__, self._uuid[:5])
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
                 out_str += ', '.join([str(v) for _, v in f.outputs])+' = '+str(f)+'\n'
@@ -476,7 +476,9 @@ class FactorGraph(object):
         # Map over the named components.
         for c in primary_previous_graph.components.values():
             if c.name:
-                current_c = getattr(current_graph, c.name)
+                # TODO improve efficiency, but this doesn't work for module components since they have names but aren't /in/ the module so not named directly there.
+                # current_c = getattr(current_graph, c.name)
+                current_c = [comp for comp in current_graph.components.values() if comp.name == c.name][0]
                 component_map[c.uuid] = current_c.uuid
                 current_level[c.uuid] = current_c.uuid
 
@@ -533,7 +535,9 @@ class FactorGraph(object):
                     current_node = [item for name, item in current_neighbors if edge_name == name][0]
                     component_map[node.uuid] = current_node.uuid
                     new_level[node.uuid] = current_node.uuid
-
+                    if isinstance(node, Module):
+                        module_component_map = current_node.reconcile_with_module(node)
+                        component_map.update(module_component_map)
         new_level = {}
         for c, current_c in current_level.items():
             reconcile_direction('predecessor', previous_graph[c], current_graph[current_c], new_level, component_map)

@@ -269,7 +269,7 @@ class FactorGraphTests(unittest.TestCase):
         m1 = self.make_gpregr_model()
         m2 = self.make_gpregr_model()
         component_map = mf.models.FactorGraph.reconcile_graphs([m1], m2)
-        self.assertTrue(len(component_map) == len(m1.components))
+        self.assertTrue(len(component_map) == len(set(m1.components).union(set(m1.Y.factor._module_graph.components))))
 
     def test_reconcile_model_and_posterior(self):
         x = np.random.rand(1000, 1)
