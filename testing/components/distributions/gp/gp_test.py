@@ -131,7 +131,7 @@ class TestGaussianProcessDistribution(object):
         m.X_var = Variable(shape=(5,2))
         m.Y = GaussianProcess.define_variable(X=m.X_var, kernel=rbf, shape=rv_shape, dtype=dtype)
 
-        gp = m.clone()[0].Y.factor
+        gp = m.clone().Y.factor
 
         variables = {gp.X.uuid: X_mx, gp.rbf_lengthscale.uuid: rbf_lengthscale_mx, gp.rbf_variance.uuid: rbf_variance_mx, gp.random_variable.uuid: rv_mx}
         log_pdf_rt = gp.log_pdf(F=mx.nd, variables=variables).asnumpy()

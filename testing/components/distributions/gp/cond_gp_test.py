@@ -166,7 +166,7 @@ class TestConditionalGaussianProcessDistribution(object):
         m.Y_cond_var = Variable(shape=(8,1))
         m.Y = ConditionalGaussianProcess.define_variable(X=m.X_var, X_cond=m.X_cond_var, Y_cond=m.Y_cond_var, kernel=rbf, shape=rv_shape, dtype=dtype)
 
-        gp = m.clone()[0].Y.factor
+        gp = m.clone().Y.factor
 
         variables = {gp.X.uuid: X_mx, gp.X_cond.uuid: X_cond_mx, gp.Y_cond.uuid: Y_cond_mx, gp.rbf_lengthscale.uuid: rbf_lengthscale_mx, gp.rbf_variance.uuid: rbf_variance_mx, gp.random_variable.uuid: rv_mx}
         log_pdf_rt = gp.log_pdf(F=mx.nd, variables=variables).asnumpy()

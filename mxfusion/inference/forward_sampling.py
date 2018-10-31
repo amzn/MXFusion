@@ -108,11 +108,11 @@ def merge_posterior_into_model(model, posterior, observed):
     :param observed: A list of observed variables
     :type observed: [Variable]
     """
-    new_model, var_map = model.clone()
+    new_model = model.clone()
     for lv in model.get_latent_variables(observed):
         v = posterior.extract_distribution_of(posterior[lv])
         new_model.replace_subgraph(new_model[v], v)
-    return new_model, var_map
+    return new_model
 
 
 class VariationalPosteriorForwardSampling(ForwardSampling):
@@ -146,7 +146,7 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
         m = inherited_inference.inference_algorithm.model
         q = inherited_inference.inference_algorithm.posterior
 
-        model_graph, var_map = merge_posterior_into_model(
+        model_graph = merge_posterior_into_model(
             m, q, observed=inherited_inference.observed_variables)
 
         super(VariationalPosteriorForwardSampling, self).__init__(

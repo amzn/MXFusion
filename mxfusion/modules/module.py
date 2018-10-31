@@ -404,7 +404,8 @@ class Module(Factor):
         primary_previous_graph = previous_module._module_graph
         secondary_previous_graphs = previous_module._extra_graphs
         primary_current_graph = self._module_graph
-        return FactorGraph.reconcile_graphs(current_graphs, primary_previous_graph, secondary_previous_graphs=None, primary_current_graph=None)
+        component_map = FactorGraph.reconcile_graphs(current_graphs, primary_previous_graph, secondary_previous_graphs=secondary_previous_graphs, primary_current_graph=primary_current_graph)
+        return component_map
 
     def replicate_self(self, attribute_map=None):
         """
@@ -415,7 +416,7 @@ class Module(Factor):
         replicant._rand_gen = self._rand_gen
         replicant.dtype = self.dtype
         replicant.ctx = self.ctx
-        replicant._module_graph, _ = self._module_graph.clone()
+        replicant._module_graph = self._module_graph.clone()
 
         # Note this assumes the extra graphs are A) posteriors and B) derived from self._module_graph.
         replicant._extra_graphs = [m.clone(self._module_graph) for m in
