@@ -386,9 +386,9 @@ class Module(Factor):
                         v.factor.log_pdf_scaling = 1
         return var_trans, excluded
 
-    def clone_algorithms(self, algorithms, replicant):
+    def _clone_algorithms(self, algorithms, replicant):
         """
-        Clones
+        Clones all of the algorithms using the replicant graphs.
         """
         algs = {}
         for conditionals, algorithms in algorithms.items():
@@ -421,7 +421,27 @@ class Module(Factor):
         replicant._extra_graphs = [m.clone(self._module_graph) for m in
                              self._extra_graphs]
 
-        replicant._log_pdf_algorithms = self.clone_algorithms(self._log_pdf_algorithms, replicant)
-        replicant._draw_samples_algorithms = self.clone_algorithms(self._draw_samples_algorithms, replicant)
-        replicant._prediction_algorithms = self.clone_algorithms(self._prediction_algorithms, replicant)
+        replicant._log_pdf_algorithms = self._clone_algorithms(self._log_pdf_algorithms, replicant)
+        replicant._draw_samples_algorithms = self._clone_algorithms(self._draw_samples_algorithms, replicant)
+        replicant._prediction_algorithms = self._clone_algorithms(self._prediction_algorithms, replicant)
         return replicant
+
+    def load_module(self, module_json):
+        from ..models import FactorGraph
+        self._module_graph = FactorGraph(module_json['graphs'][0]['name']).load_from_json(module_json['graphs'][0])
+        if len(module_json['graphs']) > 1:
+            self._extra_graphs = [FactorGraph(extra_graph['name']).load_from_json(extra_graph) for extra_graph in module_json['graphs'][1:]]
+        return self
+
+
+    def to_dict(self):
+        graphs = [g.as_json()for g in [self._module_graph] + self._extra_graphs]
+
+        mod_dict = {
+            "type": self.__class__.__name__,
+            "uuid": self.uuid,
+            "name": self.name,
+            "graphs": graphs,
+            "attributes": [a.uuid for a in self.attributes],
+        }
+        return mod_dict

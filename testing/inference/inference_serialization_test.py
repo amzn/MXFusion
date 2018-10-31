@@ -126,8 +126,7 @@ class InferenceSerializationTests(unittest.TestCase):
         infr2.initialize(y=y_nd, x=x_nd)
 
         # Load previous parameters
-        infr2.load(primary_model_file=self.PREFIX+'_graph_0.json',
-                   secondary_graph_files=[self.PREFIX+'_graph_1.json'],
+        infr2.load(graphs_file=self.PREFIX+'_graphs.json',
                    parameters_file=self.PREFIX+'_params.json',
                    inference_configuration_file=self.PREFIX+'_configuration.json',
                    mxnet_constants_file=self.PREFIX+'_mxnet_constants.json',

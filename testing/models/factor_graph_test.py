@@ -27,7 +27,7 @@ from mxfusion.components.distributions.gp.kernels import RBF
 from mxfusion.modules.gp_modules import GPRegression
 from mxfusion.components import Variable
 from mxfusion.components.variables import PositiveTransformation
-from mxfusion.models import Model
+from mxfusion.models import Model, FactorGraph
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 
@@ -301,7 +301,7 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_save_reload_bnn_graph(self):
         m1, _ = self.make_bnn_model(self.make_net())
-        m1.save(self.TESTFILE)
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
         m1_loaded.load_graph(self.TESTFILE)
         m1_loaded_edges = set(m1_loaded.components_graph.edges())
@@ -315,7 +315,7 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_save_reload_then_reconcile_simple_graph(self):
         m1 = self.make_simple_model()
-        m1.save(self.TESTFILE)
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
         m1_loaded.load_graph(self.TESTFILE)
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
@@ -345,19 +345,19 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_save_reload_then_reconcile_gp_module(self):
         m1 = self.make_gpregr_model()
-        m1.save(self.TESTFILE)
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
         m1_loaded.load_graph(self.TESTFILE)
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
+        self.assertTrue(len(set(m1.Y.factor._module_graph.components)) == len(set(m1_loaded[m1.Y.factor.uuid]._module_graph.components)))
 
         m2 = self.make_gpregr_model()
         component_map = mf.models.FactorGraph.reconcile_graphs([m2], m1_loaded)
         self.assertTrue(len(component_map.values()) == len(set(component_map.values())), "Assert there are only 1:1 mappings.")
-        self.assertTrue(len(component_map) == len(m1.components))
-        sort_m1 = list(set(map(lambda x: x.uuid, m1.components.values())))
+        sort_m1 = list(set(map(lambda x: x.uuid, set(m1.components.values()).union(set(m1.Y.factor._module_graph.components.values())) )))
         sort_m1.sort()
 
-        sort_m2 = list(set(map(lambda x: x.uuid, m2.components.values())))
+        sort_m2 = list(set(map(lambda x: x.uuid, set(m2.components.values()).union(set(m2.Y.factor._module_graph.components.values())) )))
         sort_m2.sort()
 
         sort_component_map_values = list(set(component_map.values()))
@@ -375,7 +375,7 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_save_reload_then_reconcile_bnn_graph(self):
         m1, _ = self.make_bnn_model(self.make_net())
-        m1.save(self.TESTFILE)
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
         m1_loaded.load_graph(self.TESTFILE)
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
