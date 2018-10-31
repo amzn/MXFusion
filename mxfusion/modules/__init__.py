@@ -21,8 +21,8 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
-    module
     gp_modules
+    module
 """
 
 __all__ = ['module', 'gp_modules']
