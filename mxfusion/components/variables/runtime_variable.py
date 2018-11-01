@@ -97,3 +97,22 @@ def as_samples(F, array, num_samples):
         return array
     else:
         return F.broadcast_axis(array, axis=0, size=num_samples)
+
+
+def arrays_as_samples(F, arrays):
+    """
+    Broadcast the dimension of samples for a list of variables. If the number of samples of at least one of the variables is larger than one, all the variables in the list are broadcasted to have the same number of samples.
+
+    :param F: the execution mode of MXNet.
+    :type F: mxnet.ndarray or mxnet.symbol
+    :param arrays: a list of arrays with samples to be broadcasted.
+    :type arrays: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
+    :returns: the list of variables after broadcasting
+    :rtypes: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
+    """
+    num_samples = [max([get_num_samples(F, v) for v in a.values()]) if isinstance(a, dict) else get_num_samples(F, a) for a in arrays]
+    max_num_samples = max(num_samples)
+    if max_num_samples > 1:
+        return [{k: as_samples(F, v, max_num_samples) for k, v in a.items()} if isinstance(a, dict) else as_samples(F, a, max_num_samples) for a in arrays]
+    else:
+        return arrays
