@@ -107,8 +107,6 @@ class Bernoulli(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, prob_true, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(prob_true, Variable):
-            prob_true = Variable(value=prob_true)
         inputs = [('prob_true', prob_true)]
         input_names = ['prob_true']
         output_names = ['random_variable']

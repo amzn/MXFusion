@@ -122,8 +122,6 @@ class Categorical(UnivariateDistribution):
     def __init__(self, log_prob, num_classes, one_hot_encoding=False,
                  normalization=True, axis=-1, rand_gen=None, dtype=None,
                  ctx=None):
-        if not isinstance(log_prob, Variable):
-            log_prob = Variable(value=log_prob)
         inputs = [('log_prob', log_prob)]
         input_names = ['log_prob']
         output_names = ['random_variable']

@@ -163,7 +163,6 @@ class Variable(ModelComponent):
                 if shape != value.shape:
                     raise ModelSpecificationError("Shape mismatch in Variable creation. The MXNet array shape " + str(value.shape) + " does not match with the shape argument " + str(shape) + ".")
             elif isinstance(value, (float, int)):
-                value = mx.nd.array([value], dtype=get_default_dtype())
                 shape = (1,)
             else:
                 raise ModelSpecificationError("Variable type {} not supported".format(type(value)))
