@@ -105,7 +105,7 @@ def arrays_as_samples(F, arrays):
 
     :param F: the execution mode of MXNet.
     :type F: mxnet.ndarray or mxnet.symbol
-    :param arrays: a list of arrays considered to be broadcasted.
+    :param arrays: a list of arrays with samples to be broadcasted.
     :type arrays: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
     :returns: the list of variables after broadcasting
     :rtypes: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
