@@ -2,13 +2,13 @@
 [![Build Status](https://travis-ci.org/amzn/MXFusion.svg?branch=master)](https://travis-ci.org/amzn/MXFusion) |
 [![codecov](https://codecov.io/gh/amzn/MXFusion/branch/master/graph/badge.svg)](https://codecov.io/gh/amzn/MXFusion) |
 [![pypi](https://img.shields.io/pypi/v/mxfusion.svg?style=flat)](https://pypi.org/project/mxfusion/) |
-[![Documentation Status](https://readthedocs.org/projects/mxfusion/badge/?version=latest)](https://mxfusion.readthedocs.io/en/latest/?badge=latest) |
+[![Documentation Status](https://readthedocs.org/projects/mxfusion/badge/?version=master)](https://mxfusion.readthedocs.io/en/latest/?badge=master) |
 [![GitHub license](https://img.shields.io/github/license/amzn/mxfusion.svg)](https://github.com/amzn/mxfusion/blob/master/LICENSE)
 
 ![MXFusion](docs/images/logo/blender-small.png)
 
-[Tutorials](https://mxfusion.readthedocs.io/en/latest/tutorials.html) |
-[Documentation](https://mxfusion.readthedocs.io/en/latest/index.html) |
+[Tutorials](https://mxfusion.readthedocs.io/en/master/tutorials.html) |
+[Documentation](https://mxfusion.readthedocs.io/en/master/index.html) |
 [Contribution Guide](CONTRIBUTING.md)
 
 MXFusion is a modular deep probabilistic programming library.
@@ -51,9 +51,9 @@ pip install .
 
 ## Where to go from here?
 
-[Tutorials](https://mxfusion.readthedocs.io/en/latest/tutorials.html)
+[Tutorials](https://mxfusion.readthedocs.io/en/master/tutorials.html)
 
-[Documentation](https://mxfusion.readthedocs.io/en/latest/index.html)
+[Documentation](https://mxfusion.readthedocs.io/en/master/index.html)
 
 [Contributions](CONTRIBUTING.md)
 
