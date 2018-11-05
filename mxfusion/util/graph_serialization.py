@@ -63,7 +63,7 @@ class ModelComponentDecoder(json.JSONDecoder):
         else:
             v = mf.components.ModelComponent()
             v.inherited_name = obj['inherited_name']
-            v.name = obj['name']
+        v.name = obj['name']
         v._uuid = obj['uuid']
         v.attributes = obj['attributes']
         v.type = obj['type']
