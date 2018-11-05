@@ -435,14 +435,8 @@ class Module(Factor):
         return self
 
 
-    def to_dict(self):
+    def as_json(self):
+        mod_dict = super(Module, self).as_json()
         graphs = [g.as_json()for g in [self._module_graph] + self._extra_graphs]
-
-        mod_dict = {
-            "type": self.__class__.__name__,
-            "uuid": self.uuid,
-            "name": self.name,
-            "graphs": graphs,
-            "attributes": [a.uuid for a in self.attributes],
-        }
+        mod_dict['graphs'] = graphs
         return mod_dict

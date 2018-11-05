@@ -28,19 +28,10 @@ class ModelComponentEncoder(json.JSONEncoder):
         Serializes a ModelComponent object. Note: does not serialize the successor attribute as it isn't  necessary for serialization.
         """
         if isinstance(obj, mf.components.ModelComponent):
-            if isinstance(obj, mf.modules.Module):
-                mod_dict = obj.to_dict()
-                mod_dict["version"] = __GRAPH_JSON_VERSION__
-                return mod_dict
-            else:
-                return {
-                    "type": obj.__class__.__name__,
-                    "uuid": obj.uuid,
-                    "name": obj.name,
-                    "inherited_name": obj.inherited_name if hasattr(obj, 'inherited_name') else None,
-                    "attributes": [a.uuid for a in obj.attributes],
-                    "version": __GRAPH_JSON_VERSION__
-                }
+            object_dict = obj.as_json()
+            object_dict["version"] = __GRAPH_JSON_VERSION__
+            object_dict["type"] = obj.__class__.__name__
+            return object_dict
         return super(ModelComponentEncoder, self).default(obj)
 
 
@@ -62,8 +53,8 @@ class ModelComponentDecoder(json.JSONDecoder):
             v.load_module(obj)
         else:
             v = mf.components.ModelComponent()
-            v.inherited_name = obj['inherited_name']
-            v.name = obj['name']
+            v.inherited_name = obj['inherited_name'] if 'inherited_name' in obj else None
+        v.name = obj['name']
         v._uuid = obj['uuid']
         v.attributes = obj['attributes']
         v.type = obj['type']

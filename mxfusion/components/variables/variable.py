@@ -96,6 +96,11 @@ class Variable(ModelComponent):
         elif isinstance(self.factor, FunctionEvaluation):
             return VariableType.FUNCVAR
 
+    def as_json(self):
+        object_dict = super(Variable, self).as_json()
+        object_dict['inherited_name'] = self.inherited_name if self.isInherited else None
+        return object_dict
+
     def replicate_self(self, attribute_map=None):
         """
         This functions as a copy constructor for the object. In order to do a copy constructor we first call ``__new__`` on the class which creates a blank object.

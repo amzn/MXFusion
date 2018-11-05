@@ -338,6 +338,7 @@ class FactorGraph(object):
         """
         return set(filter(lambda x: isinstance(x, Variable),
                networkx.algorithms.dag.descendants(self.components_graph, node).union({node})))
+
     def remove_subgraph(self, node):
         """
         Removes a node and its parent graph recursively.
@@ -468,51 +469,52 @@ class FactorGraph(object):
         :rtype: {previous ModelComponent : current ModelComponent}
         """
 
-        def update_with_named_components(previous_components, current_components, component_map, current_level):
-            for c in previous_components:
-                if c.name:
-                    # TODO improve efficiency here from the for loop, but the following commented out code doesn't work for module components since they have names but aren't /in/ the module so not named directly there.
-                    # current_c = getattr(current_graph, c.name)
-                    current_c = [comp for comp in current_components if comp.name == c.name][0]
-                    component_map[c.uuid] = current_c.uuid
-                    current_level[c.uuid] = current_c.uuid
+        def update_with_named_components(previous_components, current_components, component_map, nodes_to_traverse_from):
+            name_pre  = {c.name: c for c in previous_components if c.name}
+            name_cur  = {c.name: c for c in current_components if c.name}
+            for name, previous_c in name_pre.items():
+                current_c = name_cur[name]
+                component_map[previous_c.uuid] = current_c.uuid
+                nodes_to_traverse_from[previous_c.uuid] = current_c.uuid
 
 
         from .model import Model
         component_map = {}
-        current_level = {}
+        nodes_to_traverse_from = {}
         current_graph = primary_current_graph if primary_current_graph is not None else current_graphs[0]
         secondary_current_graphs = current_graphs[1:]
         secondary_previous_graphs = secondary_previous_graphs if secondary_previous_graphs is not None else []
+        if len(secondary_current_graphs) != len(secondary_previous_graphs):
+            raise ModelSpecificationError("Different number of secondary graphs passed in {} {}".format(secondary_current_graphs, secondary_previous_graphs))
 
-        update_with_named_components(primary_previous_graph.components.values(), current_graph.components.values(), component_map, current_level)
+        update_with_named_components(primary_previous_graph.components.values(), current_graph.components.values(), component_map, nodes_to_traverse_from)
 
         # Reconcile the primary graph
-        FactorGraph._reconcile_graph(current_level, component_map,
+        FactorGraph._reconcile_graph(nodes_to_traverse_from, component_map,
                                      current_graph, primary_previous_graph)
         # Reconcile the other graphs
         if len(secondary_current_graphs) > 0 and len(secondary_previous_graphs) > 0:
             for cg, pg in zip(secondary_current_graphs,
                               secondary_previous_graphs):
-                current_level = {pc: cc for pc, cc in component_map.items()
+                nodes_to_traverse_from = {pc: cc for pc, cc in component_map.items()
                                  if pc in pg.components.keys()}
-                update_with_named_components(pg.components.values(), cg.components.values(), component_map, current_level)
+                update_with_named_components(pg.components.values(), cg.components.values(), component_map, nodes_to_traverse_from)
                 FactorGraph._reconcile_graph(
-                    current_level, component_map, cg, pg)
+                    nodes_to_traverse_from, component_map, cg, pg)
 
         # Resolve the remaining ambiguities here.
         return component_map
 
     @staticmethod
-    def _reconcile_graph(current_level, component_map, current_graph, previous_graph):
+    def _reconcile_graph(nodes_to_traverse_from, component_map, current_graph, previous_graph):
         """
-        Traverses the components in current_level of the current_graph/previous_graph, matching components where possible and generating
+        Traverses the components (breadth first) in nodes_to_traverse_from of the current_graph/previous_graph, matching components where possible and generating
         new calls to _reconcile_graph where the graph is still incompletely traversed. This method makes no attempt to resolve ambiguities
         in naming between the graphs and request the user to more completely specify names in their graph if such an ambiguity exists. Such
-        naming can be [more] completely specified by attaching names to each leaf node in the original graph.
+        naming can be more completely specified by attaching names to each leaf node in the original graph.
 
-        :param current_level: A list of items to traverse the graph upwards from.
-        :type current_level: [previous ModelComponents]
+        :param nodes_to_traverse_from: A list of items to traverse the graph upwards from.
+        :type nodes_to_traverse_from: [previous ModelComponents]
         :param component_map: The current mapping from the previous graph's MCs to the current_graph's MCs. This is used and modified during reconciliation.
         :type component_map: {previous_graph ModelComponent : current_graph ModelComponent}
         :param current_graph: The current graph to match components against.
@@ -521,12 +523,12 @@ class FactorGraph(object):
         :type previous_graph: FactorGraph
         """
 
-        def reconcile_direction(direction, c, current_c, new_level, component_map):
+        def reconcile_direction(direction, previous_c, current_c, new_level, component_map):
             if direction == 'predecessor':
-                previous_neighbors = c.predecessors
+                previous_neighbors = previous_c.predecessors
                 current_neighbors = current_c.predecessors
             elif direction == 'successor':
-                previous_neighbors = c.successors
+                previous_neighbors = previous_c.successors
                 current_neighbors = current_c.successors
             names = list(map(lambda x: x[0], previous_neighbors))
             duplicate_names = set([x for x in names if names.count(x) > 1])
@@ -542,8 +544,8 @@ class FactorGraph(object):
                         module_component_map = current_node.reconcile_with_module(node)
                         component_map.update(module_component_map)
         new_level = {}
-        for c, current_c in current_level.items():
-            reconcile_direction('predecessor', previous_graph[c], current_graph[current_c], new_level, component_map)
+        for previous_c, current_c in nodes_to_traverse_from.items():
+            reconcile_direction('predecessor', previous_graph[previous_c], current_graph[current_c], new_level, component_map)
             """
             TODO Reconciling in both directions currently breaks the reconciliation process and can cause multiple previous_uuid's to map to the same current_uuid. It's unclear why that happens.
             This shouldn't be necessary until we implement multi-output Factors though (and even then, only if not all the outputs are in a named chain).
@@ -582,9 +584,13 @@ class FactorGraph(object):
         return [existing_graph.load_from_json(graph) for existing_graph, graph in zip(existing_graphs, graphs_list)]
 
     def as_json(self):
+        """
+        Returns the FactorGraph in a form suitable for JSON serialization.
+        This is assuming a JSON serializer that knows how to handle ModelComponents
+        such as the one defined in mxfusion.util.graph_serialization.
+        """
         json_graph = nx.readwrite.json_graph.node_link_data(self._components_graph)
         json_graph['name'] = self.name
-        # json_graph['uuid'] = self._uuid TODO?
         return json_graph
 
     @staticmethod
