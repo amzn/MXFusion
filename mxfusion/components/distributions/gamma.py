@@ -40,11 +40,6 @@ class Gamma(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, alpha, beta, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(alpha, Variable):
-            alpha = Variable(value=alpha)
-        if not isinstance(beta, Variable):
-            beta = Variable(value=beta)
-
         inputs = [('alpha', alpha), ('beta', beta)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
@@ -124,11 +119,6 @@ class GammaMeanVariance(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(mean, Variable):
-            mean = Variable(value=mean)
-        if not isinstance(variance, Variable):
-            variance = Variable(value=variance)
-
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']

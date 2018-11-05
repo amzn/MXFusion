@@ -36,11 +36,6 @@ class Beta(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, a, b, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(a, Variable):
-            a = Variable(value=a)
-        if not isinstance(b, Variable):
-            b = Variable(value=b)
-
         inputs = [('a', a), ('b', b)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']

@@ -21,6 +21,9 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
+    gp_regression
+    sparsegp_regression
+    svgp_regression
 """
 
 __all__ = ['gp_regression', 'sparsegp_regression', 'svgp_regression']

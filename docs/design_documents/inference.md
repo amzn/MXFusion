@@ -16,7 +16,7 @@ A basic example to run variational inference with a meanfield posterior over som
 
 ### First Example
 
-First we create the model.  The model creation function is dummy here, but this applies to almost any model. See the [Model Definiton](model_definition.md) file for details on model creation. Then we define the observed variables in our model, and apply the convenience method for creating a factorized Gaussian posterior to that model, and get the posterior ```q```.
+First we create the model.  The model creation function is dummy here, but this applies to almost any model. See the [Model Definiton](../model_definition.md) file for details on model creation. Then we define the observed variables in our model, and apply the convenience method for creating a factorized Gaussian posterior to that model, and get the posterior ```q```.
 
 ```py
 m = make_model()

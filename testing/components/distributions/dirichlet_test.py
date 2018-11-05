@@ -20,6 +20,7 @@ import mxnet as mx
 from scipy.stats import dirichlet as scipy_dirichlet
 
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
+from mxfusion.components.variables import Variable
 from mxfusion.components.distributions import Dirichlet
 from mxfusion.util.testutils import numpy_array_reshape
 from mxfusion.util.testutils import MockMXNetRandomGenerator
@@ -66,7 +67,7 @@ class TestDirichletDistribution(object):
             r.append(a)
         log_pdf_np = np.array(r)
 
-        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {dirichlet.a.uuid: a_mx, dirichlet.random_variable.uuid: rv_mx}
         log_pdf_rt = dirichlet.log_pdf(F=mx.nd, variables=variables)
 
@@ -111,7 +112,7 @@ class TestDirichletDistribution(object):
             r.append(a)
         log_pdf_np = np.array(r)
 
-        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {dirichlet.a.uuid: a_mx, dirichlet.random_variable.uuid: rv_mx}
         log_pdf_rt = dirichlet.log_pdf(F=mx.nd, variables=variables)
 
@@ -133,7 +134,7 @@ class TestDirichletDistribution(object):
         draw_samples_np = rand / np.sum(rand)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
-        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {dirichlet.a.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
@@ -149,7 +150,7 @@ class TestDirichletDistribution(object):
         if not a_is_samples:
             a_mx = add_sample_dimension(mx.nd, a_mx)
 
-        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype).factor
+        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype).factor
         variables = {dirichlet.a.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
@@ -168,7 +169,7 @@ class TestDirichletDistribution(object):
         draw_samples_np = rand / np.sum(rand)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
-        dirichlet = Dirichlet.define_variable(a=None, shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
         variables = {dirichlet.a.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 

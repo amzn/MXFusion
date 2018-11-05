@@ -22,8 +22,9 @@ Submodules
     :toctree: _autosummary
 
     components
-    models
     inference
+    models
+    modules
     util
 """
 

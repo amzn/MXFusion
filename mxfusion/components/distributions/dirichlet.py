@@ -119,9 +119,6 @@ class Dirichlet(Distribution):
     """
     def __init__(self, a, normalization=True,
                  rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(a, Variable):
-            a = Variable(value=a)
-
         inputs = [('a', a)]
         input_names = ['a']
         output_names = ['random_variable']

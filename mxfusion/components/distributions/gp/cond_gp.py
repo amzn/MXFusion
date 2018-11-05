@@ -139,8 +139,6 @@ class ConditionalGaussianProcess(Distribution):
     """
     def __init__(self, X, X_cond, Y_cond, kernel, mean_func=None,
                  rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(X, Variable):
-            X = Variable(value=X)
         inputs = [('X', X), ('X_cond', X_cond), ('Y_cond', Y_cond)] + \
             [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
