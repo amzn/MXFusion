@@ -234,7 +234,7 @@ class InferenceParameters(object):
                 new_variable_constants = {with_uuid_map(k, uuid_map): v for k, v in old_constants.items()}
         if mxnet_constants_file is not None:
             mxnet_constants = ndarray.load(mxnet_constants_file)
-            if isinstance(mxnet_constants, type({})):
+            if isinstance(mxnet_constants, dict):
                 new_mxnet_constants = {with_uuid_map(k, uuid_map): v for k, v in mxnet_constants.items()}
             else:
                 new_mxnet_constants = {}
