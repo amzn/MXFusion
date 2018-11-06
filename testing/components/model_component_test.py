@@ -34,7 +34,7 @@ class ModelComponentTests(unittest.TestCase):
         #
         # successors = set([(node_b.uuid, node_a.uuid), (node_c.uuid, node_a.uuid)])
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
 
@@ -51,7 +51,7 @@ class ModelComponentTests(unittest.TestCase):
         node_b.successors = [('edge_1', node_a)]
         node_c.successors = [('edge_2', node_a)]
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_c.graph = graph
 
@@ -69,7 +69,7 @@ class ModelComponentTests(unittest.TestCase):
         node_a.predecessors = [('edge_1', node_b), ('edge_2', node_c)]
         node_b.predecessors = [('edge_1', node_d), ('edge_2', node_e)]
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
 
@@ -84,7 +84,7 @@ class ModelComponentTests(unittest.TestCase):
     def test_join_attach_new_successor_not_to_graph(self):
 
         node_a = mfc.ModelComponent()
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_b = mfc.ModelComponent()
         node_d = mfc.ModelComponent()
@@ -107,7 +107,7 @@ class ModelComponentTests(unittest.TestCase):
     def test_join_predecessors_not_in_graph_to_node_in_graph(self):
 
         node_a = mfc.ModelComponent()
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
         node_a.graph = graph
 
         node_b = mfc.ModelComponent()
@@ -130,7 +130,7 @@ class ModelComponentTests(unittest.TestCase):
         node_d = mfc.ModelComponent()
         node_e = mfc.ModelComponent()
         node_b.successors = [('edge_1', node_d), ('edge_2', node_e)]
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
         node_a.successors = [('edge_1', node_b)]
@@ -148,7 +148,7 @@ class ModelComponentTests(unittest.TestCase):
         node_c = mfc.ModelComponent()
         node_a.predecessors = [('edge_1', node_b), ('edge_1', node_c)]
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
 
