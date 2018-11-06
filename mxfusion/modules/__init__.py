@@ -26,3 +26,5 @@ Submodules
 """
 
 __all__ = ['module', 'gp_modules']
+
+from .module import Module

@@ -397,5 +397,5 @@ class SVGPRegression(Module):
         rep = super(SVGPRegression, self).replicate_self(attribute_map)
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
-        rep.mean_func = self.mean_func.replicate_self(attribute_map)
+        rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
         return rep

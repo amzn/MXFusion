@@ -58,6 +58,11 @@ class ModelComponent(object):
     def __repr__(self):
         return self.uuid
 
+    def as_json(self):
+        return {'uuid': self._uuid,
+                'name': self.name,
+                'attributes': [a.uuid for a in self.attributes]}
+
     @property
     def graph(self):
         """

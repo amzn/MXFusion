@@ -21,14 +21,14 @@ class Posterior(FactorGraph):
     A Posterior graph defined over an existing model.
     """
 
-    def __init__(self, model, name=None):
+    def __init__(self, model, name=None, verbose=False):
         """
         Constructor.
 
         :param model:  The model which the posterior graph is defined over.
         :type model: Model
         """
-        super(Posterior, self).__init__(name=name)
+        super(Posterior, self).__init__(name=name, verbose=verbose)
         self._model = model
 
     def __getattr__(self, name):
@@ -60,3 +60,7 @@ class Posterior(FactorGraph):
         Return a new instance of the derived FactorGraph's class.
         """
         return Posterior(**kwargs)
+
+    def clone(self, model, leaves=None):
+        new_model = self._replicate_class(model=model, name=self.name, verbose=self._verbose)
+        return self._clone(new_model, leaves)
