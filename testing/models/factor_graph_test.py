@@ -198,6 +198,27 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(set([v for _, v in x.predecessors]) == set([d]))
         self.assertTrue(x.graph == d.graph and d.graph == fg.components_graph)
 
+    def test_same_variable_as_multiple_inputs_to_factor_in_graph(self):
+        fg = mf.models.Model()
+
+        fg.x = mfc.Variable()
+        fg.y = mf.components.distributions.Normal.define_variable(mean=fg.x, variance=fg.x)
+
+        self.assertTrue(set([v for _, v in fg.y.factor.predecessors]) == set([fg.x]))
+        self.assertTrue(set([v for _, v in fg.x.successors]) == set([fg.y.factor]))
+        self.assertTrue(len(fg.y.factor.predecessors) == 2)
+        self.assertTrue(len(fg.x.successors) == 2)
+
+    def test_same_variable_as_multiple_inputs_to_factor_not_in_graph(self):
+
+        x = mfc.Variable()
+        y = mf.components.distributions.Normal.define_variable(mean=x, variance=x)
+
+        self.assertTrue(set([v for _, v in y.factor.predecessors]) == set([x]))
+        self.assertTrue(set([v for _, v in x.successors]) == set([y.factor]))
+        self.assertTrue(len(y.factor.predecessors) == 2)
+        self.assertTrue(len(x.successors) == 2)
+
     def test_compute_log_prob(self):
         m = Model()
         v = Variable(shape=(1,))
