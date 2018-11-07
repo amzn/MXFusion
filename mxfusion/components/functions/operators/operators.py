@@ -13,6 +13,7 @@
 # ==============================================================================
 
 
+from ....common.exceptions import ModelSpecificationError
 from ..function_evaluation import FunctionEvaluation, FunctionEvaluationDecorator
 from ...variables import Variable
 
@@ -82,7 +83,10 @@ class MXNetOperatorDecorator(object):
                     input_kws.update(self.properties)
                     return func(F, **input_kws)
 
-            op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names if n in all_args],
+            if not len(all_args) >= len(self.input_names):
+                raise ModelSpecificationError("Must pass in arguments matching the input names {} but received {}.".format(self.input_names, all_args))
+
+            op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names],
                                   outputs=[('output_'+str(i), Variable()) for i in range(self.num_outputs)],
                                   operator_name=self.operator_name,
                                   properties={n: all_args[n] for n in self.property_names if n in all_args}

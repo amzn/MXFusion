@@ -17,6 +17,7 @@ import pytest
 import mxnet as mx
 import numpy as np
 from mxfusion import Variable, Model
+from mxfusion.common.exceptions import ModelSpecificationError
 from mxfusion.components.functions.operators import *
 
 
@@ -128,3 +129,13 @@ class TestOperators(object):
         inputs_unsampled = [v[0] for v in inputs]
         mxnet_result = mxnet_operator(*inputs_unsampled, **properties)
         assert np.allclose(mxf_result.asnumpy(), mxnet_result.asnumpy()), (mxf_result, mxnet_result)
+
+
+    @pytest.mark.parametrize("mxf_operator", [
+        (add),
+        (reshape),
+        ])
+    def test_empty_operator(self, mxf_operator):
+        with pytest.raises(ModelSpecificationError, message="Operator should fail if not passed the correct arguments.") as excinfo:
+            mxf_result = mxf_operator()
+        assert excinfo.value is not None
