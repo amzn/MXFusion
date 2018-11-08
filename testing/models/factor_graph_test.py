@@ -402,6 +402,11 @@ class FactorGraphTests(unittest.TestCase):
         import os
         os.remove(self.TESTFILE)
 
+    def test_access_module_variable_from_model(self):
+        m1 = self.make_gpregr_model()
+        l = m1.Y.factor.kernel.lengthscale
+        self.assertTrue(m1[l.uuid] == l)
+
     def test_print_fg(self):
         m, component_set = self.make_bnn_model(self.bnn_net)
         print(m)
