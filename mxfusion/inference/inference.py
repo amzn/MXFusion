@@ -20,7 +20,7 @@ from .inference_parameters import InferenceParameters
 from ..common.config import get_default_device, get_default_dtype
 from ..common.exceptions import InferenceError
 from ..util.inference import discover_shape_constants, init_outcomes
-from ..models.factor_graph import FactorGraph
+from ..models import FactorGraph, Model, Posterior
 
 
 class Inference(object):
@@ -54,6 +54,28 @@ class Inference(object):
                                           dtype=self.dtype,
                                           context=self.mxnet_context)
         self._initialized = False
+
+    def pretty_print_params(self):
+        """
+        Returns a string with the inference parameters nicely formatted for display, showing which model they came from and their name + uuid.
+        
+        Format:
+        > infr.pretty_print_params()
+        Variable(1ab23)(name=y) - (Model/Posterior(123ge2)) - (first mxnet values/shape)
+        """
+        def get_class_name(graph):
+            if isinstance(graph, Model):
+                return "Model"
+            elif isinstance(graph, Posterior):
+                return "Posterior"
+            else:
+                return "FactorGraph"
+        string = ""
+        for param_uuid, param in self.params.param_dict.items():
+            temp = [(graph,graph[param_uuid]) for i,graph in enumerate(self._graphs) if param_uuid in graph]
+            graph, var_param = temp[0]
+            string += "{} in {}({}) : {} \n\n".format(var_param, get_class_name(graph), graph._uuid[:5], param.data())
+        return string
 
     @property
     def observed_variables(self):
