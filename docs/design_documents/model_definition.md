@@ -28,7 +28,7 @@ When a ModelComponent is attached to a Model, it is automatically updated in the
 
 All ModelComponents in MXFusion are identified uniquely by a UUID.
 
-###Variables
+### Variables
 In a model, there are typically four types of variables: a random variable
 following a probabilistic distribution, a variable which is the outcome of a
 deterministic function, a parameter (with no prior distribution), and a
@@ -52,7 +52,7 @@ values are always positive (v>=0).
 
 ### Factors
 
-####Distributions
+#### Distributions
 In a probabilistic model, random variables relate to each other through
 probabilistic distributions.
 
@@ -61,7 +61,7 @@ random variable *x* from a zero mean unit variance Gaussian distribution looks
 like:
 
 ```python
-m.x = Normal.generate_variable(mean=0, variance=1, shape=(2,))
+m.x = Normal.define_variable(mean=0, variance=1, shape=(2,))
 ```
 
 The two dimensions are
@@ -72,7 +72,7 @@ example:
 ```python
 m.mean = Variable(shape=(2,))
 m.y_shape = Variable()
-m.y = Normal.generate_variable(mean=m.mean, variance=1, shape=m.y_shape)
+m.y = Normal.define_variable(mean=m.mean, variance=1, shape=m.y_shape)
 ```
 
 MXFusion also allows users to specify a prior distribution over pre-existing
@@ -95,11 +95,11 @@ Because Models are FactorGraphs, it is common to want to know what ModelComponen
 ```python
 m.mean = Variable()
 m.var = Variable()
-m.y = Normal.generate_variable(mean=m.mean, variance=m.var)
+m.y = Normal.define_variable(mean=m.mean, variance=m.var)
 ```
 
 
-####Functions
+#### Functions
 The last building block of probabilistic models are deterministic functions. The
 ability to define sophisticated functions allows users to build expressive
 models with a family of standard probabilistic distributions. As MXNet already
