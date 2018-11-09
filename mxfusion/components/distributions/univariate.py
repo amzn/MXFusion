@@ -1,7 +1,22 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ...common.exceptions import InferenceError
 from ..variables import Variable
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import is_sampled_array, get_num_samples
+from ..variables import array_has_samples, get_num_samples
 from ...util.customop import broadcast_to_w_samples
 
 
@@ -10,7 +25,7 @@ class UnivariateLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kws):
             """
-            Computes the logrithm of the probability density/mass function
+            Computes the logarithm of the probability density/mass function
             (PDF/PMF) of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
@@ -56,7 +71,7 @@ class UnivariateDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kws[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                            variables.values()])

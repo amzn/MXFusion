@@ -1,3 +1,19 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
+from ....common.exceptions import ModelSpecificationError
 from ..function_evaluation import FunctionEvaluation, FunctionEvaluationDecorator
 from ...variables import Variable
 
@@ -67,7 +83,10 @@ class MXNetOperatorDecorator(object):
                     input_kws.update(self.properties)
                     return func(F, **input_kws)
 
-            op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names if n in all_args],
+            if not len(all_args) >= len(self.input_names):
+                raise ModelSpecificationError("Must pass in arguments matching the input names {} but received {}.".format(self.input_names, all_args))
+
+            op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names],
                                   outputs=[('output_'+str(i), Variable()) for i in range(self.num_outputs)],
                                   operator_name=self.operator_name,
                                   properties={n: all_args[n] for n in self.property_names if n in all_args}

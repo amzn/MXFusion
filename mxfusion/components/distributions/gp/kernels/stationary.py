@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from .kernel import NativeKernel
 from ....variables import Variable
 from ....variables import PositiveTransformation
@@ -9,7 +24,7 @@ class StationaryKernel(NativeKernel):
     The base class for Stationary kernels (covariance functions).
 
     Stationary kernels (covariance functions).
-    Stationary covariance fucntion depend only on r^2, where r^2 is defined as
+    Stationary covariance function depend only on r^2, where r^2 is defined as
     .. math::
         r2(x, x') = \\sum_{q=1}^Q (x_q - x'_q)^2
     The covariance function k(x, x' can then be written k(r).
@@ -17,7 +32,7 @@ class StationaryKernel(NativeKernel):
     In this implementation, r is scaled by the lengthscales parameter(s):
     .. math::
         r2(x, x') = \\sum_{q=1}^Q \\frac{(x_q - x'_q)^2}{\\ell_q^2}.
-    By default, there's only one lengthscale: seaprate lengthscales for each dimension can be enables by setting ARD=True.
+    By default, there's only one lengthscale: separate lengthscales for each dimension can be enables by setting ARD=True.
 
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).

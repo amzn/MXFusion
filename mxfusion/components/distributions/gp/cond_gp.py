@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import numpy as np
 from ....common.config import get_default_MXNet_mode
 from ....common.exceptions import InferenceError
@@ -12,7 +27,7 @@ class ConditionalGaussianProcessLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kw):
             """
-            Computes the logrithm of the probability density/mass function (PDF/PMF) of the distribution.
+            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
             :param kw: the dict of input and output variables of the distribution
@@ -124,8 +139,6 @@ class ConditionalGaussianProcess(Distribution):
     """
     def __init__(self, X, X_cond, Y_cond, kernel, mean_func=None,
                  rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(X, Variable):
-            X = Variable(value=X)
         inputs = [('X', X), ('X_cond', X_cond), ('Y_cond', Y_cond)] + \
             [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
@@ -175,7 +188,7 @@ class ConditionalGaussianProcess(Distribution):
     def log_pdf(self, X, X_cond, Y_cond, random_variable, F=None,
                 **kernel_params):
         """
-        Computes the logrithm of the probability density function (PDF) of the condtional Gaussian process.
+        Computes the logarithm of the probability density function (PDF) of the conditional Gaussian process.
 
         .. math::
            \\log p(Y| X_c, Y_c, X) = \\log \\mathcal{N}(Y| K_{*c}K_{cc}^{-1}(Y_C - g(X_c)) + g(X), K_{**} - K_{*c}K_{cc}^{-1}K_{*c}^\\top)
@@ -221,7 +234,7 @@ class ConditionalGaussianProcess(Distribution):
     def draw_samples(self, X, X_cond, Y_cond, rv_shape, num_samples=1, F=None,
                      **kernel_params):
         """
-        Draw a number of samples from the condtional Gaussian process.
+        Draw a number of samples from the conditional Gaussian process.
 
         :param X: the input variables on which the random variables are conditioned.
         :type X: MXNet NDArray or MXNet Symbol

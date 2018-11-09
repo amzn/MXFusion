@@ -1,8 +1,23 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..variables import Variable
 from .univariate import UnivariateDistribution
 from .distribution import LogPDFDecorator, DrawSamplesDecorator
 from ...util.customop import broadcast_to_w_samples
-from ..variables import get_num_samples, is_sampled_array
+from ..variables import get_num_samples, array_has_samples
 from ...common.config import get_default_MXNet_mode
 from ...common.exceptions import InferenceError
 
@@ -12,7 +27,7 @@ class CategoricalLogPDFDecorator(LogPDFDecorator):
     def _wrap_log_pdf_with_broadcast(self, func):
         def log_pdf_broadcast(self, F, **kw):
             """
-            Computes the logrithm of the probability density/mass function (PDF/PMF) of the distribution.
+            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
 
             :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
             :param kw: the dict of input and output variables of the distribution
@@ -61,7 +76,7 @@ class CategoricalDrawSamplesDecorator(DrawSamplesDecorator):
             rv_shape = list(rv_shape.values())[0]
             variables = {name: kw[name] for name, _ in self.inputs}
 
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
+            isSamples = any([array_has_samples(F, v) for v in variables.values()])
             if isSamples:
                 num_samples_inferred = max([get_num_samples(F, v) for v in
                                          variables.values()])
@@ -107,8 +122,6 @@ class Categorical(UnivariateDistribution):
     def __init__(self, log_prob, num_classes, one_hot_encoding=False,
                  normalization=True, axis=-1, rand_gen=None, dtype=None,
                  ctx=None):
-        if not isinstance(log_prob, Variable):
-            log_prob = Variable(value=log_prob)
         inputs = [('log_prob', log_prob)]
         input_names = ['log_prob']
         output_names = ['random_variable']
@@ -154,7 +167,7 @@ class Categorical(UnivariateDistribution):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param log_prob: the logarithm of the probability being in each of the classes.
         :type log_prob: MXNet NDArray or MXNet Symbol
-        :param random_variable: the point to compute the logpdf for.
+        :param random_variable: the point to compute the log pdf for.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol

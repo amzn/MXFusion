@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import warnings
 import numpy as np
 import mxnet as mx
@@ -7,7 +22,7 @@ from mxnet.gluon import ParameterDict
 from ..components.variables import VariableType, Variable
 from ..components import ModelComponent
 from ..util.inference import realize_shape
-from ..common.config import get_default_device
+from ..common.config import get_default_device, get_default_dtype
 from ..components.functions.gluon_func_eval import GluonFunctionEvaluation
 
 
@@ -15,17 +30,18 @@ class InferenceParameters(object):
     """
     The parameters and outcomes of an inference method.
 
-    InferenceParameters is a pool of memory that contains a mapping from uuid to two types of memories (MXNet ParameterDict and Constants).
+    InferenceParameters is a pool of memory that contains a mapping from uuid to two types of memories
+    (MXNet ParameterDict and Constants).
 
     :param constants: Specify a list of model variables as constants
     :type constants: {ModelComponent.uuid : mxnet.ndarray}
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
     """
     def __init__(self, constants=None, dtype=None, context=None):
-        self.dtype = dtype if dtype is not None else np.float32
+        self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._constants = {}
         self._var_ties = {}
@@ -72,7 +88,8 @@ class InferenceParameters(object):
             for var in g.get_parameters(excluded=excluded,
                                         include_inherited=False):
                 var_shape = realize_shape(var.shape, self._constants)
-                init = initializer.Constant(var.initial_value_before_transformation) if var.initial_value is not None else None
+                init = initializer.Constant(var.initial_value_before_transformation) \
+                    if var.initial_value is not None else None
 
                 self._params.get(name=var.uuid, shape=var_shape,
                                  dtype=self.dtype,
@@ -89,7 +106,8 @@ class InferenceParameters(object):
         :type graphs: a list of FactorGraph
         :param observed_uuid: Parameter Variables that are passed in directly as data, not to be inferred.
         :type observed_uuid: {UUID : mx.ndarray}
-        :param var_ties: A dictionary of variable maps that are tied together and use the MXNet Parameter of the dict value's uuid.
+        :param var_ties: A dictionary of variable maps that are tied together and use the MXNet Parameter of the dict
+        value's uuid.
         :type var_ties: { UUID to tie from : UUID to tie to }
         :param carryover_params: list of InferenceParameters containing the outcomes of previous inference algorithms.
         :type carryover_params: [InferenceParameters]
@@ -173,11 +191,16 @@ class InferenceParameters(object):
                         current_params=None):
         """
         Loads back a sest of InferenceParameters from files.
-        :param parameters_file: These are the parameters of the previous inference algorithm.  These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved in a binary format.
-        :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm. These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved in a binary format.
-        :param variable_constants_file: These are the constants in primitive format from the previous inference algorithm.
+        :param parameters_file: These are the parameters of the previous inference algorithm.
+        These are in a {uuid: mx.nd.array} mapping.
+        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
+        in a binary format.
+        :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm.
+        These are in a {uuid: mx.nd.array} mapping.
+        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
+        in a binary format.
+        :param variable_constants_file: These are the constants in primitive format from the previous
+        inference algorithm.
         :type variable_constants_file: json dict of {uuid: constant_primitive}
         """
         def with_uuid_map(item, uuid_map):
@@ -210,7 +233,11 @@ class InferenceParameters(object):
                 old_constants = json.load(f)
                 new_variable_constants = {with_uuid_map(k, uuid_map): v for k, v in old_constants.items()}
         if mxnet_constants_file is not None:
-            new_mxnet_constants = {with_uuid_map(k, uuid_map): v for k, v in ndarray.load(mxnet_constants_file).items()}
+            mxnet_constants = ndarray.load(mxnet_constants_file)
+            if isinstance(mxnet_constants, dict):
+                new_mxnet_constants = {with_uuid_map(k, uuid_map): v for k, v in mxnet_constants.items()}
+            else:
+                new_mxnet_constants = {}
         ip._constants = {}
         ip._constants.update(new_variable_constants)
         ip._constants.update(new_mxnet_constants)
@@ -218,7 +245,9 @@ class InferenceParameters(object):
 
     def save(self, prefix):
         """
-        Saves the parameters and constants down to json files as maps from {uuid : value}, where value is an mx.ndarray for parameters and either primitive number types or mx.ndarray for constants. Saves up to 3 files: prefix+["_params.json", "_variable_constants.json", "_mxnet_constants.json"]
+        Saves the parameters and constants down to json files as maps from {uuid : value},
+        where value is an mx.ndarray for parameters and either primitive number types or mx.ndarray for constants.
+        Saves up to 3 files: prefix+["_params.json", "_variable_constants.json", "_mxnet_constants.json"]
 
         :param prefix: The directory and any appending tag for the files to save this Inference as.
         :type prefix: str , ex. "../saved_inferences/experiment_1"

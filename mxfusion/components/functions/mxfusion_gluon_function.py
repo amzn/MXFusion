@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import mxnet as mx
 from copy import copy
 from .gluon_func_eval import GluonFunctionEvaluation
@@ -13,7 +28,7 @@ class MXFusionGluonFunction(MXFusionFunction):
     wrapper is called in Model definition, it returns a factor corresponding to the function evaluation.
 
     :param block: The MXNet Gluon block to be wrapped.
-    :type block: mxnet.gluon.Blockk or mxnet.gluon.HybridBlock
+    :type block: mxnet.gluon.Block or mxnet.gluon.HybridBlock
     :param num_outputs: The number of output variables of the Gluon block.
     :type num_outputs: int
     :param dtype: the data type of float point numbers used in the Gluon block.
@@ -170,7 +185,7 @@ class MXFusionGluonFunction(MXFusionFunction):
         because otherwise these parameters will be directly exposed to a gradient optimizer as free parameters.
 
         For each parameters of the Gluon bock with probabilistic distribution, this method dynamically sets its values as the outcome of
-        upstream computation and ensure the correct gradient can be estimated via automatic differenciation.
+        upstream computation and ensure the correct gradient can be estimated via automatic differentiation.
 
         :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the
             inputs of FunctionEvaluation.
@@ -193,7 +208,7 @@ class MXFusionGluonFunction(MXFusionFunction):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         replicant = super(
             MXFusionGluonFunction, self).replicate_self(attribute_map)

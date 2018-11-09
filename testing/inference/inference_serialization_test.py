@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import unittest
 import uuid
 import numpy as np
@@ -6,6 +21,7 @@ import mxnet.gluon.nn as nn
 import mxfusion as mf
 from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.components.functions import MXFusionGluonFunction
+from mxfusion.common.config import get_default_dtype
 
 
 class InferenceSerializationTests(unittest.TestCase):
@@ -22,33 +38,51 @@ class InferenceSerializationTests(unittest.TestCase):
         self.PREFIX = 'test_' + str(uuid.uuid4())
 
     def make_model(self, net):
+        dtype = get_default_dtype()
         m = mf.models.Model(verbose=True)
         m.N = mf.components.Variable()
         m.f = MXFusionGluonFunction(net, num_outputs=1)
         m.x = mf.components.Variable(shape=(m.N,1))
-        m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=mx.nd.array([0.01]))
+        m.v = mf.components.Variable(shape=(1,), transformation=PositiveTransformation(), initial_value=0.01)
         m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
         m.r = m.f(m.x)
         for _, v in m.r.factor.parameters.items():
-            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0]),variance=m.prior_variance))
+            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0], dtype=dtype), variance=m.prior_variance))
         m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=m.v, shape=(m.N,1))
 
         return m
 
     def make_net(self):
         D = 100
+        dtype = get_default_dtype()
         net = nn.HybridSequential(prefix='hybrid0_')
         with net.name_scope():
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(1, flatten=True))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
+            net.add(nn.Dense(1, flatten=True, dtype=dtype))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
 
+    def make_gpregr_model(self, lengthscale, variance, noise_var):
+        from mxfusion.models import Model
+        from mxfusion.components.variables import Variable, PositiveTransformation
+        from mxfusion.modules.gp_modules import GPRegression
+        from mxfusion.components.distributions.gp.kernels import RBF
+
+        dtype = 'float64'
+        m = Model()
+        m.N = Variable()
+        m.X = Variable(shape=(m.N, 3))
+        m.noise_var = Variable(transformation=PositiveTransformation(), initial_value=mx.nd.array(noise_var, dtype=dtype))
+        kernel = RBF(input_dim=3, ARD=True, variance=mx.nd.array(variance, dtype=dtype), lengthscale=mx.nd.array(lengthscale, dtype=dtype), dtype=dtype)
+        m.Y = GPRegression.define_variable(X=m.X, kernel=kernel, noise_var=m.noise_var, shape=(m.N, 1), dtype=dtype)
+        return m
+
     def test_meanfield_saving(self):
+        dtype = get_default_dtype()
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         self.net = self.make_net()
         self.net(x_nd)
@@ -71,6 +105,7 @@ class InferenceSerializationTests(unittest.TestCase):
         self.remove_saved_files(self.PREFIX)
 
     def test_meanfield_save_and_load(self):
+        dtype = get_default_dtype()
         from mxfusion.inference.meanfield import create_Gaussian_meanfield
         from mxfusion.inference import StochasticVariationalInference
         from mxfusion.inference.grad_based_inference import GradBasedInference
@@ -78,7 +113,7 @@ class InferenceSerializationTests(unittest.TestCase):
 
         x = np.random.rand(1000, 1)
         y = np.random.rand(1000, 1)
-        x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
+        x_nd, y_nd = mx.nd.array(y, dtype=dtype), mx.nd.array(x, dtype=dtype)
 
         net = self.make_net()
         net(x_nd)
@@ -106,8 +141,7 @@ class InferenceSerializationTests(unittest.TestCase):
         infr2.initialize(y=y_nd, x=x_nd)
 
         # Load previous parameters
-        infr2.load(primary_model_file=self.PREFIX+'_graph_0.json',
-                   secondary_graph_files=[self.PREFIX+'_graph_1.json'],
+        infr2.load(graphs_file=self.PREFIX+'_graphs.json',
                    parameters_file=self.PREFIX+'_params.json',
                    inference_configuration_file=self.PREFIX+'_configuration.json',
                    mxnet_constants_file=self.PREFIX+'_mxnet_constants.json',
@@ -129,4 +163,57 @@ class InferenceSerializationTests(unittest.TestCase):
             assert np.all(np.isclose(original_data, reloaded_data))
 
         infr2.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
+        self.remove_saved_files(self.PREFIX)
+
+
+    def test_gp_module_save_and_load(self):
+        np.random.seed(0)
+        X = np.random.rand(10, 3)
+        Xt = np.random.rand(20, 3)
+        Y = np.random.rand(10, 1)
+        noise_var = np.random.rand(1)
+        lengthscale = np.random.rand(3)
+        variance = np.random.rand(1)
+        dtype = 'float64'
+        m = self.make_gpregr_model(lengthscale, variance, noise_var)
+
+        observed = [m.X, m.Y]
+        from mxfusion.inference import MAP, Inference
+        infr = Inference(MAP(model=m, observed=observed), dtype=dtype)
+
+        loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
+
+        infr.save(prefix=self.PREFIX)
+
+
+        m2 = self.make_gpregr_model(lengthscale, variance, noise_var)
+
+        observed2 = [m2.X, m2.Y]
+        infr2 = Inference(MAP(model=m2, observed=observed2), dtype=dtype)
+        infr2.initialize(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
+
+        # Load previous parameters
+        infr2.load(graphs_file=self.PREFIX+'_graphs.json',
+                   parameters_file=self.PREFIX+'_params.json',
+                   inference_configuration_file=self.PREFIX+'_configuration.json',
+                   mxnet_constants_file=self.PREFIX+'_mxnet_constants.json',
+                   variable_constants_file=self.PREFIX+'_variable_constants.json')
+
+        for original_uuid, original_param in infr.params.param_dict.items():
+            original_data = original_param.data().asnumpy()
+            reloaded_data = infr2.params.param_dict[infr2._uuid_map[original_uuid]].data().asnumpy()
+            assert np.all(np.isclose(original_data, reloaded_data))
+
+        for original_uuid, original_param in infr.params.constants.items():
+            if isinstance(original_param, mx.ndarray.ndarray.NDArray):
+                original_data = original_param.asnumpy()
+                reloaded_data = infr2.params.constants[infr2._uuid_map[original_uuid]].asnumpy()
+            else:
+                original_data = original_param
+                reloaded_data = infr2.params.constants[infr2._uuid_map[original_uuid]]
+
+            assert np.all(np.isclose(original_data, reloaded_data))
+
+        loss2, _ = infr2.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
+
         self.remove_saved_files(self.PREFIX)

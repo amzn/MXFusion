@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..factor import Factor
 from .random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape
@@ -18,7 +33,7 @@ class LogPDFDecorator(object):
 
         def log_pdf_variables(self, F, variables, targets=None):
             """
-            Computes the logrithm of the probability density/mass function
+            Computes the logarithm of the probability density/mass function
             (PDF/PMF) of the distribution. The inputs and outputs variables are
             fetched from the *variables* argument according to their UUIDs.
 

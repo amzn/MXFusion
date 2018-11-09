@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import re
 import mxnet as mx
 import numpy as np
@@ -16,7 +31,7 @@ def slice_axis(F, array, axis, indices):
     :param indices: the indices used in slicing
     :type indices: list or MXNet Array
     """
-    assert F == mx.nd, "The slice_axis helper funcion only works on imperative mode, because fancy indexing only exists in NDArray API."
+    assert F == mx.nd, "The slice_axis helper function only works on imperative mode, because fancy indexing only exists in NDArray API."
     if isinstance(indices, (list, tuple)):
         num_indices = len(indices)
     elif isinstance(indices, (NDArray, Symbol)):
@@ -129,7 +144,7 @@ def create_variables_with_names(names):
 
 def create_constant_from_values(var):
     """
-    Utility function to createa a constant variable from a raw value.
+    Utility function to create a constant variable from a raw value.
 
     :param: var the value of the constant
     """

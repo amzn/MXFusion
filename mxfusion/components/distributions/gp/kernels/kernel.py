@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from copy import copy
 from .....common.exceptions import ModelSpecificationError
 from .....util.util import rename_duplicate_names, slice_axis
@@ -148,6 +163,28 @@ class Kernel(MXFusionFunction):
         Overwrite the "+" operator to perform summation of kernels.
         """
         return self.add(other)
+
+    def multiply(self, other, name='mul'):
+        """
+        Construct a new kernel by multiplying this kernel with another kernel.
+
+        :param other: the other kernel to be added.
+        :type other: Kernel
+        :return: the kernel which is the sum of the current kernel with the specified kernel.
+        :rtype: Kernel
+        """
+        if not isinstance(other, Kernel):
+            raise ModelSpecificationError(
+                "Only a Gaussian Process Kernel can be multiplied with a Gaussian Process Kernel.")
+        from .multiply_kernel import MultiplyKernel
+        return MultiplyKernel([self, other], name=name, ctx=self.ctx,
+                         dtype=self.dtype)
+
+    def __mul__(self, other):
+        """
+        Overload the "*" operator to perform multiplication of kernels
+        """
+        return self.multiply(other)
 
     def _compute_K(self, F, X, X2=None, **kernel_params):
         """

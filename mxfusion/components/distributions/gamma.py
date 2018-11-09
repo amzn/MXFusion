@@ -1,10 +1,25 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import numpy as np
 import mxnet as mx
 from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
 from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
 from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import is_sampled_array, get_num_samples
+from ..variables import array_has_samples, get_num_samples
 from ...util.customop import broadcast_to_w_samples
 
 
@@ -25,11 +40,6 @@ class Gamma(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, alpha, beta, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(alpha, Variable):
-            alpha = Variable(value=alpha)
-        if not isinstance(beta, Variable):
-            beta = Variable(value=beta)
-
         inputs = [('alpha', alpha), ('beta', beta)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
@@ -109,11 +119,6 @@ class GammaMeanVariance(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(mean, Variable):
-            mean = Variable(value=mean)
-        if not isinstance(variance, Variable):
-            variance = Variable(value=variance)
-
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']

@@ -1,3 +1,4 @@
 networkx>=2.1
-mxnet>=1.3
-future>=0.16.0
+numpy>=1.7
+# mxnet
+# While MXFusion depends on MXNet, there are multiple versions in PyPi for GPU/MKL that are better managed by the user than in this requirements file.

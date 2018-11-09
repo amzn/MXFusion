@@ -1,6 +1,21 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from abc import abstractmethod
 from ..factor import Factor
-from ..variables import is_sampled_array, get_num_samples, as_samples
+from ..variables import array_has_samples, get_num_samples, as_samples
 from ..variables import VariableType
 
 
@@ -40,7 +55,7 @@ class FunctionEvaluationDecorator(object):
             The method handling the execution of the function with RTVariable
             as its input arguments and return values.
             """
-            has_samples = any([is_sampled_array(F, v) for v in input_kws.values()])
+            has_samples = any([array_has_samples(F, v) for v in input_kws.values()])
             if not has_samples:
                 # If none of the inputs are samples, directly evaluate the function
                 nSamples = 0
@@ -65,7 +80,7 @@ class FunctionEvaluationDecorator(object):
                     for sample_idx in range(nSamples):
                         r = func(
                             self, F=F, **{
-                                n: v[sample_idx] if is_sampled_array(F, v) else
+                                n: v[sample_idx] if array_has_samples(F, v) else
                                 v[0] for n, v in input_kws.items()})
                         if isinstance(r, (list, tuple)):
                             r = [F.expand_dims(i, axis=0) for i in r]
