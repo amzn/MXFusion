@@ -61,3 +61,4 @@ docs/_autosummary
 docs/_build
 docs/generated
 docs/examples
+venv
