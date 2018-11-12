@@ -100,10 +100,10 @@ class Beta(UnivariateDistribution):
         ones = F.ones_like(a)
 
         # Sample X from Gamma(a, 1)
-        x = self._rand_gen.sample_gamma(alpha=a, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+        x = self._rand_gen.sample_gamma(alpha=a, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx, F=F)
 
         # Sample Y from Gamma(b, 1)
-        y = self._rand_gen.sample_gamma(alpha=b, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx)
+        y = self._rand_gen.sample_gamma(alpha=b, beta=ones, shape=out_shape, dtype=self.dtype, ctx=self.ctx, F=F)
 
         # Return X / (X + Y)
         return F.broadcast_div(x, F.broadcast_add(x, y))

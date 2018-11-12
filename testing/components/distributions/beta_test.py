@@ -18,7 +18,7 @@ import mxnet as mx
 import numpy as np
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Beta
-from mxfusion.util.testutils import numpy_array_reshape
+from mxfusion.util.testutils import numpy_array_reshape, plot_univariate
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 
 from scipy.stats import beta
@@ -112,3 +112,34 @@ class TestBetaDistribution(object):
         fits_rt = [beta.fit(rv_samples_rt.asnumpy()[:, i, j])[0:2] for i, j in (product(*map(range, rv_shape)))]
 
         assert np.allclose(fits_np, fits_rt, rtol=rtol, atol=atol)
+
+    def test_draw_samples_non_mock(self, plot=False):
+        # Also make sure the non-mock sampler works
+        dtype = np.float32
+        num_samples = 100000
+
+        a = np.array([2])
+        b = np.array([5])
+
+        rv_shape = (1,)
+
+        a_mx = add_sample_dimension(mx.nd, mx.nd.array(a, dtype=dtype))
+        b_mx = add_sample_dimension(mx.nd, mx.nd.array(b, dtype=dtype))
+
+        rand_gen = None
+        var = Beta.define_variable(shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
+        variables = {var.a.uuid: a_mx, var.b.uuid: b_mx}
+        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
+
+        assert array_has_samples(mx.nd, rv_samples_rt)
+        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
+        assert rv_samples_rt.dtype == dtype
+
+        if plot:
+            plot_univariate(samples=rv_samples_rt, dist=beta, a=a[0], b=b[0])
+
+        a_est, b_est, _, _ = beta.fit(rv_samples_rt.asnumpy().ravel())
+        a_tol = 0.2
+        b_tol = 0.2
+        assert np.abs(a[0] - a_est) < a_tol
+        assert np.abs(b[0] - b_est) < b_tol
