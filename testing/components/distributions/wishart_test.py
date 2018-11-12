@@ -192,7 +192,7 @@ class TestWishartDistribution(object):
         dtype_dof = np.int32
         num_samples = 20000
 
-        dof = 10
+        dof = 3
         scale = np.array([[1]])
 
         rv_shape = scale.shape
@@ -215,4 +215,5 @@ class TestWishartDistribution(object):
         # Note that the chi-squared fitting doesn't do a great job, so we have a slack tolerance
         dof_est, _, _ = chi2.fit(rv_samples_rt.asnumpy().ravel())
         dof_tol = 1.5
+
         assert np.abs(dof - dof_est) < dof_tol

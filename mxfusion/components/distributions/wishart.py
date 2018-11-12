@@ -246,9 +246,6 @@ class Wishart(Distribution):
         LA = F.linalg.trmm(L, A)
         samples = F.linalg.gemm2(LA, LA, transpose_b=True)
 
-        # from scipy.stats import wishart
-        # wishart.rvs(df=degrees_of_freedom.asnumpy()[0], scale=scale.asnumpy()[0][0], size=rv_shape[0])
-
         return samples
 
     @staticmethod
