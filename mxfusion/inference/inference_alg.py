@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
 from mxnet import autograd
@@ -88,6 +103,18 @@ class InferenceAlgorithm(ABC):
                          algorithm.
     :type extra_graphs: [FactorGraph]
     """
+
+    def replicate_self(self, model, extra_graphs=None):
+
+        replicant = self.__class__.__new__(self.__class__)
+        replicant._model_graph = model
+        replicant._extra_graphs = extra_graphs if extra_graphs is not None else []
+        observed = [replicant.model[o] for o in self._observed_uuid]
+        replicant._observed = set(observed)
+        replicant._observed_uuid = variables_to_UUID(observed)
+        replicant._observed_names = [v.name for v in observed]
+        return replicant
+
 
     def __init__(self, model, observed, extra_graphs=None):
         self._model_graph = model

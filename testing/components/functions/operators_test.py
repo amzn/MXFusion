@@ -1,7 +1,23 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import pytest
 import mxnet as mx
 import numpy as np
 from mxfusion import Variable, Model
+from mxfusion.common.exceptions import ModelSpecificationError
 from mxfusion.components.functions.operators import *
 
 
@@ -113,3 +129,13 @@ class TestOperators(object):
         inputs_unsampled = [v[0] for v in inputs]
         mxnet_result = mxnet_operator(*inputs_unsampled, **properties)
         assert np.allclose(mxf_result.asnumpy(), mxnet_result.asnumpy()), (mxf_result, mxnet_result)
+
+
+    @pytest.mark.parametrize("mxf_operator", [
+        (add),
+        (reshape),
+        ])
+    def test_empty_operator(self, mxf_operator):
+        with pytest.raises(ModelSpecificationError, message="Operator should fail if not passed the correct arguments.") as excinfo:
+            mxf_result = mxf_operator()
+        assert excinfo.value is not None

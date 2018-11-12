@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..variables import Variable
 from .univariate import UnivariateDistribution
 from .distribution import LogPDFDecorator, DrawSamplesDecorator
@@ -92,8 +107,6 @@ class Bernoulli(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, prob_true, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(prob_true, Variable):
-            prob_true = Variable(value=prob_true)
         inputs = [('prob_true', prob_true)]
         input_names = ['prob_true']
         output_names = ['random_variable']
@@ -103,7 +116,7 @@ class Bernoulli(UnivariateDistribution):
             output_names=output_names,
             rand_gen=rand_gen, dtype=dtype,
             ctx=ctx)
-        
+
     def replicate_self(self, attribute_map=None):
         """
         This functions as a copy constructor for the object.

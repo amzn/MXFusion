@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from enum import Enum
 import mxnet as mx
 import numpy as np
@@ -81,6 +96,11 @@ class Variable(ModelComponent):
         elif isinstance(self.factor, FunctionEvaluation):
             return VariableType.FUNCVAR
 
+    def as_json(self):
+        object_dict = super(Variable, self).as_json()
+        object_dict['inherited_name'] = self.inherited_name if self.isInherited else None
+        return object_dict
+
     def replicate_self(self, attribute_map=None):
         """
         This functions as a copy constructor for the object. In order to do a copy constructor we first call ``__new__`` on the class which creates a blank object.
@@ -141,7 +161,7 @@ class Variable(ModelComponent):
                     shape = value.shape
                 if shape != value.shape:
                     raise ModelSpecificationError("Shape mismatch in Variable creation. The numpy array shape " + str(value.shape) + " does not match with the shape argument " + str(shape) + ".")
-                value = mx.nd.array(value)
+                value = mx.nd.array(value, dtype=get_default_dtype())
             elif isinstance(value, mx.nd.NDArray):
                 if shape is None:
                     shape = value.shape

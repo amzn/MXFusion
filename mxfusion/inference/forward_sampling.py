@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..common.exceptions import InferenceError
 from ..components.variables import Variable
 from .variational import StochasticVariationalInference
@@ -93,11 +108,11 @@ def merge_posterior_into_model(model, posterior, observed):
     :param observed: A list of observed variables
     :type observed: [Variable]
     """
-    new_model, var_map = model.clone()
+    new_model = model.clone()
     for lv in model.get_latent_variables(observed):
         v = posterior.extract_distribution_of(posterior[lv])
         new_model.replace_subgraph(new_model[v], v)
-    return new_model, var_map
+    return new_model
 
 
 class VariationalPosteriorForwardSampling(ForwardSampling):
@@ -131,7 +146,7 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
         m = inherited_inference.inference_algorithm.model
         q = inherited_inference.inference_algorithm.posterior
 
-        model_graph, var_map = merge_posterior_into_model(
+        model_graph = merge_posterior_into_model(
             m, q, observed=inherited_inference.observed_variables)
 
         super(VariationalPosteriorForwardSampling, self).__init__(

@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import unittest
 import uuid
 import numpy as np
@@ -8,8 +23,11 @@ from mxfusion.components.functions import MXFusionGluonFunction
 import mxfusion as mf
 from mxfusion.common.exceptions import ModelSpecificationError
 from mxfusion.components.distributions.normal import Normal
+from mxfusion.components.distributions.gp.kernels import RBF
+from mxfusion.modules.gp_modules import GPRegression
 from mxfusion.components import Variable
-from mxfusion.models import Model
+from mxfusion.components.variables import PositiveTransformation
+from mxfusion.models import Model, FactorGraph
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 
@@ -19,18 +37,18 @@ class FactorGraphTests(unittest.TestCase):
     Tests the MXFusion.core.factor_graph.FactorGraph class.
     """
 
-    def shape_match(self, old, new, var_map):
+    def shape_match(self, old, new):
         if len(old) != len(new):
             return False
         for o, n in zip(old, new):
             if isinstance(n, mfc.Variable):
-                if n != var_map[o]:
+                if n != o:
                     return False
             elif n != o:
                 return False
         return True
 
-    def make_model(self, net):
+    def make_bnn_model(self, net):
         component_set = set()
         m = mf.models.Model(verbose=False)
         m.N = mfc.Variable()
@@ -46,13 +64,6 @@ class FactorGraphTests(unittest.TestCase):
         component_set.union(set([m.N, m.f, m.x, m.r, m.y]))
         return m, component_set
 
-    def make_simple_model(self):
-        m = Model()
-        mean = Variable()
-        variance = Variable()
-        m.r = Normal.define_variable(mean=mean, variance=variance)
-        return m
-
     def make_net(self):
         D = 100
         net = nn.HybridSequential(prefix='hybrid0_')
@@ -62,6 +73,22 @@ class FactorGraphTests(unittest.TestCase):
             net.add(nn.Dense(2, flatten=True))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
+
+    def make_simple_model(self):
+        m = Model()
+        mean = Variable()
+        variance = Variable()
+        m.r = Normal.define_variable(mean=mean, variance=variance)
+        return m
+
+    def make_gpregr_model(self):
+        m = Model()
+        m.N = Variable()
+        m.X = Variable(shape=(m.N, 3))
+        m.noise_var = Variable(transformation=PositiveTransformation(), initial_value=mx.nd.array([1.]))
+        kernel = RBF(input_dim=3, variance=mx.nd.array([1.]), lengthscale=mx.nd.array([1.]))
+        m.Y = GPRegression.define_variable(X=m.X, kernel=kernel, noise_var=m.noise_var, shape=(m.N, 2))
+        return m
 
     def setUp(self):
         self.TESTFILE = "testfile_" + str(uuid.uuid4()) + ".json"
@@ -74,11 +101,10 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_bnn_model(self):
 
-        bnn_fg, component_set = self.make_model(self.bnn_net)
+        bnn_fg, component_set = self.make_bnn_model(self.bnn_net)
         self.assertTrue(component_set <= set(bnn_fg.components_graph.nodes().keys()),
                         "Variables are all added to _components_graph {} {}".format(component_set, bnn_fg.components_graph.nodes().keys()))
         self.assertTrue(component_set <= bnn_fg.components.keys(), "Variable is added to _components dict. {} {}".format(component_set, bnn_fg.components.keys()))
-        # assert False
 
     def test_add_unresolved_components_distribution(self):
         v = mfc.Variable()
@@ -127,13 +153,22 @@ class FactorGraphTests(unittest.TestCase):
         with self.assertRaises(ModelSpecificationError):
             self.fg.remove_component(v)
 
-    def test_replicate_bnn_model(self):
-        m, component_set = self.make_model(self.bnn_net)
-        m2, var_map = m.clone()
-        self.assertTrue(all([k.uuid == v.uuid for k, v in var_map.items()]))
+
+    def test_replicate_gp_model(self):
+        m = self.make_gpregr_model()
+        m2 = m.clone()
+        self.assertTrue(all([v in m.Y.factor._module_graph.components for v in m2.Y.factor._module_graph.components]), (set(m2.Y.factor._module_graph.components) - set(m.Y.factor._module_graph.components)))
+        self.assertTrue(all([v in m.Y.factor._extra_graphs[0].components for v in m2.Y.factor._extra_graphs[0].components]), (set(m2.Y.factor._extra_graphs[0].components) - set(m.Y.factor._extra_graphs[0].components)))
         self.assertTrue(all([v in m.components for v in m2.components]), (set(m2.components) - set(m.components)))
         self.assertTrue(all([v in m2.components for v in m.components]), (set(m.components) - set(m2.components)))
-        self.assertTrue(all([self.shape_match(m[i].shape, m2[i].shape, var_map) for i in m.variables]), (m.variables, m2.variables))
+        self.assertTrue(all([self.shape_match(m[i].shape, m2[i].shape) for i in m.variables]), (m.variables, m2.variables))
+
+    def test_replicate_bnn_model(self):
+        m, component_set = self.make_bnn_model(self.bnn_net)
+        m2 = m.clone()
+        self.assertTrue(all([v in m.components for v in m2.components]), (set(m2.components) - set(m.components)))
+        self.assertTrue(all([v in m2.components for v in m.components]), (set(m.components) - set(m2.components)))
+        self.assertTrue(all([self.shape_match(m[i].shape, m2[i].shape) for i in m.variables]), (m.variables, m2.variables))
 
     def test_replicate_simple_model(self):
         m = mf.models.Model(verbose=False)
@@ -142,9 +177,8 @@ class FactorGraphTests(unittest.TestCase):
         m.x_var = mfc.Variable(value=mx.nd.array([1e6]))
         d = mf.components.distributions.Normal(mean=m.x_mean, variance=m.x_var)
         m.x.set_prior(d)
-        m2, var_map = m.clone()
+        m2 = m.clone()
         # compare m and m2 components and such for exactness.
-        self.assertTrue(all([k.uuid == v.uuid for k, v in var_map.items()]))
         self.assertTrue(set([v.uuid for v in m.components.values()]) ==
                         set([v.uuid for v in m2.components.values()]))
         self.assertTrue(all([v in m.components for v in m2.components]), (set(m2.components) - set(m.components)))
@@ -163,6 +197,27 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(set([v for _, v in d.successors]) == set([x]))
         self.assertTrue(set([v for _, v in x.predecessors]) == set([d]))
         self.assertTrue(x.graph == d.graph and d.graph == fg.components_graph)
+
+    def test_same_variable_as_multiple_inputs_to_factor_in_graph(self):
+        fg = mf.models.Model()
+
+        fg.x = mfc.Variable()
+        fg.y = mf.components.distributions.Normal.define_variable(mean=fg.x, variance=fg.x)
+
+        self.assertTrue(set([v for _, v in fg.y.factor.predecessors]) == set([fg.x]))
+        self.assertTrue(set([v for _, v in fg.x.successors]) == set([fg.y.factor]))
+        self.assertTrue(len(fg.y.factor.predecessors) == 2)
+        self.assertTrue(len(fg.x.successors) == 2)
+
+    def test_same_variable_as_multiple_inputs_to_factor_not_in_graph(self):
+
+        x = mfc.Variable()
+        y = mf.components.distributions.Normal.define_variable(mean=x, variance=x)
+
+        self.assertTrue(set([v for _, v in y.factor.predecessors]) == set([x]))
+        self.assertTrue(set([v for _, v in x.successors]) == set([y.factor]))
+        self.assertTrue(len(y.factor.predecessors) == 2)
+        self.assertTrue(len(x.successors) == 2)
 
     def test_compute_log_prob(self):
         m = Model()
@@ -224,10 +279,16 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(len(component_map) == len(m1.components))
 
     def test_reconcile_bnn_model(self):
-        m1, _ = self.make_model(self.make_net())
-        m2, _ = self.make_model(self.make_net())
+        m1, _ = self.make_bnn_model(self.make_net())
+        m2, _ = self.make_bnn_model(self.make_net())
         component_map = mf.models.FactorGraph.reconcile_graphs([m1], m2)
         self.assertTrue(len(component_map) == len(m1.components))
+
+    def test_reconcile_gp_model(self):
+        m1 = self.make_gpregr_model()
+        m2 = self.make_gpregr_model()
+        component_map = mf.models.FactorGraph.reconcile_graphs([m1], m2)
+        self.assertTrue(len(component_map) == len(set(m1.components).union(set(m1.Y.factor._module_graph.components)).union(set(m1.Y.factor._extra_graphs[0].components))))
 
     def test_reconcile_model_and_posterior(self):
         x = np.random.rand(1000, 1)
@@ -238,8 +299,8 @@ class FactorGraphTests(unittest.TestCase):
         net1(x_nd)
         net2 = self.make_net()
         net2(x_nd)
-        m1, _ = self.make_model(net1)
-        m2, _ = self.make_model(net2)
+        m1, _ = self.make_bnn_model(net1)
+        m2, _ = self.make_bnn_model(net2)
 
         from mxfusion.inference.meanfield import create_Gaussian_meanfield
         from mxfusion.inference import StochasticVariationalInference
@@ -258,10 +319,10 @@ class FactorGraphTests(unittest.TestCase):
                 set(alg1.graphs[1].components.values())))
 
     def test_save_reload_bnn_graph(self):
-        m1, _ = self.make_model(self.make_net())
-        m1.save(self.TESTFILE)
+        m1, _ = self.make_bnn_model(self.make_net())
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        m1_loaded.load_graph(self.TESTFILE)
+        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
         m1_loaded_edges = set(m1_loaded.components_graph.edges())
         m1_edges = set(m1.components_graph.edges())
 
@@ -273,9 +334,9 @@ class FactorGraphTests(unittest.TestCase):
 
     def test_save_reload_then_reconcile_simple_graph(self):
         m1 = self.make_simple_model()
-        m1.save(self.TESTFILE)
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        m1_loaded.load_graph(self.TESTFILE)
+        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
 
         m2 = self.make_simple_model()
@@ -301,14 +362,45 @@ class FactorGraphTests(unittest.TestCase):
         import os
         os.remove(self.TESTFILE)
 
-    def test_save_reload_then_reconcile_bnn_graph(self):
-        m1, _ = self.make_model(self.make_net())
-        m1.save(self.TESTFILE)
+    def test_save_reload_then_reconcile_gp_module(self):
+        m1 = self.make_gpregr_model()
+        FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        m1_loaded.load_graph(self.TESTFILE)
+        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
+        self.assertTrue(set(m1.components) == set(m1_loaded.components))
+        self.assertTrue(len(set(m1.Y.factor._module_graph.components)) == len(set(m1_loaded[m1.Y.factor.uuid]._module_graph.components)))
+        self.assertTrue(len(set(m1.Y.factor._extra_graphs[0].components)) == len(set(m1_loaded[m1.Y.factor.uuid]._extra_graphs[0].components)))
+
+        m2 = self.make_gpregr_model()
+        component_map = mf.models.FactorGraph.reconcile_graphs([m2], m1_loaded)
+        self.assertTrue(len(component_map.values()) == len(set(component_map.values())), "Assert there are only 1:1 mappings.")
+        sort_m1 = list(set(map(lambda x: x.uuid, set(m1.components.values()).union(set(m1.Y.factor._module_graph.components.values())).union(set(m1.Y.factor._extra_graphs[0].components.values())) )))
+        sort_m1.sort()
+
+        sort_m2 = list(set(map(lambda x: x.uuid, set(m2.components.values()).union(set(m2.Y.factor._module_graph.components.values())).union(set(m2.Y.factor._extra_graphs[0].components.values())) )))
+        sort_m2.sort()
+
+        sort_component_map_values = list(set(component_map.values()))
+        sort_component_map_values.sort()
+
+        sort_component_map_keys = list(set(component_map.keys()))
+        sort_component_map_keys.sort()
+
+        zippy_values = zip(sort_m2, sort_component_map_values)
+        zippy_keys = zip(sort_m1, sort_component_map_keys)
+        self.assertTrue(all([m1_item == component_map_item for m1_item, component_map_item in zippy_values]))
+        self.assertTrue(all([m2_item == component_map_item for m2_item, component_map_item in zippy_keys]))
+        import os
+        os.remove(self.TESTFILE)
+
+    def test_save_reload_then_reconcile_bnn_graph(self):
+        m1, _ = self.make_bnn_model(self.make_net())
+        FactorGraph.save(self.TESTFILE, m1.as_json())
+        m1_loaded = Model()
+        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
 
-        m2, _ = self.make_model(self.make_net())
+        m2, _ = self.make_bnn_model(self.make_net())
         component_map = mf.models.FactorGraph.reconcile_graphs([m2], m1_loaded)
         self.assertTrue(len(component_map.values()) == len(set(component_map.values())), "Assert there are only 1:1 mappings.")
         self.assertTrue(len(component_map) == len(m1.components))
@@ -332,5 +424,5 @@ class FactorGraphTests(unittest.TestCase):
         os.remove(self.TESTFILE)
 
     def test_print_fg(self):
-        m, component_set = self.make_model(self.bnn_net)
+        m, component_set = self.make_bnn_model(self.bnn_net)
         print(m)
