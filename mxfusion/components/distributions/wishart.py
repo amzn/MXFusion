@@ -233,11 +233,8 @@ class Wishart(Distribution):
             for extra_dims in itertools.product(*map(range, rv_shape[:-2])):
                 for j in range(rv_shape[-2]):
                     shape = degrees_of_freedom.asnumpy().ravel()[0] - j
-                    try:
-                        ix = (i, ) + extra_dims + (j, j)
-                        A[ix] = F.sqrt(F.sum(F.power(F.random.normal(shape=shape), 2)))
-                    except Exception as e:
-                        raise e
+                    ix = (i, ) + extra_dims + (j, j)
+                    A[ix] = F.sqrt(F.sum(F.power(F.random.normal(shape=shape), 2)))
                     for k in range(j + 1, rv_shape[-1]):
                         ix = (i,) + extra_dims + (k, j)
                         A[ix] = F.random.normal()
