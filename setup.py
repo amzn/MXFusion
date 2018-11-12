@@ -1,12 +1,12 @@
-import os
 from setuptools import setup, find_packages
-from mxfusion.__version__ import __version__
+import re
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
 
-with open('requirements/requirements.txt', 'r') as req:
-    requires = req.read().split("\n")
+with open('mxfusion/__version__.py', 'r') as rv:
+    text = rv.read().split('=')
+    __version__ = re.search(r'\d+\.\d+\.\d+', text[-1]).group()
 
 setup(
     name='MXFusion',  # this is the name of the package as you will import it i.e import package-name
@@ -19,10 +19,9 @@ setup(
     url='https://github.com/amzn/MXFusion',
     packages=find_packages(exclude=['testing*']),
     include_package_data=True,
-    install_requires=requires,
+    install_requires=['networkx>=2.1', 'numpy>=1.7'],
     license='Apache License 2.0',
     classifiers=(
-       # https://pypi.org/pypi?%3Aaction=list_classifiers
        'Development Status :: 5 - Production/Stable',
        'Intended Audience :: Developers',
        'Intended Audience :: Education',

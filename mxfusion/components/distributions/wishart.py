@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import numpy as np
 import mxnet as mx
 
@@ -120,12 +135,6 @@ class Wishart(Distribution):
     """
     def __init__(self, degrees_of_freedom, scale, rand_gen=None, minibatch_ratio=1.,
                  dtype=None, ctx=None):
-        self.minibatch_ratio = minibatch_ratio
-        if not isinstance(degrees_of_freedom, Variable):
-            degrees_of_freedom = Variable(value=degrees_of_freedom)
-        if not isinstance(scale, Variable):
-            scale = Variable(value=scale)
-
         inputs = [('degrees_of_freedom', degrees_of_freedom), ('scale', scale)]
         input_names = ['degrees_of_freedom', 'scale']
         output_names = ['random_variable']
@@ -145,7 +154,6 @@ class Wishart(Distribution):
         :type outputs: a dict of {'name' : Variable} or None
         """
         replicant = super(Wishart, self).replicate_self(attribute_map)
-        replicant.minibatch_ratio = self.minibatch_ratio
         return replicant
 
     @WishartLogPDFDecorator()
@@ -183,7 +191,7 @@ class Wishart(Distribution):
         log_gamma_np = sp.log_multivariate_gamma(df / 2, dimension, F)
         tr_v_inv_x = sp.trace(sp.solve(scale, random_variable), F)
 
-        return 0.5 * ((a * log_det_X) - tr_v_inv_x - b - (df * log_det_V)) - log_gamma_np
+        return (0.5 * ((a * log_det_X) - tr_v_inv_x - b - (df * log_det_V)) - log_gamma_np) * self.log_pdf_scaling
 
     @WishartDrawSamplesDecorator()
     def draw_samples(self, degrees_of_freedom, scale, rv_shape, num_samples=1, F=None):

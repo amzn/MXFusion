@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import numpy as np
 import mxnet as mx
 import itertools
@@ -29,11 +44,6 @@ class Normal(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(mean, Variable):
-            mean = Variable(value=mean)
-        if not isinstance(variance, Variable):
-            variance = Variable(value=variance)
-
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
@@ -212,12 +222,6 @@ class MultivariateNormal(Distribution):
     """
     def __init__(self, mean, covariance, rand_gen=None, minibatch_ratio=1.,
                  dtype=None, ctx=None):
-        self.minibatch_ratio = minibatch_ratio
-        if not isinstance(mean, Variable):
-            mean = Variable(value=mean)
-        if not isinstance(covariance, Variable):
-            covariance = Variable(value=covariance)
-
         inputs = [('mean', mean), ('covariance', covariance)]
         input_names = ['mean', 'covariance']
         output_names = ['random_variable']
@@ -237,7 +241,6 @@ class MultivariateNormal(Distribution):
         :type outputs: a dict of {'name' : Variable} or None
         """
         replicant = super(MultivariateNormal, self).replicate_self(attribute_map)
-        replicant.minibatch_ratio = self.minibatch_ratio
         return replicant
 
     @MultivariateNormalLogPDFDecorator()
@@ -262,7 +265,7 @@ class MultivariateNormal(Distribution):
         targets = random_variable - mean
         zvec = F.sum(F.linalg.trsm(lmat, F.expand_dims(targets, axis=-1)), axis=-1)
         sqnorm_z = - F.sum(F.square(zvec), axis=-1)
-        return 0.5 * (sqnorm_z - (N * np.log(2 * np.pi))) + logdetl
+        return (0.5 * (sqnorm_z - (N * np.log(2 * np.pi))) + logdetl)* self.log_pdf_scaling
 
     @MultivariateNormalDrawSamplesDecorator()
     def draw_samples(self, mean, covariance, rv_shape, num_samples=1, F=None):
@@ -344,11 +347,6 @@ class NormalMeanPrecision(UnivariateDistribution):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     def __init__(self, mean, precision, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(mean, Variable):
-            mean = Variable(value=mean)
-        if not isinstance(precision, Variable):
-            precision = Variable(value=precision)
-
         inputs = [('mean', mean), ('precision', precision)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
@@ -530,12 +528,6 @@ class MultivariateNormalMeanPrecision(Distribution):
     """
     def __init__(self, mean, precision, rand_gen=None, minibatch_ratio=1.,
                  dtype=None, ctx=None):
-        self.minibatch_ratio = minibatch_ratio
-        if not isinstance(mean, Variable):
-            mean = Variable(value=mean)
-        if not isinstance(precision, Variable):
-            precision = Variable(value=precision)
-
         inputs = [('mean', mean), ('precision', precision)]
         input_names = ['mean', 'precision']
         output_names = ['random_variable']
@@ -555,7 +547,6 @@ class MultivariateNormalMeanPrecision(Distribution):
         :type outputs: a dict of {'name' : Variable} or None
         """
         replicant = super(MultivariateNormalMeanPrecision, self).replicate_self(attribute_map)
-        replicant.minibatch_ratio = self.minibatch_ratio
         return replicant
 
     @MultivariateNormalMeanPrecisionLogPDFDecorator()
@@ -584,7 +575,7 @@ class MultivariateNormalMeanPrecision(Distribution):
         for ix in itertools.product(*map(range, random_variable.shape[:-1])):
             sqnorm_z[ix] = F.dot(F.dot(targets[ix], precision[ix], transpose_a=True), targets[ix])
 
-        return -0.5 * (sqnorm_z + c + logdetl)
+        return -0.5 * (sqnorm_z + c + logdetl) * self.log_pdf_scaling
 
     @MultivariateNormalMeanPrecisionDrawSamplesDecorator()
     def draw_samples(self, mean, precision, rv_shape, num_samples=1, F=None):

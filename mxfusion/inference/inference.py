@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import warnings
 import numpy as np
 import mxnet as mx
@@ -13,7 +28,7 @@ class Inference(object):
     Abstract class defining an inference method that can be applied to a model.
     An inference method consists of a few components: the applied inference algorithm,
     the model definition (optionally a definition of posterior
-    approximation), the inference parameters.
+    approximation), and the inference parameters.
 
     :param inference_algorithm: The applied inference algorithm
     :type inference_algorithm: InferenceAlgorithm
@@ -134,8 +149,7 @@ class Inference(object):
         pass
 
     def load(self,
-             primary_model_file=None,
-             secondary_graph_files=None,
+             graphs_file=None,
              inference_configuration_file=None,
              parameters_file=None,
              mxnet_constants_file=None,
@@ -145,11 +159,8 @@ class Inference(object):
         The major pieces of this are the InferenceParameters, FactorGraphs, and
         InferenceConfiguration.
 
-        :param primary_model_file: The file containing the primary model to load back for this inference algorithm.
-        :type primary_model_file: str of filename
-        :param secondary_graph_files: The files containing any secondary graphs (e.g. a posterior) to load back
-        for this inference algorithm.
-        :type secondary_graph_files: [str of filename]
+        :param graphs_file: The file containing the graphs to load back for this inference algorithm. The first of these is the primary graph.
+        :type graphs_file: str of filename
         :param inference_configuration_file: The file containing any inference specific configuration needed to
         reload this inference algorithm.
             e.g. observation patterns used to train it.
@@ -166,10 +177,9 @@ class Inference(object):
         inference algorithm.
         :type variable_constants_file: json dict of {uuid: constant_primitive}
         """
-        primary_model = FactorGraph('graph_0').load_graph(primary_model_file)
-        secondary_graphs = [
-            FactorGraph('graph_{}'.format(str(i + 1))).load_graph(file)
-            for i, file in enumerate(secondary_graph_files)]
+        graphs = FactorGraph.load_graphs(graphs_file)
+        primary_model = graphs[0]
+        secondary_graphs = graphs[1:]
 
         # { current_model_uuid : loaded_uuid}
         self._uuid_map = FactorGraph.reconcile_graphs(
@@ -224,9 +234,8 @@ class Inference(object):
         prefix = prefix if prefix is not None else "inference"
         self.params.save(prefix=prefix)
         self.save_configuration(prefix + '_configuration.json')
-        for i, g in enumerate(self._graphs):
-            filename = prefix + "_graph_{}.json".format(i)
-            g.save(filename)
+        graphs = [g.as_json()for g in self._graphs]
+        FactorGraph.save(prefix + "_graphs.json", graphs)
 
 
 class TransferInference(Inference):

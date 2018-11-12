@@ -1,15 +1,30 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import numpy as np
 from mxnet import autograd
 from ..module import Module
 from ...models import Model, Posterior
 from ...components.variables.variable import Variable
 from ...components.distributions import GaussianProcess, Normal
-from ...inference.inference_alg import InferenceAlgorithm, \
-    SamplingAlgorithm
+from ...inference.inference_alg import SamplingAlgorithm
 from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape
 from ...inference.variational import VariationalInference
 from ...util.customop import broadcast_to_w_samples
+from ...components.variables.runtime_variable import arrays_as_samples
 
 
 class GPRegressionLogPdf(VariationalInference):
@@ -26,7 +41,12 @@ class GPRegressionLogPdf(VariationalInference):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        K = kern.K(F, X, **kern_params) + F.eye(N, dtype=X.dtype) * noise_var
+        X, Y, noise_var, kern_params = arrays_as_samples(
+            F, [X, Y, noise_var, kern_params])
+
+        K = kern.K(F, X, **kern_params) + \
+            F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+            F.expand_dims(noise_var, axis=-2)
         L = F.linalg.potrf(K)
 
         if self.model.mean_func is not None:
@@ -34,7 +54,9 @@ class GPRegressionLogPdf(VariationalInference):
             Y = Y - mean
         LinvY = F.linalg.trsm(L, Y)
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
-        logL = - logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi))/2
+        tmp = F.sum(F.reshape(F.square(LinvY) + np.log(2. * np.pi),
+                              shape=(Y.shape[0], -1)), axis=-1)
+        logL = - logdet_l * D - tmp/2
 
         with autograd.pause():
             self.set_parameter(variables, self.posterior.X, X[0])
@@ -63,7 +85,12 @@ class GPRegressionSampling(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        K = kern.K(F, X, **kern_params) + F.eye(N, dtype=X.dtype) * noise_var
+        X, noise_var, kern_params = arrays_as_samples(
+            F, [X, noise_var, kern_params])
+
+        K = kern.K(F, X, **kern_params) + \
+            F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+            F.expand_dims(noise_var, axis=-2)
         L = F.linalg.potrf(K)
         Y_shape = realize_shape(self.model.Y.shape, variables)
         out_shape = (self.num_samples,)+Y_shape
@@ -103,6 +130,9 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
+        X, noise_var, X_cond, L, LinvY, kern_params = arrays_as_samples(
+            F, [X, noise_var, X_cond, L, LinvY, kern_params])
+
         Kxt = kern.K(F, X_cond, X, **kern_params)
         LinvKxt = F.linalg.trsm(L, Kxt)
         mu = F.linalg.gemm2(LinvKxt, LinvY, True, False)
@@ -120,7 +150,8 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
             Ktt = kern.K(F, X, **kern_params)
             var = Ktt - F.linalg.syrk(LinvKxt, True)
             if not self.noise_free:
-                var += F.eye(N, dtype=X.dtype) * noise_var
+                var += F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+                    F.expand_dims(noise_var, axis=-2)
 
         outcomes = {self.model.Y.uuid: (mu, var)}
 
@@ -151,6 +182,9 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
+        X, noise_var, X_cond, L, LinvY, kern_params = arrays_as_samples(
+            F, [X, noise_var, X_cond, L, LinvY, kern_params])
+
         Kxt = kern.K(F, X_cond, X, **kern_params)
         LinvKxt = F.linalg.trsm(L, Kxt)
         mu = F.linalg.gemm2(LinvKxt, LinvY, True, False)
@@ -164,7 +198,9 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
             var = Ktt - F.sum(F.square(LinvKxt), axis=-2)
             if not self.noise_free:
                 var += noise_var
-            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:], dtype=self.model.F.factor.dtype)
+            die = self._rand_gen.sample_normal(
+                shape=(self.num_samples,) + mu.shape[1:],
+                dtype=self.model.F.factor.dtype)
             samples = mu + die * F.sqrt(F.expand_dims(var, axis=-1))
         else:
             Ktt = kern.K(F, X, **kern_params)
@@ -330,5 +366,5 @@ class GPRegression(Module):
         rep = super(GPRegression, self).replicate_self(attribute_map)
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
-        rep.mean_func = self.mean_func.replicate_self(attribute_map)
+        rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
         return rep

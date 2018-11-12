@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
 from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
@@ -20,12 +35,7 @@ class Beta(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, a=1, b=1, rand_gen=None, dtype=None, ctx=None):
-        if not isinstance(a, Variable):
-            a = Variable(value=a)
-        if not isinstance(b, Variable):
-            b = Variable(value=b)
-
+    def __init__(self, a, b, rand_gen=None, dtype=None, ctx=None):
         inputs = [('a', a), ('b', b)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
@@ -63,8 +73,8 @@ class Beta(UnivariateDistribution):
         """
         Draw samples from the beta distribution.
 
-        If X and Y are independent, with X ~ Gamma(alpha, theta)$ and Y ~ Gamma(beta, theta) then
-        X/(X+Y) ~ Beta(alpha, beta).
+        If X and Y are independent, with $X \sim \Gamma(\alpha, \theta)$ and $Y \sim \Gamma(\beta, \theta)$ then
+        $\frac {X}{X+Y}}\sim \mathrm {B} (\alpha ,\beta ).}$
 
         :param a: the a parameter (alpha) of the beta distribution.
         :type a: MXNet NDArray or MXNet Symbol

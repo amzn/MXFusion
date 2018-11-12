@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..variables import Variable
 from .univariate import UnivariateDistribution
 from .distribution import LogPDFDecorator, DrawSamplesDecorator
@@ -107,8 +122,6 @@ class Categorical(UnivariateDistribution):
     def __init__(self, log_prob, num_classes, one_hot_encoding=False,
                  normalization=True, axis=-1, rand_gen=None, dtype=None,
                  ctx=None):
-        if not isinstance(log_prob, Variable):
-            log_prob = Variable(value=log_prob)
         inputs = [('log_prob', log_prob)]
         input_names = ['log_prob']
         output_names = ['random_variable']

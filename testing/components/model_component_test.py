@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import unittest
 import networkx as nx
 import mxfusion.components as mfc
@@ -19,7 +34,7 @@ class ModelComponentTests(unittest.TestCase):
         #
         # successors = set([(node_b.uuid, node_a.uuid), (node_c.uuid, node_a.uuid)])
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
 
@@ -36,7 +51,7 @@ class ModelComponentTests(unittest.TestCase):
         node_b.successors = [('edge_1', node_a)]
         node_c.successors = [('edge_2', node_a)]
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_c.graph = graph
 
@@ -54,7 +69,7 @@ class ModelComponentTests(unittest.TestCase):
         node_a.predecessors = [('edge_1', node_b), ('edge_2', node_c)]
         node_b.predecessors = [('edge_1', node_d), ('edge_2', node_e)]
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
 
@@ -69,7 +84,7 @@ class ModelComponentTests(unittest.TestCase):
     def test_join_attach_new_successor_not_to_graph(self):
 
         node_a = mfc.ModelComponent()
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_b = mfc.ModelComponent()
         node_d = mfc.ModelComponent()
@@ -92,7 +107,7 @@ class ModelComponentTests(unittest.TestCase):
     def test_join_predecessors_not_in_graph_to_node_in_graph(self):
 
         node_a = mfc.ModelComponent()
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
         node_a.graph = graph
 
         node_b = mfc.ModelComponent()
@@ -115,7 +130,7 @@ class ModelComponentTests(unittest.TestCase):
         node_d = mfc.ModelComponent()
         node_e = mfc.ModelComponent()
         node_b.successors = [('edge_1', node_d), ('edge_2', node_e)]
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
         node_a.successors = [('edge_1', node_b)]
@@ -133,7 +148,7 @@ class ModelComponentTests(unittest.TestCase):
         node_c = mfc.ModelComponent()
         node_a.predecessors = [('edge_1', node_b), ('edge_1', node_c)]
 
-        graph = nx.DiGraph()
+        graph = nx.MultiDiGraph()
 
         node_a.graph = graph
 
