@@ -1,4 +1,5 @@
 import pytest
+import os
 import mxnet as mx
 import numpy as np
 from mxfusion.models import Model
@@ -125,7 +126,7 @@ class TestSVGPClassificationModule(object):
         mu_mf, lb_mf, ub_mf = res[0].asnumpy()[0], res[1].asnumpy()[0], res[2].asnumpy()[0]
 
         pred_mf = np.concatenate((mu_mf, lb_mf, ub_mf), axis=0)
-        pred_ser = np.genfromtxt("svgp_classification_predictions.csv", delimiter=',')[1:, 1:]
+        pred_ser = np.genfromtxt(os.path.join("testing","modules", "svgp_classification_predictions.csv"), delimiter=',')[1:, 1:]
 
         assert np.allclose(pred_mf, pred_ser)
 
@@ -171,9 +172,8 @@ class TestSVGPClassificationModule(object):
             algorithm=SVGPClassificationSamplingPrediction(
                 gp._module_graph, gp._extra_graphs[0], [gp._module_graph.X]),
             alg_name='svgp_predict')
-
         y_samples_pred = infr_pred.run(X=mx.nd.array(Xt, dtype=dtype))[0].asnumpy()
-        y_samples_ser = np.genfromtxt("svgp_classification_samples.csv", delimiter=',')[1:, 1:]
+        y_samples_ser = np.genfromtxt(os.path.join("testing","modules", "svgp_classification_samples.csv"), delimiter=',')[1:, 1:]
         y_samples_ser = y_samples_ser.reshape((num_samples, Dy, Nt))
 
         np.allclose(y_samples_pred, y_samples_ser)
