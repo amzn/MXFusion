@@ -31,15 +31,15 @@ class MetropolisHastingsAlgorithm(SamplingAlgorithm):
         self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
             rand_gen
         self._dtype = dtype if dtype is not None else DEFAULT_DTYPE
-        self._map = {}
+        self._copy_map = {}
         self._proposals_chosen = 0
         self.variance = variance if variance is not None else mx.nd.array([1.], dtype=self._dtype)
         if proposal is None:
             proposal = Posterior(model)
             for rv in model.get_latent_variables(observed):
-                rv_copy = Variable()
-                self._map[rv.uuid] = rv_copy.uuid
-                proposal[rv].set_prior(Normal(mean=rv_copy, variance=self.variance))
+                rv_previous = Variable(shape=rv.shape)
+                self._copy_map[rv.uuid] = rv_previous.uuid
+                proposal[rv].set_prior(Normal(mean=rv_previous, variance=self.variance))
 
         super(MetropolisHastingsAlgorithm, self).__init__(
             model=model, observed=observed, num_samples=num_samples,
@@ -52,22 +52,23 @@ class MetropolisHastingsAlgorithm(SamplingAlgorithm):
         :rtype: {'uuid': next sample}
         """
         x = variables.copy()
-        x = {k if k not in self._map else self._map[k] : v for k,v in x.items()}
+        x = {k: v for k,v in x.items() if k not in self._copy_map}
         # draw proposal samples using the last steps output
         x_proposal = self.proposal.draw_samples(F, variables=x, num_samples=1)
         x_proposal_full = x_proposal.copy()
         # compute new ratio
         x_proposal_full.update({k:v for k,v in x.items() if k not in x_proposal})
-        proposal_new = self.proposal.log_pdf(F, x_proposal_full)
-        proposal_old = self.proposal.log_pdf(F, variables)
+        # proposal_new = self.proposal.log_pdf(F, x_proposal_full)
+        # swapped = swap the uuids of new and old latent variables
+        # proposal_old = self.proposal.log_pdf(F, swapped)
+        # import pdb; pdb.set_trace()
         model_new = self.model.log_pdf(F, x_proposal_full)
         model_old = self.model.log_pdf(F, variables)
-        alpha = -(proposal_old + model_old - proposal_new - model_new)
-        r_min = F.minimum(mx.nd.array([0], dtype=self._dtype),alpha)
+        alpha = (model_new - model_old)
+        # alpha += (proposal_old - proposal_new)
+        r_min = F.exp(F.minimum(mx.nd.array([0], dtype=self._dtype),alpha))
 
-        # TODO replace with our random generator
-        # u = F.log(self._rand_gen.uniform(0,1))
-        unif_sample = F.log(F.random.uniform(low=0, high=1, dtype=self._dtype))
+        unif_sample = self._rand_gen.sample_uniform(0,1)
 
         # return this step's samples based on ratio
         if unif_sample < r_min:
@@ -76,12 +77,12 @@ class MetropolisHastingsAlgorithm(SamplingAlgorithm):
         else:
             return_choice = variables
             is_proposal = False
-        xp_keys = set(x_proposal.keys())
-        orig_keys = set(variables.keys())
         return_subset = {k:v for k,v in return_choice.items() if k in x_proposal}
-        # print("Original : {} \n Proposal : {} \n : mu_copy {}\n".format(variables[self.proposal.mu.uuid].asnumpy(), x_proposal[self.proposal.mu.uuid].asnumpy(), variables[self.proposal.mu.factor.mean.uuid].asnumpy()))
-        # print("unif {} : r {} : alpha {}".format(unif_sample.asscalar(), r_min.asscalar(), alpha.asscalar()))
-        # print("q(old) {} + m(old) {} - p(new) - {} m(new) : {} \n".format(proposal_old.asscalar(), model_old.asscalar(), proposal_new.asscalar(), model_new.asscalar()))
+        # print("Original : {} \n Proposal : {} \n : z_copy {}\n".format(variables[self.proposal.z.uuid].asnumpy(), x_proposal[self.proposal.z.uuid].asnumpy(), variables[self.proposal.z.factor.mean.uuid].asnumpy()))
+        # import pdb; pdb.set_trace()
+        # print("unif {} : r_min {} : alpha {}".format(unif_sample.asscalar(), r_min.asscalar(), alpha.asscalar()))
+        # print("q(old) {:.3f} - q(new) {:.3f} + m(old) {:.3f} - m(new) : {:.3f}  \n".format(proposal_old.asscalar(), proposal_new.asscalar(), model_old.asscalar(), model_new.asscalar()))
+        # import pdb; pdb.set_trace()
         return return_subset, is_proposal
 
     @property
@@ -154,19 +155,24 @@ class MCMCInference(Inference):
         self.params._params.initialize(ctx=self.mxnet_context)
         infr = self.create_executor()
         iter_step = max(max_iter // n_prints, 1)
+        self._number_proposals = 0
+        number_proposals = 0
         for i in range(max_iter):
             sample, is_proposal = infr(mx.nd.zeros(1), *data)
             if is_proposal:
-                self._number_proposals += 1
+                number_proposals += 1
             for k,v in sample.items():
                 if k not in self.samples:
-                    self.samples[k] = []
-                self.samples[k].append(v)
+                    self.samples[k] = v
+                else:
+                    self.samples[k] = mx.nd.concat(self.samples[k], v, dim=0)
                 v_shaped = mx.nd.reshape(v, shape=self.params._params.get(k).data().shape)
                 self.params._params.get(k).set_data(v_shaped)
-                self.params._params.get(self.inference_algorithm._map[k]).set_data(v_shaped)
-            if verbose and i > 0 and i % iter_step == 0:
-                print("{}th step. Acceptance rate so far: {:2f}".format(i, (self._number_proposals) / i))
+                self.params._params.get(self.inference_algorithm._copy_map[k]).set_data(v_shaped)
+            if i > 0 and i % iter_step == 0:
+                self._number_proposals += number_proposals
+                if verbose:
+                    print("{}th step. Acceptance rate so far: {:.3f}, latest {}".format(i, self._number_proposals / i, number_proposals / iter_step))
+                number_proposals = 0
 
-        self.samples = {k: mx.nd.concat(*v, dim=0) for k,v in self.samples.items()}
         return self.samples

@@ -87,7 +87,9 @@ class InferenceParameters(object):
             excluded = set(self._constants.keys()).union(observed_uuid)
             to_init = g.get_parameters(excluded=excluded,
                                         include_inherited=False) + g.get_latent_variables(observed_uuid)
-            for var in to_init:
+            for var in set(to_init):
+                if var in self._params:
+                    continue
                 var_shape = realize_shape(var.shape, self._constants)
                 init = initializer.Constant(var.initial_value_before_transformation) \
                     if var.initial_value is not None else None

@@ -55,7 +55,7 @@ class Distribution(Factor):
 
     def log_pdf(self, F, variables, targets=None):
         """
-        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. 
+        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
         The inputs and outputs variables are fetched from the *variables* argument according to their UUIDs.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
