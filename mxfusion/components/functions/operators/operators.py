@@ -17,6 +17,7 @@ from ....common.exceptions import ModelSpecificationError
 from ..function_evaluation import FunctionEvaluation, FunctionEvaluationDecorator
 from ...variables import Variable
 
+
 class Operator(FunctionEvaluation):
     """
     Abstract Operator object for using MXNet operators in MXFusion space.

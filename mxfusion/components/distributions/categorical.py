@@ -159,8 +159,7 @@ class Categorical(UnivariateDistribution):
         replicant.num_classes = self.num_classes
         return replicant
 
-    @CategoricalLogPDFDecorator()
-    def log_pdf(self, log_prob, random_variable, F=None):
+    def log_pdf_impl(self, log_prob, random_variable, F=None):
         """
         Computes the logarithm of probabilistic mass function of the Categorical distribution.
 
@@ -185,8 +184,7 @@ class Categorical(UnivariateDistribution):
             logL = logL * self.log_pdf_scaling
         return logL
 
-    @CategoricalDrawSamplesDecorator()
-    def draw_samples(self, log_prob, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, log_prob, rv_shape, num_samples=1, F=None):
         """
         Draw a number of samples from the Categorical distribution.
 
@@ -201,12 +199,15 @@ class Categorical(UnivariateDistribution):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
+        rv_ndim = len(rv_shape)
 
         if self.normalization:
             log_prob = F.log_softmax(log_prob, axis=self.axis)
 
-        log_prob = F.reshape(log_prob, shape=(1, -1, self.num_classes))
-        samples = self._rand_gen.sample_multinomial(log_prob, get_prob=False)
+        log_prob = F.transpose(log_prob, axes=list(range(rv_ndim))+[rv_ndim])
+        if num_samples != log_prob.shape[0]:
+            log_prob = F.broadcast_to(log_prob, (num_samples,)+rv_shape[:-1]+(self.num_classes,))
+        samples = self._rand_gen.sample_multinomial(log_prob)
         if self.one_hot_encoding:
             samples = F.one_hot(samples, depth=self.num_classes)
         samples = F.reshape(samples, shape=(num_samples,) + rv_shape)

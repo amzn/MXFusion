@@ -52,8 +52,7 @@ class Normal(UnivariateDistribution):
                                      output_names=output_names,
                                      rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, mean, variance, random_variable, F=None):
+    def log_pdf_impl(self, mean, variance, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the normal distribution.
 
@@ -73,8 +72,8 @@ class Normal(UnivariateDistribution):
             F.broadcast_minus(random_variable, mean)), -2 * variance)) * self.log_pdf_scaling
         return logL
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, mean, variance, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw samples from the normal distribution.
 

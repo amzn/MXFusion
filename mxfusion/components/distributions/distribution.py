@@ -15,7 +15,8 @@
 
 from ..factor import Factor
 from .random_gen import MXNetRandomGenerator
-from ...util.inference import realize_shape
+from ...util.inference import realize_shape, \
+    broadcast_samples_dict
 from ...common.config import get_default_dtype
 
 
@@ -135,7 +136,23 @@ class Distribution(Factor):
         replicant.log_pdf_scaling = 1
         return replicant
 
-    def log_pdf(self, F=None, **kwargs):
+    def log_pdf(self, F, variables, targets=None):
+        """
+        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :returns: log pdf of the distribution
+        :rtypes: MXNet NDArray or MXNet Symbol
+        """
+        kwargs = {}
+        for name, var in self.inputs:
+            kwargs[name] = variables[var.uuid]
+        for name, var in self.outputs:
+            kwargs[name] = variables[var.uuid]
+        kwargs = broadcast_samples_dict(F, kwargs)
+        return self.log_pdf_impl(F=F, **kwargs)
+
+    def log_pdf_impl(self, F, **kwargs):
         """
         Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
 
@@ -155,7 +172,19 @@ class Distribution(Factor):
         """
         raise NotImplementedError
 
-    def draw_samples(self, rv_shape, num_samples=1, F=None, **kwargs):
+    def draw_samples(self, F, variables, num_samples=1, targets=None,
+                     always_return_tuple=False):
+        kwargs = {}
+        for name, var in self.inputs:
+            kwargs[name] = variables[var.uuid]
+        kwargs = broadcast_samples_dict(F, kwargs)
+        kwargs['rv_shape'] = realize_shape(self.outputs[0][1].shape, variables)
+        s = self.draw_samples_impl(F=F, num_samples=num_samples, **kwargs)
+        if always_return_tuple and not isinstance(s, (tuple, list)):
+            s = (s,)
+        return s
+
+    def draw_samples_impl(self, rv_shape, num_samples=1, F=None, **kwargs):
         """
         Draw a number of samples from the distribution.
 

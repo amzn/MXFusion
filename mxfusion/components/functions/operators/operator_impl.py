@@ -13,7 +13,14 @@
 # ==============================================================================
 
 
+import mxnet as mx
 from . import MXNetOperatorDecorator
+from .operators import Operator
+from ..function_evaluation import FunctionEvaluationDecorator
+from ...variables import Variable
+from ....util.inference import realize_shape
+from ....common.exceptions import InferenceError
+
 
 """ Basic Arithmetic """
 @MXNetOperatorDecorator(name='add', args=['x', 'y'], inputs=['x', 'y'])
@@ -83,3 +90,43 @@ def reshape(F, data, shape, reverse=False):
 def transpose(F, data, axes=None):
     axes = axes if axes is not None else []
     return F.transpose(data=data, axes=axes)
+
+
+"""Special Operators"""
+
+
+def broadcast_to(data, shape):
+    """The broadcast_to operator"""
+    class BroadcastToOperator(Operator):
+
+        def __init__(self, data, shape):
+            super(BroadcastToOperator, self).__init__(
+                inputs=[('data', data)],
+                outputs=[('output_0', Variable(shape=None))],
+                operator_name='broadcast_to', properties={'shape': shape},
+                broadcastable=True)
+
+        def eval(self, F, variables, always_return_tuple=False):
+            target_shape = realize_shape(self.properties['shape'], variables)
+            data = variables[self.inputs[0][1].uuid]
+            if F is mx.ndarray:
+                source_shape = data.shape
+            elif F is mx.symbol:
+                raise NotImplementedError('Symbolic mode to be supported!')
+            else:
+                raise InferenceError('Unknown MXNet Mode '+str(F))
+            n_target_dim = len(target_shape)
+            n_source_dim = len(source_shape)
+
+            if n_target_dim + 1 - n_source_dim > 0:
+                t_shape = (source_shape[0],) + \
+                    (1,) * (n_target_dim + 1 - n_source_dim) + source_shape[1:]
+                data = F.reshape(data, shape=t_shape)
+            shape = (source_shape[0],) + target_shape
+            res = F.broadcast_to(data, shape=shape)
+            if always_return_tuple:
+                res = (res,)
+            return res
+
+    op = BroadcastToOperator(data=data, shape=shape)
+    return op.outputs[0][1]
