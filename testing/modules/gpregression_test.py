@@ -231,7 +231,7 @@ class TestGPRegressionModule(object):
         res = infr_pred2.run(X=mx.nd.array(xt, dtype=dtype))[0]
 
 
-    def test_prediction_pretty_print(self):
+    def test_prediction_print(self):
         D, X, Y, noise_var, lengthscale, variance = self.gen_data()
         Xt = np.random.rand(20, 3)
 
@@ -245,5 +245,5 @@ class TestGPRegressionModule(object):
 
 
         loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
-        pretty_print = infr.pretty_print_params()
-        assert (len(pretty_print) > 1)
+        print = infr.print_params()
+        assert (len(print) > 1)

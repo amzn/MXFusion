@@ -55,12 +55,12 @@ class Inference(object):
                                           context=self.mxnet_context)
         self._initialized = False
 
-    def pretty_print_params(self):
+    def print_params(self):
         """
         Returns a string with the inference parameters nicely formatted for display, showing which model they came from and their name + uuid.
         
         Format:
-        > infr.pretty_print_params()
+        > infr.print_params()
         Variable(1ab23)(name=y) - (Model/Posterior(123ge2)) - (first mxnet values/shape)
         """
         def get_class_name(graph):
