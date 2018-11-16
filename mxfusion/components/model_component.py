@@ -129,7 +129,7 @@ class ModelComponent(object):
         Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
-            succ = [(e['name'], v) for v, e in self.graph.succ[self].items()]
+            succ = [(e['name'], v) for v, edges in self.graph.succ[self].items() for e in edges.values()]
             return succ
         else:
             return self._successors
@@ -154,7 +154,7 @@ class ModelComponent(object):
                 self.graph.remove_edge(self, successor)
             for name, successor in successors:
                 successor.graph = self.graph
-                self.graph.add_edge(self, successor, name=name)
+                self.graph.add_edge(self, successor, key=name, name=name)
         else:
             self._successors = successors
             for name, successor in successors:
@@ -169,7 +169,7 @@ class ModelComponent(object):
         Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
-            pred = [(e['name'], v) for v, e in self.graph.pred[self].items()]
+            pred = [(e['name'], v) for v, edges in self.graph.pred[self].items() for e in edges.values()]
             return pred
         else:
             return self._predecessors
@@ -194,7 +194,7 @@ class ModelComponent(object):
                 self.graph.remove_edge(predecessor, self)
             for name, predecessor in predecessors:
                 predecessor.graph = self.graph
-                self.graph.add_edge(predecessor, self, name=name)
+                self.graph.add_edge(predecessor, self, key=name, name=name)
         else:
             self._predecessors = predecessors
             for name, predecessor in predecessors:

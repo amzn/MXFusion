@@ -150,7 +150,7 @@ class Factor(ModelComponent):
         Return a list of nodes whose edges point into this node.
         """
         if self.graph is not None:
-            pred = {e['name']: v for v, e in self.graph.pred[self].items()}
+            pred = {e['name']: v for v, edges in self.graph.pred[self].items() for e in edges.values()}
             return [(name, pred[name]) for name in self.input_names]
         else:
             return self._predecessors
@@ -161,7 +161,7 @@ class Factor(ModelComponent):
         Return a list of nodes pointed to by the edges of this node.
         """
         if self.graph is not None:
-            succ = {e['name']: v for v, e in self.graph.succ[self].items()}
+            succ = {e['name']: v for v, edges in self.graph.succ[self].items() for e in edges.values()}
             return [(name, succ[name]) for name in self.output_names]
         else:
             return self._successors

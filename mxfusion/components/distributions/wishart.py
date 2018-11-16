@@ -103,8 +103,8 @@ class WishartDrawSamplesDecorator(DrawSamplesDecorator):
                                          "from inputs: {}.".format(num_samples, num_samples_inferred))
 
             shapes_map = dict(
-                degrees_of_freedom=(num_samples,) + rv_shape,
-                scale=(num_samples,) + rv_shape + (rv_shape[-1],),
+                degrees_of_freedom=(num_samples,),
+                scale=(num_samples,) + rv_shape,
                 random_variable=(num_samples,) + rv_shape)
             variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
                          for name, v in variables.items()}
@@ -222,19 +222,28 @@ class Wishart(Distribution):
         # Cholesky of L
         L = F.linalg.potrf(scale)
 
-        dof = degrees_of_freedom.asnumpy().ravel()[0]
+        full_shape = (num_samples,) + rv_shape
+
+        import itertools
 
         # Create the lower triangular matrix A
-        A = F.zeros((dof, dof), dtype=scale.dtype)
-        for j in range(dof):
-            A[j, j] = np.sqrt(np.random.chisquare(df=dof - j))
-            for k in range(j + 1, dof):
-                A[k, j] = np.random.normal()
+        A = F.zeros(full_shape, dtype=scale.dtype)
+        for i in range(num_samples):
+            # Need to have the full shape
+            for extra_dims in itertools.product(*map(range, rv_shape[:-2])):
+                for j in range(rv_shape[-2]):
+                    shape = degrees_of_freedom.asnumpy().ravel()[0] - j
+                    ix = (i, ) + extra_dims + (j, j)
+                    A[ix] = F.sqrt(F.sum(F.power(F.random.normal(shape=shape), 2)))
+                    for k in range(j + 1, rv_shape[-1]):
+                        ix = (i,) + extra_dims + (k, j)
+                        A[ix] = F.random.normal()
 
         # Broadcast A
-        A = A.broadcast_like(L)
         LA = F.linalg.trmm(L, A)
-        return F.linalg.gemm2(LA, LA, transpose_b=True)
+        samples = F.linalg.gemm2(LA, LA, transpose_b=True)
+
+        return samples
 
     @staticmethod
     def define_variable(shape, degrees_of_freedom=0, scale=None, rand_gen=None,

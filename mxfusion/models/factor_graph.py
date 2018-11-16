@@ -43,7 +43,7 @@ class FactorGraph(object):
         self._uuid = str(uuid4())
         self._var_ties = {}
 
-        self._components_graph = nx.DiGraph()
+        self._components_graph = nx.MultiDiGraph()
         self._verbose = verbose
 
     def __repr__(self):
