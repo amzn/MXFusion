@@ -23,7 +23,8 @@ class Operator(FunctionEvaluation):
     Abstract Operator object for using MXNet operators in MXFusion space.
     Child classes implement the eval method with their operator and access necessary state through the properties dictionary.
     """
-    def __init__(self, inputs, outputs, operator_name, properties=None, broadcastable=False):
+    def __init__(self, inputs, outputs, operator_name, properties=None,
+                 broadcastable=False):
 
         # TODO Add a flag for broadcastable
 
@@ -34,7 +35,8 @@ class Operator(FunctionEvaluation):
         self.broadcastable = broadcastable
 
         super(Operator, self).__init__(
-            inputs, outputs, input_names, output_names, broadcastable=broadcastable)
+            inputs, outputs, input_names, output_names,
+            broadcastable=broadcastable)
 
     def replicate_self(self, attribute_map=None):
         replicant = super(Operator, self).replicate_self(attribute_map)
@@ -45,6 +47,7 @@ class Operator(FunctionEvaluation):
     @property
     def properties(self):
         return self._properties
+
 
 class MXNetOperatorDecorator(object):
 
@@ -79,22 +82,24 @@ class MXNetOperatorDecorator(object):
 
             class CustomOperator(Operator):
 
-                @FunctionEvaluationDecorator()
-                def eval(self, F, **input_kws):
+                def eval_impl(self, F, **input_kws):
                     input_kws.update(self.properties)
                     return func(F, **input_kws)
 
             if not len(all_args) >= len(self.input_names):
                 raise ModelSpecificationError("Must pass in arguments matching the input names {} but received {}.".format(self.input_names, all_args))
 
-            op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names],
-                                  outputs=[('output_'+str(i), Variable()) for i in range(self.num_outputs)],
-                                  operator_name=self.operator_name,
-                                  properties={n: all_args[n] for n in self.property_names if n in all_args}
-                                  )
-
-            if self.num_outputs==1:
+            op = CustomOperator(
+                inputs=[(n, all_args[n]) for n in self.input_names],
+                outputs=[('output_'+str(i), Variable()) for i in
+                         range(self.num_outputs)],
+                operator_name=self.operator_name,
+                properties={n: all_args[n] for n in self.property_names if n in
+                            all_args}
+                )
+            if self.num_outputs == 1:
                 return op.outputs[0][1]
             else:
-                return tuple([op.outputs[i][1] for i in range(self.num_outputs)])
+                return tuple(
+                    [op.outputs[i][1] for i in range(self.num_outputs)])
         return create_operator

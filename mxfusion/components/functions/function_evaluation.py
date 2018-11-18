@@ -17,6 +17,7 @@ from abc import abstractmethod
 from ..factor import Factor
 from ..variables import array_has_samples, get_num_samples, as_samples
 from ..variables import VariableType
+from ...util.inference import broadcast_samples_dict
 
 
 class FunctionEvaluationDecorator(object):
@@ -120,13 +121,52 @@ class FunctionEvaluation(Factor):
             output_names=output_names)
 
     def replicate_self(self, attribute_map=None):
-        replicant = super(FunctionEvaluation, self).replicate_self(attribute_map)
+        replicant = super(
+            FunctionEvaluation, self).replicate_self(attribute_map)
         replicant.broadcastable = self.broadcastable
         return replicant
 
+    def eval(self, F, variables, always_return_tuple=False):
+        kwargs = {name: variables[var.uuid] for name, var in self.inputs
+                  if not var.isInherited or var.type == VariableType.RANDVAR}
+        if self.broadcastable:
+            # If some of the inputs are samples and the function is
+            # broadcastable, evaluate the function with the inputs that are
+            # broadcasted to the right shape.
+            kwargs = broadcast_samples_dict(F, kwargs)
+            results = self.eval_impl(F=F, **kwargs)
+            results = results if isinstance(results, (list, tuple)) \
+                else [results]
+        else:
+            # If some of the inputs are samples and the function is *not*
+            # broadcastable, evaluate the function with each set of samples
+            # and concatenate the output variables.
+            nSamples = max([get_num_samples(F, v) for v in kwargs.values()])
+
+            results = None
+            for sample_idx in range(nSamples):
+                r = self.eval_impl(F=F, **{
+                        n: v[sample_idx] if array_has_samples(F, v) else v[0]
+                        for n, v in kwargs.items()})
+                if isinstance(r, (list, tuple)):
+                    r = [F.expand_dims(r_i, axis=0) for r_i in r]
+                else:
+                    r = [F.expand_dims(r, axis=0)]
+                if results is None:
+                    results = [[r_i] for r_i in r]
+                else:
+                    for r_list, r_i in zip(results, r):
+                        r_list.append(r_i)
+            if nSamples == 1:
+                results = [r[0] for r in results]
+            else:
+                results = [F.concat(*r, dim=0) for r in results]
+        if len(results) == 1 and not always_return_tuple:
+            results = results[0]
+        return results
+
     @abstractmethod
-    @FunctionEvaluationDecorator()
-    def eval(self, F, **input_kws):
+    def eval_impl(self, F, **input_kws):
         """
         The method handling the execution of the function.
 
@@ -182,8 +222,7 @@ class FunctionEvaluationWithParameters(FunctionEvaluation):
     def function(self):
         return self._func
 
-    @FunctionEvaluationDecorator()
-    def eval(self, F, **input_kws):
+    def eval_impl(self, F, **input_kws):
         """
         Invokes the MXNet Gluon block with the arguments passed in.
 
