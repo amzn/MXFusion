@@ -152,7 +152,9 @@ class TestMultivariateNormalDistribution(object):
 
 
     @pytest.mark.parametrize("dtype, mean, mean_isSamples, var, var_isSamples, rv, rv_isSamples, num_samples", [
-        (np.float32, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, np.random.rand(5,3,2), True, 5),
+        (np.float32, np.random.rand(3,2), False, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, np.random.rand(5,3,2), True, 5),
+        (np.float32, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(3,2,2)+0.1), False, np.random.rand(5,3,2), True, 5),
+        (np.float32, np.random.rand(3,2), False, make_symmetric(np.random.rand(3,2,2)+0.1), False, np.random.rand(5,3,2), True, 5),
         ])
     def test_log_pdf_with_broadcast(self, dtype, mean, mean_isSamples, var, var_isSamples,
                         rv, rv_isSamples, num_samples):
@@ -172,6 +174,8 @@ class TestMultivariateNormalDistribution(object):
         if not rv_isSamples:
             rv_mx = add_sample_dimension(mx.nd, rv_mx)
         rv = rv_mx.asnumpy()
+
+        print(mean_mx.shape, var_mx.shape, rv_mx.shape)
 
         from scipy.stats import multivariate_normal
         isSamples_any = any([mean_isSamples, var_isSamples, rv_isSamples])
@@ -258,7 +262,7 @@ class TestMultivariateNormalDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
-        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, make_symmetric(np.random.rand(3,2,2)+0.1), False, (3,2), 5),
         ])
     def test_draw_samples_with_broadcast(self, dtype, mean, mean_isSamples, var,
                              var_isSamples, rv_shape, num_samples):
@@ -284,35 +288,9 @@ class TestMultivariateNormalDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
-        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(2,2)+0.1), False, (3,2), 5),
-        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(5,2,2)+0.1), True, (3,2), 5),
-        (np.float64, np.random.rand(5,2), True, make_symmetric(np.random.rand(5,2,2)+0.1), True, (3,2), 5)
-        ])
-    def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype, mean, mean_isSamples, var,
-                             var_isSamples, rv_shape, num_samples):
-
-        mean_mx = mx.nd.array(mean, dtype=dtype)
-        if not mean_isSamples:
-            mean_mx = add_sample_dimension(mx.nd, mean_mx)
-        var_mx = mx.nd.array(var, dtype=dtype)
-        if not var_isSamples:
-            var_mx = add_sample_dimension(mx.nd, var_mx)
-        var = var_mx.asnumpy()
-
-        rand = np.random.rand(num_samples, *rv_shape)
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        normal = MultivariateNormal.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {normal.mean.uuid: mean_mx, normal.covariance.uuid: var_mx}
-        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, draw_samples_rt) is True
-        assert draw_samples_rt.shape == (5,) + rv_shape
-
-    @pytest.mark.parametrize(
-        "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
-        (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2,2)+0.1), False, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, make_symmetric(np.random.rand(3,2,2)+0.1), False, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, (3,2), 5),
+        (np.float64, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(3,2,2)+0.1), False, (3,2), 5),
         (np.float64, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, (3,2), 5),
         ])
     def test_draw_samples_no_broadcast(self, dtype, mean, mean_isSamples, var,

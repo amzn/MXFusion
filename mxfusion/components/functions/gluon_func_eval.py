@@ -14,8 +14,7 @@
 
 
 from ..variables.variable import VariableType
-from .function_evaluation import FunctionEvaluationWithParameters, \
-    FunctionEvaluationDecorator
+from .function_evaluation import FunctionEvaluationWithParameters
 
 
 class GluonFunctionEvaluation(FunctionEvaluationWithParameters):

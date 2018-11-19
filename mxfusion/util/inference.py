@@ -18,10 +18,11 @@ from ..components.variables import Variable, VariableType
 from ..components.variables.runtime_variable import get_num_samples
 
 
-def broadcast_samples_dict(F, array_dict):
+def broadcast_samples_dict(F, array_dict, num_samples=None):
 
     shape_dict = {k: v.shape for k, v in array_dict.items()}
-    num_samples = max([s[0] for s in shape_dict.values()])
+    if num_samples is None:
+        num_samples = max([s[0] for s in shape_dict.values()])
 
     if num_samples > 1:
         array_dict = {

@@ -23,7 +23,7 @@ from mxfusion.components.variables.runtime_variable import add_sample_dimension,
 class TestFunctionEvaluation(object):
 
     def _make_test_function_evaluation(self, broadcastable):
-        from mxfusion.components.functions.function_evaluation import FunctionEvaluation, FunctionEvaluationDecorator
+        from mxfusion.components.functions.function_evaluation import FunctionEvaluation
         from mxfusion.components import Variable
 
         class DotFuncEval(FunctionEvaluation):
@@ -37,8 +37,7 @@ class TestFunctionEvaluation(object):
                                                   output_names=output_names,
                                                   broadcastable=broadcastable)
 
-            @FunctionEvaluationDecorator()
-            def eval(self, F, A, B):
+            def eval_impl(self, F, A, B):
                 return F.linalg.gemm2(A, B)
         return DotFuncEval()
 

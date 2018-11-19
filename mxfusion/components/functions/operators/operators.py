@@ -14,7 +14,7 @@
 
 
 from ....common.exceptions import ModelSpecificationError
-from ..function_evaluation import FunctionEvaluation, FunctionEvaluationDecorator
+from ..function_evaluation import FunctionEvaluation
 from ...variables import Variable
 
 

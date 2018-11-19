@@ -16,7 +16,6 @@
 import mxnet as mx
 from . import MXNetOperatorDecorator
 from .operators import Operator
-from ..function_evaluation import FunctionEvaluationDecorator
 from ...variables import Variable
 from ....util.inference import realize_shape
 from ....common.exceptions import InferenceError

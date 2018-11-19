@@ -20,89 +20,6 @@ from ...util.inference import realize_shape, \
 from ...common.config import get_default_dtype
 
 
-class LogPDFDecorator(object):
-    """
-    The decorator for the log_pdf function in Distribution
-    """
-    def __call__(self, func):
-
-        func_reshaped = self._wrap_log_pdf_with_broadcast(func)
-        func_variables = self._wrap_log_pdf_with_variables(func_reshaped)
-        return func_variables
-
-    def _wrap_log_pdf_with_variables(self, func):
-
-        def log_pdf_variables(self, F, variables, targets=None):
-            """
-            Computes the logarithm of the probability density/mass function
-            (PDF/PMF) of the distribution. The inputs and outputs variables are
-            fetched from the *variables* argument according to their UUIDs.
-
-            :param F: the MXNet computation mode
-            :type F: mxnet.symbol or mxnet.ndarray
-            :param variables: the set of MXNet arrays that holds the values of
-            variables at runtime.
-            :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            args = {}
-            for name, var in self.inputs:
-                args[name] = variables[var.uuid]
-            for name, var in self.outputs:
-                args[name] = variables[var.uuid]
-            return func(self, F=F, **args)
-        return log_pdf_variables
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        raise NotImplementedError
-
-
-class DrawSamplesDecorator(object):
-    """
-    The decorator for the draw_samples function in Distribution
-    """
-    def __call__(self, func):
-
-        func_reshaped = self._wrap_draw_samples_with_broadcast(func)
-        func_variables = self._wrap_draw_samples_with_variables(func_reshaped)
-        return func_variables
-
-    def _wrap_draw_samples_with_variables(self, func):
-
-        def draw_samples_variables(self, F, variables, num_samples=1,
-                                   always_return_tuple=False, targets=None):
-            """
-            Draw a set of samples from the distribution. The inputs variables
-            are fetched from the *variables* argument according to their UUIDs.
-
-            :param F: the MXNet computation mode
-            :type F: mxnet.symbol or mxnet.ndarray
-            :param variables: the set of MXNet arrays that holds the values of
-            variables at runtime.
-            :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
-            :param num_samples: the number of drawn samples (default: one)
-            :int num_samples: int
-            :param always_return_tuple: Whether return a tuple even if there is
-            only one variables in outputs.
-            :type always_return_tuple: boolean
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet
-            Symbol]
-            """
-            args = {}
-            for name, var in self.inputs:
-                args[name] = variables[var.uuid]
-            args['rv_shape'] = {name: realize_shape(rv.shape, variables) for
-                                name, rv in self.outputs}
-            return func(self, F=F, num_samples=num_samples,
-                        always_return_tuple=always_return_tuple, **args)
-        return draw_samples_variables
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        raise NotImplementedError
-
-
 class Distribution(Factor):
     """
     The base class of a probability distribution associated with one or a set of random variables.
@@ -177,7 +94,7 @@ class Distribution(Factor):
         kwargs = {}
         for name, var in self.inputs:
             kwargs[name] = variables[var.uuid]
-        kwargs = broadcast_samples_dict(F, kwargs)
+        kwargs = broadcast_samples_dict(F, kwargs, num_samples=num_samples)
         kwargs['rv_shape'] = realize_shape(self.outputs[0][1].shape, variables)
         s = self.draw_samples_impl(F=F, num_samples=num_samples, **kwargs)
         if always_return_tuple and not isinstance(s, (tuple, list)):
