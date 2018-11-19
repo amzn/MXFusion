@@ -63,14 +63,16 @@ class MockMXNetRandomGenerator(RandomGenerator):
     def __init__(self, samples):
         self._samples = samples
 
-    def sample_normal(self, loc=0, scale=1, shape=None, dtype=None, out=None,
-                      ctx=None, F=None):
+    def _sample_univariate(self, shape=None, out=None):
         if shape is None:
             shape = (1,)
         res = mx.nd.reshape(self._samples[:np.prod(shape)], shape=shape)
         if out is not None:
             out[:] = res
         return res
+
+    def sample_normal(self, loc=0, scale=1, shape=None, dtype=None, out=None, ctx=None, F=None):
+        return self._sample_univariate(shape=shape, out=out)
 
     def sample_multinomial(self, data, shape=None, get_prob=True, dtype=None, F=None):
         return mx.nd.reshape(self._samples[:np.prod(data.shape[:-1])], shape=data.shape[:-1])
@@ -83,6 +85,12 @@ class MockMXNetRandomGenerator(RandomGenerator):
         if out is not None:
             out[:] = res
         return res
+
+    def sample_uniform(self, low=0., high=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        return self._sample_univariate(shape=shape, out=out)
+
+    def sample_laplace(self, location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        return self._sample_univariate(shape=shape, out=out)
 
 
 def make_net():
@@ -150,3 +158,60 @@ class TestBlock(mx.gluon.HybridBlock):
         """
 
         return x + var1 + var2
+
+
+def plot_univariate(samples, dist, buffer=0, **kwargs):
+    """
+    Visual inspection by plotting the distribution: plots a histogram of the samples along with
+
+    :param samples: Samples from the distribution
+    :type samples: (mx.nd.NDArray, np.ndarray)
+    :param buffer: additional range to plot the distribution over
+    :param dist: Distribution that these are samples from (scipy.stats)
+    :param kwargs: Keyword arguments for the distribution (e.g. loc, scale)
+    """
+    if isinstance(samples, mx.nd.NDArray):
+        samples = samples.asnumpy().ravel()
+    elif isinstance(samples, np.ndarray):
+        samples = samples.ravel()
+    else:
+        raise ValueError("Unexpected type for samples: {}, expected mx.nd.NDArray or np.ndarray".format(type(samples)))
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    ax.hist(samples, bins=301, density=True)
+    x = np.linspace(samples.min() - buffer, samples.max() + buffer, num=301)
+    ax.plot(x, dist.pdf(x, **kwargs).reshape(-1, 1))
+    plt.show()
+
+
+def plot_bivariate(samples, dist, buffer=0, **kwargs):
+    """
+    Visual inspection by plotting the distribution: plots a scatter plot of samples along with a contour plot
+
+    :param samples: Samples from the distribution
+    :type samples: (mx.nd.NDArray, np.ndarray)
+    :param buffer: additional range to plot the distribution over
+    :param dist: Distribution that these are samples from (scipy.stats)
+    :param kwargs: Keyword arguments for the distribution (e.g. loc, scale)
+    """
+    if isinstance(samples, mx.nd.NDArray):
+        samples = samples.asnumpy()
+    elif isinstance(samples, np.ndarray):
+        pass
+    else:
+        raise ValueError("Unexpected type for samples: {}, expected mx.nd.NDArray or np.ndarray".format(type(samples)))
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    s_min = samples.min(axis=0)
+    s_max = samples.max(axis=0)
+    x = np.linspace(s_min[0] - buffer, s_max[0] + buffer, num=301)
+    y = np.linspace(s_min[1] - buffer, s_max[1] + buffer, num=301)
+    x, y = np.meshgrid(x, y)
+    z = dist.pdf(x=np.vstack([x.ravel(), y.ravel()]).T, **kwargs).reshape(x.shape)
+    ax.contour(x, y, z, levels=10, linewidth=10)
+    ax.scatter(samples[:, 0], samples[:, 1], alpha=0.05)
+    plt.show()

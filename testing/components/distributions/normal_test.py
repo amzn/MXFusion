@@ -18,7 +18,7 @@ import mxnet as mx
 import numpy as np
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Normal, MultivariateNormal
-from mxfusion.util.testutils import numpy_array_reshape
+from mxfusion.util.testutils import numpy_array_reshape, plot_univariate, plot_bivariate
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 
 
@@ -107,6 +107,38 @@ class TestNormalDistribution(object):
         else:
             rtol, atol = 1e-4, 1e-5
         assert np.allclose(rv_samples_np, rv_samples_rt.asnumpy(), rtol=rtol, atol=atol)
+
+    def test_draw_samples_non_mock(self, plot=False):
+        # Also make sure the non-mock sampler works
+        dtype = np.float32
+        num_samples = 100000
+
+        mean = np.array([0.5])
+        variance = np.array([2])
+
+        rv_shape = (1,)
+
+        mean_mx = add_sample_dimension(mx.nd, mx.nd.array(mean, dtype=dtype))
+        variance_mx = add_sample_dimension(mx.nd, mx.nd.array(variance, dtype=dtype))
+
+        rand_gen = None
+        var = Normal.define_variable(shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
+        variables = {var.mean.uuid: mean_mx, var.variance.uuid: variance_mx}
+        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
+
+        assert array_has_samples(mx.nd, rv_samples_rt)
+        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
+        assert rv_samples_rt.dtype == dtype
+
+        from scipy.stats import norm
+        if plot:
+            plot_univariate(samples=rv_samples_rt, dist=norm, loc=mean[0], scale=np.sqrt(variance[0]))
+
+        mean_est, scale_est = norm.fit(rv_samples_rt.asnumpy().ravel())
+        mean_tol = 1e-1
+        variance_tol = 1e-1
+        assert np.abs(mean[0] - mean_est) < mean_tol
+        assert np.abs(variance[0] - scale_est ** 2) < variance_tol
 
 
 def make_symmetric(array):
@@ -310,3 +342,37 @@ class TestMultivariateNormalDistribution(object):
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
         assert array_has_samples(mx.nd, draw_samples_rt) == True
         assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt), num_samples)
+
+    def test_draw_samples_non_mock(self, plot=False):
+        # Also make sure the non-mock sampler works
+        dtype = np.float32
+        num_samples = 100000
+
+        mean = np.array([0.5, 0])
+        covariance = np.array([[2, 0.5], [0.5, 2]])
+
+        rv_shape = (2,)
+
+        mean_mx = add_sample_dimension(mx.nd, mx.nd.array(mean, dtype=dtype))
+        covariance_mx = add_sample_dimension(mx.nd, mx.nd.array(covariance, dtype=dtype))
+
+        rand_gen = None
+        var = MultivariateNormal.define_variable(shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
+        variables = {var.mean.uuid: mean_mx, var.covariance.uuid: covariance_mx}
+        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
+
+        assert array_has_samples(mx.nd, rv_samples_rt)
+        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
+        assert rv_samples_rt.dtype == dtype
+
+        from scipy.stats import multivariate_normal
+        if plot:
+            plot_bivariate(samples=rv_samples_rt, dist=multivariate_normal, mean=mean, cov=covariance)
+
+        # mean_est, scale_est = multivariate_normal.fit(rv_samples_rt.asnumpy().ravel())
+        mean_est = np.mean(rv_samples_rt.asnumpy(), axis=0)
+        cov_est = np.cov(rv_samples_rt.asnumpy(), rowvar=False)
+        mean_tol = 1e-1
+        covariance_tol = 1e-1
+        assert np.allclose(mean, mean_est, atol=mean_tol)
+        assert np.allclose(covariance, cov_est, covariance_tol)

@@ -59,10 +59,15 @@ class FactorGraph(object):
         return out_str[:-1]
 
     def __getitem__(self, key):
+        if key in self.components:
+            return self.components[key]
+        for m in self.modules.values():
+            if key in m:
+                return m[key]
         return self.components[key]
 
     def __contains__(self, key):
-        return key in self.components
+        return key in self.components or any([key in m for m in self.modules.values()])
 
     def __setattr__(self, name, value):
         """

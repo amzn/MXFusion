@@ -40,6 +40,14 @@ class RandomGenerator(ABC):
         pass
 
 
+    @staticmethod
+    def sample_uniform(low=0., high=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        pass
+
+    @staticmethod
+    def sample_laplace(location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        pass
+
 class MXNetRandomGenerator(RandomGenerator):
     """
     The MXNet pseudo-random number generator.
@@ -141,6 +149,66 @@ class MXNetRandomGenerator(RandomGenerator):
         :return: Array of samples
         """
         F = get_default_MXNet_mode() if F is None else F
+
         return MXNetRandomGenerator._sample_univariate(
             func=F.random.gamma, alpha=alpha, beta=beta,
             shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
+
+    @staticmethod
+    def sample_uniform(low=0., high=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        """
+        Sample uniformly distributed variables
+        Samples are uniformly distributed over the half-open interval [low, high) (includes low, but excludes high).
+
+        :param low: lower boundary of output interval
+        :param high: upper boundary of output interval
+        :param shape: Array shape of samples
+        :param dtype: Data type
+        :param out: output variable
+        :param ctx: execution context
+        :param F: MXNet node
+        :return: Array of samples
+        """
+        F = get_default_MXNet_mode() if F is None else F
+
+        samples = MXNetRandomGenerator._sample_univariate(
+            func=F.random.uniform, shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
+        # samples = F.broadcast_add(F.broadcast_mul(samples, F.broadcast_sub(high, low)), low)
+        samples = samples * (high - low) + low
+        return samples
+
+    @staticmethod
+    def sample_laplace(location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
+        """
+        Sample Laplace distributed variables
+
+        :param location: Location parameter (=mean)
+        :param scale: (>0) Also known as diversity
+        :param shape: Array shape of samples
+        :param dtype: Data type
+        :param out: output variable
+        :param ctx: execution context
+        :param F: MXNet node
+        :return: Array of samples
+        """
+        F = get_default_MXNet_mode() if F is None else F
+
+        # Given a random variable U drawn from the uniform distribution in the interval (-1/2,1/2], the random variable
+        # X =\mu - b\, \sgn(U)\, \ln(1 - 2 | U |)
+        # has a Laplace distribution with parameters \mu and b
+
+        U = MXNetRandomGenerator.sample_uniform(low=-0.5, high=0.5, shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
+
+        if isinstance(scale, F.NDArray):
+            b_sgn_U = F.broadcast_mul(scale, F.sign(U))
+        else:
+            b_sgn_U = scale * F.sign(U)
+
+        ln_1_2_U = F.log(1 - 2 * F.abs(U))
+
+        if isinstance(location, F.NDArray):
+            samples = F.broadcast_minus(location, F.broadcast_mul(b_sgn_U, ln_1_2_U))
+        else:
+            samples = location - F.broadcast_mul(b_sgn_U, ln_1_2_U)
+
+        return samples

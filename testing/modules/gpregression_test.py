@@ -229,3 +229,21 @@ class TestGPRegressionModule(object):
         infr_pred2 = TransferInference(ModulePredictionAlgorithm(model=m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params)
         xt = np.random.rand(13, 3)
         res = infr_pred2.run(X=mx.nd.array(xt, dtype=dtype))[0]
+
+
+    def test_prediction_print(self):
+        D, X, Y, noise_var, lengthscale, variance = self.gen_data()
+        Xt = np.random.rand(20, 3)
+
+        m_gpy = GPy.models.GPRegression(X=X, Y=Y, kernel=GPy.kern.RBF(3, ARD=True, lengthscale=lengthscale, variance=variance), noise_var=noise_var)
+
+        dtype = 'float64'
+        m = self.gen_mxfusion_model(dtype, D, noise_var, lengthscale, variance)
+
+        observed = [m.X, m.Y]
+        infr = Inference(MAP(model=m, observed=observed), dtype=dtype)
+
+
+        loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
+        print = infr.print_params()
+        assert (len(print) > 1)

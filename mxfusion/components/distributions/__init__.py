@@ -30,13 +30,14 @@ Submodules
     random_gen
     univariate
     gp
+    laplace
     wishart
     beta
     dirichlet
 """
 
 __all__ = ['bernoulli', 'categorical', 'distribution', 'normal', 'gamma', 'pointmass', 'random_gen',
-           'univariate', 'gp', 'wishart', 'beta']
+           'univariate', 'gp', 'wishart', 'beta', 'laplace', 'uniform', 'dirichlet']
 
 from .distribution import Distribution
 from .normal import Normal, MultivariateNormal, NormalMeanPrecision, MultivariateNormalMeanPrecision
@@ -48,3 +49,5 @@ from .gp import GaussianProcess, ConditionalGaussianProcess
 from .wishart import Wishart
 from .beta import Beta
 from .dirichlet import Dirichlet
+from .uniform import Uniform
+from .laplace import Laplace

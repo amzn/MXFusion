@@ -65,6 +65,17 @@ class Module(Factor):
         self._draw_samples_algorithms = {}
         self._prediction_algorithms = {}
 
+    def __contains__(self, key):
+        return any([key in g for g in [self._module_graph] + self._extra_graphs])
+
+    def __getitem__(self, key):
+        if key in self._module_graph:
+            return self._module_graph[key]
+        else:
+            for g in self._extra_graphs:
+                if key in g:
+                    return g[key]
+        return self._module_graph[key]
     def _generate_outputs(self, output_shapes):
         """
         Generate the output of the module with given output_shapes.
