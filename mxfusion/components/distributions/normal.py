@@ -199,7 +199,6 @@ class MultivariateNormal(Distribution):
         lmat = F.linalg.potrf(covariance)
         epsilon = self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx)
-        print(covariance.shape, lmat.shape, epsilon.shape)
         lmat_eps = F.linalg.trmm(lmat, epsilon)
         return F.broadcast_add(lmat_eps.sum(-1), mean)
 
