@@ -50,7 +50,7 @@ class BaseNN(ABC):
         self.net = HybridSequential(prefix=self.prefix)
         with self.net.name_scope():
             for i in range(1, len(self.network_shape) - 1):
-                self.net.add(Dense(self.network_shape[i], activation="relu"))  # , in_units=self.network_shape[i - 1]))
+                self.net.add(Dense(self.network_shape[i], activation="relu", in_units=self.network_shape[i - 1]))
             #  Last layer for classification
             self.net.add(Dense(self.network_shape[-1], in_units=self.network_shape[-2]))
         self.net.initialize(Xavier(magnitude=2.34), ctx=self.ctx)
@@ -81,15 +81,12 @@ class BaseNN(ABC):
 
     def get_weights(self):
         params = self.net.collect_params()
-        # weights = [params.get('dense{}_weight'.format(i)) for i in range(len(self.network_shape) - 1)]
-        # biases = [params.get('dense{}_bias'.format(i)) for i in range(len(self.network_shape) - 1)]
-        # return weights, biases
         return params
 
     @staticmethod
-    def print_status(epoch, loss, train_accuracy, test_accuracy):
-        print("Epoch {:4d}. Loss: {:8.2f}, Train_acc {:.3f}, Test_acc {:.3f}".format(
-            epoch, loss, train_accuracy, test_accuracy))
+    def print_status(epoch, loss, train_accuracy=float("nan"), validation_accuracy=float("nan")):
+        print(f"Epoch {epoch:4d}. Loss: {loss:8.2f}, "
+              f"Train accuracy {train_accuracy:.3f}, Validation accuracy {validation_accuracy:.3f}")
 
 
 class VanillaNN(BaseNN):
@@ -123,22 +120,17 @@ class BayesianNN(BaseNN):
 
     def __init__(self, network_shape, learning_rate, optimizer, max_iter, ctx):
         super().__init__(network_shape, learning_rate, optimizer, max_iter, ctx)
-        # self.prior_means = dict()
-        # self.prior_variances = dict()
         self.create_model()
 
     def create_model(self):
         self.model = Model()
         self.model.N = Variable()
         self.model.f = MXFusionGluonFunction(self.net, num_outputs=1, broadcastable=False)
-        self.model.x = Variable(shape=(self.model.N, int(self.network_shape[0])))
+        self.model.x = Variable(shape=(self.model.N, self.network_shape[0]))
         self.model.r = self.model.f(self.model.x)
         self.model.y = Categorical.define_variable(log_prob=self.model.r, shape=(self.model.N, 1), num_classes=2)
 
         for v in self.model.r.factor.parameters.values():
-            # self.prior_means[v] = Variable(shape=v.shape)
-            # self.prior_variances[v] = Variable(shape=v.shape)
-            # v.set_prior(Normal(mean=self.prior_means[v], variance=self.prior_variances[v]))
             means = Variable(shape=v.shape)
             variances = Variable(shape=v.shape)
             setattr(self.model, v.inherited_name + "_mean", means)
@@ -158,19 +150,7 @@ class BayesianNN(BaseNN):
             self.net(data[:1])
 
             # TODO: Would rather have done this before!
-            self.create_model()
-
-            # Set the priors
-            # if priors is None:
-            #     for v in self.model.r.factor.parameters.values():
-            #         v.set_prior(Normal(mean=mx.nd.array([0]), variance=mx.nd.array([3.])))
-            # if isinstance(priors, ParameterDict):
-            #     for v in self.model.r.factor.parameters.values():
-            #         short_name = v.inherited_name.partition(self.prefix)[-1]
-            #         mean = priors.get(short_name).data()
-            #         v.set_prior(Normal(mean=mean, variance=mx.nd.array([3.])))
-            # else:
-            #     pass
+            # self.create_model()
 
             observed = [self.model.x, self.model.y]
             q = create_Gaussian_meanfield(model=self.model, observed=observed)
@@ -178,17 +158,7 @@ class BayesianNN(BaseNN):
             self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
             self.inference.initialize(y=labels, x=data)
 
-            for v_name, v in self.model.r.factor.parameters.items():
-                qv_mean = q[v.uuid].factor.mean
-                qv_variance = q[v.uuid].factor.variance
-
-                # Initialization of mean/variances of NN weights
-                # TODO: Still needed?
-                a = self.inference.params[qv_variance].asnumpy()
-                a[:] = 1e-8
-                self.inference.params[qv_mean] = self.net.collect_params()[v_name].data()
-                self.inference.params[qv_variance] = mx.nd.array(a)
-
+            for v in self.model.r.factor.parameters.values():
                 v_name_mean = v.inherited_name + "_mean"
                 v_name_variance = v.inherited_name + "_variance"
 
@@ -207,6 +177,9 @@ class BayesianNN(BaseNN):
 
                 mean_prior = getattr(self.model, v_name_mean)
                 variance_prior = getattr(self.model, v_name_variance)
+
+                # v.set_prior(Normal(mean=mean_prior, variance=variance_prior))
+
                 self.inference.params[mean_prior] = means
                 self.inference.params[variance_prior] = variances
 
@@ -214,9 +187,8 @@ class BayesianNN(BaseNN):
                 self.inference.params.param_dict[mean_prior]._grad_req = 'null'
                 self.inference.params.param_dict[variance_prior]._grad_req = 'null'
 
-            callback = lambda epoch, loss: self.print_status(epoch, loss, float('nan'), float('nan'))
             self.inference.run(max_iter=self.max_iter, learning_rate=self.learning_rate,
-                               x=data, y=labels, verbose=False, callback=callback)
+                               x=data, y=labels, verbose=False, callback=self.print_status)
 
     @property
     def posteriors(self):

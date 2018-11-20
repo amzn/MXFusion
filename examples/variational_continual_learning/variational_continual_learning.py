@@ -16,6 +16,7 @@ import numpy as np
 import mxnet as mx
 
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from examples.variational_continual_learning.experiment import Experiment
 from examples.variational_continual_learning.mnist import SplitTaskGenerator
@@ -48,25 +49,24 @@ def plot(title, experiments, tasks):
     ax.set_xlabel('# tasks')
     ax.legend()
     ax.set_title(title)
-    plt.show()
 
-    filename = "vcl_{}.pdf".format(title)
-
+    filename = f"vcl_{title}_{datetime.now().isoformat()[:-7]}.pdf"
     fig.savefig(filename, bbox_inches='tight')
+    plt.show()
     plt.close()
 
 
 if __name__ == "__main__":
     # Load data
     data = mx.test_utils.get_mnist()
-    input_dim = np.prod(data['train_data'][0].shape)  # Note the data will get flattened later
+    input_dim = int(np.prod(data['train_data'][0].shape))  # Note the data will get flattened later
     data_dtype = data['train_data'].dtype
     label_dtype = data['train_label'].dtype
     tasks = ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
     gen = SplitTaskGenerator(data, batch_size=None, tasks=tasks)
 
     network_shape = (input_dim, 256, 256, 2)  # binary classification
-    num_epochs = 120
+    num_epochs = 120  # 120
     learning_rate = 0.01
     optimizer = 'adam'
 
@@ -98,11 +98,15 @@ if __name__ == "__main__":
 
     # Run experiments
     for params in experiment_parameters:
+        print("-" * 50)
         print("Running experiment", params['coreset'].__class__.__name__)
+        print("-" * 50)
         set_seeds()
         experiment = Experiment(batch_size=None, data_generator=gen, ctx=CTX, **params)
         experiment.run()
         print(experiment.overall_accuracy)
         experiments.append(experiment)
+        print("-" * 50)
+        print()
 
-    plot("split_mnist", experiments, tasks)
+    plot("Split MNIST", experiments, tasks)

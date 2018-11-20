@@ -107,7 +107,7 @@ class Experiment:
 
             # Incorporate coreset data and make prediction
             acc = self.get_scores()
-            print(f"Accuracy for task {task_id}: {acc:.3f}")
+            print("Accuracies after task {}: [{}]".format(task_id, ", ".join(map("{:.3f}".format, acc))))
             self.overall_accuracy = self.concatenate_results(acc, self.overall_accuracy)
 
     def get_scores(self):
@@ -146,16 +146,17 @@ class Experiment:
                         batch_size=self.batch_size,
                         priors=self.bayesian_model.posteriors)
                 else:
-                    print("Using main model as prediction model")
+                    print(f"Using main model as prediction model for task {task_id}")
                     prediction_model = self.bayesian_model
 
             head = 0 if self.single_head else task_id
 
+            print(f"Generating predictions for task {task_id}")
             predictions = prediction_model.prediction_prob(test_iterator, head)
             predicted_means = np.mean(predictions, axis=0)
             predicted_labels = np.argmax(predicted_means, axis=1)
             test_labels = test_iterator.label[0][1].asnumpy()
-            cur_acc = len(np.where((predicted_labels - test_labels) == 0)[0]) * 1.0 / test_labels.shape[0]
+            cur_acc = len(np.where(np.abs(predicted_labels - test_labels) < 1e-10)[0]) * 1.0 / test_labels.shape[0]
             acc.append(cur_acc)
         return acc
 
