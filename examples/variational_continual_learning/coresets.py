@@ -16,6 +16,7 @@ import numpy as np
 import mxnet as mx
 from mxnet.io import NDArrayIter, DataIter, DataBatch
 from abc import ABCMeta, abstractmethod
+import itertools
 
 
 class MultiIter(DataIter):
@@ -47,11 +48,11 @@ class MultiIter(DataIter):
 
     @property
     def provide_data(self):
-        return [b for b in self.iterators[0].provide_data] + [b for b in self.iterators[1].provide_data]
+        return list(itertools.chain(map(lambda i: i.provide_data, self.iterators)))
 
     @property
     def provide_label(self):
-        return [b for b in self.iterators[0].provide_label] + [b for b in self.iterators[1].provide_label]
+        return list(itertools.chain(map(lambda i: i.provide_label, self.iterators)))
 
     def append(self, iterator):
         if not isinstance(iterator, (DataIter, NDArrayIter)):
@@ -69,20 +70,6 @@ class Coreset(metaclass=ABCMeta):
         """
         self.iterator = None
         self.reset()
-
-    @staticmethod
-    def get_merged(coresets):
-        """
-        Get merged data and labels from the list of coresets
-        :param coresets: list of coresets
-        :type coresets: list(Coreset)
-        :return: merged data and labels
-        """
-        merged_data, merged_labels = coresets[0].data, coresets[0].labels
-        for i in range(1, len(coresets)):
-            merged_data = np.vstack((merged_data, coresets[i].data))
-            merged_labels = np.vstack((merged_labels, coresets[i].labels))
-        return merged_data, merged_labels
 
     @abstractmethod
     def selector(self, data):

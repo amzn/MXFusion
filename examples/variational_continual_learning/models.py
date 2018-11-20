@@ -112,7 +112,7 @@ class VanillaNN(BaseNN):
             validation_iterator.reset()
             train_accuracy = self.evaluate_accuracy(train_iterator)
             validation_accuracy = self.evaluate_accuracy(validation_iterator)
-            self.print_status(epoch, cumulative_loss / num_examples, train_accuracy, validation_accuracy)
+            self.print_status(epoch + 1, cumulative_loss / num_examples, train_accuracy, validation_accuracy)
 
 
 class BayesianNN(BaseNN):
