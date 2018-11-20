@@ -1,3 +1,17 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
 import numpy as np
 from scipy.stats import norm
 from ..module import Module
@@ -96,6 +110,8 @@ class SVGPClassificationLogPdf(VariationalInference):
         super(SVGPClassificationLogPdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
         self.log_pdf_scaling = 1
+        if jitter < 0.:
+            raise ValueError("jitter should be >= 0. Instead got jitter = {}".format(jitter))
         self.jitter = jitter
         self.lik_func = lik_func
 
@@ -163,6 +179,8 @@ class SVGPClassificationMeanIntConfidencePrediction(SamplingAlgorithm):
     def __init__(self, model, posterior, observed, jitter=0.):
         super(SVGPClassificationMeanIntConfidencePrediction, self).__init__(
             model=model, observed=observed, extra_graphs=[posterior])
+        if jitter < 0.:
+            raise ValueError("jitter should be >= 0. Instead got jitter = {}".format(jitter))
         self.jitter = jitter
 
     def compute(self, F, variables):
@@ -209,6 +227,8 @@ class SVGPClassificationSamplingPrediction(SamplingAlgorithm):
             model=model, observed=observed, num_samples=num_samples, extra_graphs=[posterior])
         self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
             rand_gen
+        if jitter < 0.:
+            raise ValueError("jitter should be >= 0. Instead got jitter = {}".format(jitter))
         self.jitter = jitter
 
     def compute(self, F, variables):
