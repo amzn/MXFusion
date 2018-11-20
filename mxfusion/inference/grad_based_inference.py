@@ -67,7 +67,7 @@ class GradBasedInference(Inference):
         return infr
 
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
-            verbose=False, **kwargs):
+            verbose=False, callback=None, **kwargs):
         """
         Run the inference method.
 
@@ -79,8 +79,10 @@ class GradBasedInference(Inference):
         :type max_iter: int
         :param verbose: whether to print per-iteration messages.
         :type verbose: boolean
-        :param **kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of the corresponding
-            variable in model definition and the value of the argument is the data in numpy array format.
+        :param callback: Callback function for custom print statements
+        :type callback: func
+        :param kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of
+        the corresponding variable in model definition and the value of the argument is the data in numpy array format.
         """
         data = [kwargs[v] for v in self.observed_variable_names]
         self.initialize(**kwargs)
@@ -89,4 +91,4 @@ class GradBasedInference(Inference):
         return self._grad_loop.run(
             infr_executor=infr, data=data, param_dict=self.params.param_dict,
             ctx=self.mxnet_context, optimizer=optimizer,
-            learning_rate=learning_rate, max_iter=max_iter, verbose=verbose)
+            learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, callback=callback)
