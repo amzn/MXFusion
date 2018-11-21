@@ -12,71 +12,74 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-import mxnet as mx
 import numpy as np
 from mxnet.io import NDArrayIter
 
 
-class SplitTaskGenerator:
+class TaskGenerator:
     def __init__(self, data, batch_size, tasks):
         self.data = data
         self.batch_size = batch_size
         self.tasks = tasks
 
+
+class SplitTaskGenerator(TaskGenerator):
     def __iter__(self):
+        """
+        Iterate over tasks
+        :return: the next task
+        :rtype: NDArrayIter
+        """
         for task in self.tasks:
             idx_train_0 = np.where(self.data['train_label'] == task[0])[0]
             idx_train_1 = np.where(self.data['train_label'] == task[1])[0]
             idx_test_0 = np.where(self.data['test_label'] == task[0])[0]
             idx_test_1 = np.where(self.data['test_label'] == task[1])[0]
 
-            # TODO: Validation data
             x_train = np.vstack((self.data['train_data'][idx_train_0], self.data['train_data'][idx_train_1]))
             y_train = np.hstack((np.ones((idx_train_0.shape[0],)), np.zeros((idx_train_1.shape[0],))))
 
             x_test = np.vstack((self.data['test_data'][idx_test_0], self.data['test_data'][idx_test_1]))
             y_test = np.hstack((np.ones((idx_test_0.shape[0],)), np.zeros((idx_test_1.shape[0],))))
 
-            batch_size = x_train.shape[0] if self.batch_size is None else self.batch_size
+            batch_size = self.batch_size or x_train.shape[0]
             train_iter = NDArrayIter(x_train, y_train, batch_size, shuffle=True)
 
-            batch_size = x_test.shape[0] if self.batch_size is None else self.batch_size
+            batch_size = self.batch_size or x_test.shape[0]
             test_iter = NDArrayIter(x_test, y_test, batch_size)
 
             yield train_iter, test_iter
         return
 
 
-# class SplitMnistGenerator:
-#     def __init__(self, data, batch_size):
-#         self.data = data
-#         self.batch_size = batch_size
-#         self.num_tasks = 5
-#
-#     def __iter__(self):
-#         for i in range(self.num_tasks):
-#             idx_train_0 = np.where(self.data['train_label'] == i * 2)[0]
-#             idx_train_1 = np.where(self.data['train_label'] == i * 2 + 1)[0]
-#             idx_test_0 = np.where(self.data['test_label'] == i * 2)[0]
-#             idx_test_1 = np.where(self.data['test_label'] == i * 2 + 1)[0]
-#
-#             # TODO: Validation data
-#             x_train = np.vstack((self.data['train_data'][idx_train_0], self.data['train_data'][idx_train_1]))
-#             y_train = np.hstack((np.ones((idx_train_0.shape[0],)), np.zeros((idx_train_1.shape[0],))))
-#
-#             x_test = np.vstack((self.data['test_data'][idx_test_0], self.data['test_data'][idx_test_1]))
-#             y_test = np.hstack((np.ones((idx_test_0.shape[0],)), np.zeros((idx_test_1.shape[0],))))
-#
-#             batch_size = x_train.shape[0] if self.batch_size is None else self.batch_size
-#             train_iter = NDArrayIter(x_train, y_train, batch_size, shuffle=True)
-#
-#             batch_size = x_test.shape[0] if self.batch_size is None else self.batch_size
-#             test_iter = NDArrayIter(x_test, y_test, batch_size)
-#
-#             yield train_iter, test_iter
-#         return
+class PermutedTaskGenerator(TaskGenerator):
+    def __iter__(self):
+        """
+        Iterate over tasks
+        :return: the next task
+        :rtype: NDArrayIter
+        """
+        for _ in self.tasks:
+            x_train = self.data['train_data']
+            y_train = self.data['train_label']
 
+            x_test = self.data['test_data']
+            y_test = self.data['test_label']
 
-class SplittableIterator(NDArrayIter):
-    def __init__(self, data):
-        super().__init__(data)
+            permutation = np.random.permutation(x_train.shape[1])
+
+            x_train = x_train[:, permutation]
+            x_test = x_test[:, permutation]
+
+            # Convert to one hot encodings
+            # y_train = np.eye(10)[y_train]
+            # y_test = np.eye(10)[y_test]
+
+            batch_size = self.batch_size or x_train.shape[0]
+            train_iter = NDArrayIter(x_train, y_train, batch_size, shuffle=True)
+
+            batch_size = self.batch_size or x_test.shape[0]
+            test_iter = NDArrayIter(x_test, y_test, batch_size)
+
+            yield train_iter, test_iter
+        return

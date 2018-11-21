@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 from examples.variational_continual_learning.experiment import Experiment
-from examples.variational_continual_learning.mnist import SplitTaskGenerator
+from examples.variational_continual_learning.mnist import SplitTaskGenerator, PermutedTaskGenerator
 from examples.variational_continual_learning.coresets import Random, KCenter, Vanilla
 
 import logging
@@ -34,8 +34,8 @@ def set_seeds(seed=42):
     np.random.seed(seed)
 
 
-def plot(title, experiments, tasks):
-    fig = plt.figure(figsize=(len(tasks), 3))
+def plot(title, experiments, num_tasks):
+    fig = plt.figure(figsize=(num_tasks, 3))
     ax = plt.gca()
 
     x = range(1, len(tasks) + 1)
@@ -60,13 +60,32 @@ if __name__ == "__main__":
     # Load data
     data = mx.test_utils.get_mnist()
     input_dim = int(np.prod(data['train_data'][0].shape))  # Note the data will get flattened later
+
+    # noinspection PyUnreachableCode
+    if True:
+        title = "Split MNIST"
+        tasks = ((0, 1), (2, 3))  # , (4, 5), (6, 7), (8, 9))
+        num_epochs = 1  # 120
+        batch_size = None
+        gen = SplitTaskGenerator
+        label_shape = 2
+        network_shape = (input_dim, 256, 256, (label_shape, ))
+        single_head = False
+        coreset_size = 40
+    else:
+        title = "Permuted MNIST"
+        tasks = range(2)  # range(10)
+        num_epochs = 1  # 100
+        batch_size = 256
+        gen = PermutedTaskGenerator
+        label_shape = 10
+        network_shape = (input_dim, 100, 100, label_shape)
+        single_head = True
+        coreset_size = 200
+
     data_dtype = data['train_data'].dtype
     label_dtype = data['train_label'].dtype
-    tasks = ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
-    gen = SplitTaskGenerator(data, batch_size=None, tasks=tasks)
 
-    network_shape = (input_dim, 256, 256, 2)  # binary classification
-    num_epochs = 120  # 120
     learning_rate = 0.01
     optimizer = 'adam'
 
@@ -77,21 +96,21 @@ if __name__ == "__main__":
             optimizer=optimizer,
             network_shape=network_shape,
             num_epochs=num_epochs,
-            single_head=False),
-        dict(
-            coreset=Random(coreset_size=40),
-            learning_rate=learning_rate,
-            optimizer=optimizer,
-            network_shape=network_shape,
-            num_epochs=num_epochs,
-            single_head=False),
-        dict(
-            coreset=KCenter(coreset_size=40),
-            learning_rate=learning_rate,
-            optimizer=optimizer,
-            network_shape=network_shape,
-            num_epochs=num_epochs,
-            single_head=False)
+            single_head=single_head),
+        # dict(
+        #     coreset=Random(coreset_size=coreset_size),
+        #     learning_rate=learning_rate,
+        #     optimizer=optimizer,
+        #     network_shape=network_shape,
+        #     num_epochs=num_epochs,
+        #     single_head=single_head),
+        # dict(
+        #     coreset=KCenter(coreset_size=coreset_size),
+        #     learning_rate=learning_rate,
+        #     optimizer=optimizer,
+        #     network_shape=network_shape,
+        #     num_epochs=num_epochs,
+        #     single_head=single_head)
     )
 
     experiments = []
@@ -102,11 +121,14 @@ if __name__ == "__main__":
         print("Running experiment", params['coreset'].__class__.__name__)
         print("-" * 50)
         set_seeds()
-        experiment = Experiment(batch_size=None, data_generator=gen, ctx=CTX, **params)
+        experiment = Experiment(batch_size=batch_size,
+                                data_generator=gen(data, batch_size=batch_size, tasks=tasks),
+                                ctx=CTX,
+                                **params)
         experiment.run()
         print(experiment.overall_accuracy)
         experiments.append(experiment)
         print("-" * 50)
         print()
 
-    plot("Split MNIST", experiments, tasks)
+    plot(title, experiments, len(tasks))

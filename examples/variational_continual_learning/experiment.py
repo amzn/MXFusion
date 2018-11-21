@@ -78,8 +78,7 @@ class Experiment:
 
             # Train network with maximum likelihood to initialize first model
             if task_id == 0:
-                # TODO: test_iterator should be val_iter
-                print("Training vanilla neural network as starting point")
+                print("Training non-Bayesian neural network as starting point")
                 self.vanilla_model.train(
                     train_iterator=train_iterator,
                     validation_iterator=test_iterator,
@@ -92,7 +91,6 @@ class Experiment:
                 train_iterator.reset()
 
             # Train on non-coreset data
-            # TODO: test_iterator should be val_iter
             print("Training main model")
             self.bayesian_model.train(
                 train_iterator=train_iterator,
