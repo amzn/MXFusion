@@ -22,6 +22,7 @@ class Experiment:
     def __init__(self, network_shape, num_epochs, learning_rate, optimizer, data_generator,
                  coreset, batch_size, single_head, ctx):
         self.network_shape = network_shape
+        self.original_network_shape = network_shape  # Only used when resetting
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
         self.optimizer = optimizer
@@ -38,14 +39,9 @@ class Experiment:
         self.bayesian_model = None
         self.prediction_model = None
 
-        self.reset()
-
-    def reset(self):
-        self.coreset.reset()
-        self.overall_accuracy = np.array([])
-        self.test_iterators = dict()
-
-        model_params = dict(
+    @property
+    def model_params(self):
+        return dict(
             network_shape=self.network_shape,
             learning_rate=self.learning_rate,
             optimizer=self.optimizer,
@@ -53,9 +49,18 @@ class Experiment:
             ctx=self.context
         )
 
-        self.vanilla_model = VanillaNN(**model_params)
-        self.bayesian_model = BayesianNN(**model_params)
-        self.prediction_model = BayesianNN(**model_params)
+    def reset(self):
+        self.coreset.reset()
+        self.network_shape = self.original_network_shape
+        self.overall_accuracy = np.array([])
+        self.test_iterators = dict()
+
+        print("Creating Vanilla Model")
+        self.vanilla_model = VanillaNN(**self.model_params)
+        print("Creating Bayesian Model")
+        self.bayesian_model = BayesianNN(**self.model_params)
+        print("Creating Prediction Model")
+        self.prediction_model = BayesianNN(**self.model_params)
 
     def run(self, verbose=True):
         self.reset()
@@ -64,38 +69,45 @@ class Experiment:
         # We will in fact use the results of maximum likelihood as the first prior
         priors = None
 
-        for task_id, (train_iterator, test_iterator) in enumerate(self.data_generator):
-            print("Task: ", task_id)
-            self.test_iterators[task_id] = test_iterator
+        for task in self.data_generator:
+            print("Task: ", task.task_id)
+            self.test_iterators[task.task_id] = task.test_iterator
 
             # Set the readout head to train_iterator
-            head = 0 if self.single_head else task_id
+            head = 0 if self.single_head else task.task_id
 
             # Update the coreset, and update the train iterator to remove the coreset data
-            train_iterator = self.coreset.update(train_iterator)
+            train_iterator = self.coreset.update(task.train_iterator)
 
-            batch_size = train_iterator.provide_label[0].shape[0] if self.batch_size is None else self.batch_size
+            label_shape = train_iterator.provide_label[0].shape
+            batch_size = label_shape[0] if self.batch_size is None else self.batch_size
 
             # Train network with maximum likelihood to initialize first model
-            if task_id == 0:
+            if task.task_id == 0:
                 print("Training non-Bayesian neural network as starting point")
                 self.vanilla_model.train(
                     train_iterator=train_iterator,
-                    validation_iterator=test_iterator,
-                    task_id=task_id,
+                    validation_iterator=task.test_iterator,
+                    head=task.task_id,
                     epochs=5,
                     batch_size=batch_size,
                     verbose=verbose)
 
                 priors = self.vanilla_model.net.collect_params()
                 train_iterator.reset()
+            else:
+                if not self.single_head:
+                    self.network_shape = self.network_shape[0:-1] + \
+                                         (self.network_shape[-1] + (task.number_of_classes,),)
+                    # TODO: Would be nice if we could use the same object here
+                    self.bayesian_model = BayesianNN(**self.model_params)
 
             # Train on non-coreset data
             print("Training main model")
             self.bayesian_model.train(
                 train_iterator=train_iterator,
-                validation_iterator=test_iterator,
-                task_id=head,
+                validation_iterator=task.test_iterator,
+                head=head,
                 epochs=self.num_epochs,
                 batch_size=self.batch_size,
                 priors=priors)
@@ -105,7 +117,7 @@ class Experiment:
 
             # Incorporate coreset data and make prediction
             acc = self.get_scores()
-            print("Accuracies after task {}: [{}]".format(task_id, ", ".join(map("{:.3f}".format, acc))))
+            print("Accuracies after task {}: [{}]".format(task.task_id, ", ".join(map("{:.3f}".format, acc))))
             self.overall_accuracy = self.concatenate_results(acc, self.overall_accuracy)
 
     def get_scores(self):
@@ -121,7 +133,7 @@ class Experiment:
                 prediction_model.train(
                     train_iterator=train_iterator,
                     validation_iterator=None,
-                    task_id=0,
+                    head=0,
                     epochs=self.num_epochs,
                     batch_size=batch_size,
                     priors=priors)
@@ -139,7 +151,7 @@ class Experiment:
                     prediction_model.train(
                         train_iterator=self.coreset.iterator,
                         validation_iterator=None,
-                        task_id=task_id,
+                        head=task_id,
                         epochs=self.num_epochs,
                         batch_size=self.batch_size,
                         priors=self.bayesian_model.posteriors)

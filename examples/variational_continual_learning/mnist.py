@@ -16,6 +16,15 @@ import numpy as np
 from mxnet.io import NDArrayIter
 
 
+class Task:
+    def __init__(self, task_id, task_details, train_iterator, test_iterator, number_of_classes):
+        self.task_id = task_id
+        self.task_details = task_details
+        self.train_iterator = train_iterator
+        self.test_iterator = test_iterator
+        self.number_of_classes = number_of_classes
+
+
 class TaskGenerator:
     def __init__(self, data, batch_size, tasks):
         self.data = data
@@ -30,7 +39,7 @@ class SplitTaskGenerator(TaskGenerator):
         :return: the next task
         :rtype: NDArrayIter
         """
-        for task in self.tasks:
+        for i, task in enumerate(self.tasks):
             idx_train_0 = np.where(self.data['train_label'] == task[0])[0]
             idx_train_1 = np.where(self.data['train_label'] == task[1])[0]
             idx_test_0 = np.where(self.data['test_label'] == task[0])[0]
@@ -48,7 +57,7 @@ class SplitTaskGenerator(TaskGenerator):
             batch_size = self.batch_size or x_test.shape[0]
             test_iter = NDArrayIter(x_test, y_test, batch_size)
 
-            yield train_iter, test_iter
+            yield Task(i, task, train_iter, test_iter, number_of_classes=2)
         return
 
 
@@ -59,7 +68,7 @@ class PermutedTaskGenerator(TaskGenerator):
         :return: the next task
         :rtype: NDArrayIter
         """
-        for _ in self.tasks:
+        for i, task in enumerate(self.tasks):
             x_train = self.data['train_data']
             y_train = self.data['train_label']
 
@@ -81,5 +90,5 @@ class PermutedTaskGenerator(TaskGenerator):
             batch_size = self.batch_size or x_test.shape[0]
             test_iter = NDArrayIter(x_test, y_test, batch_size)
 
-            yield train_iter, test_iter
+            yield Task(i, task, train_iter, test_iter, number_of_classes=y_train.shape[1])
         return

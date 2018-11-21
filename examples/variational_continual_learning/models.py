@@ -23,7 +23,6 @@ from mxfusion.components import MXFusionGluonFunction
 from mxfusion.components.distributions import Normal, Categorical
 from mxfusion.inference import BatchInferenceLoop, create_Gaussian_meanfield, GradBasedInference, \
     StochasticVariationalInference, VariationalPosteriorForwardSampling
-import numpy as np
 from abc import ABC, abstractmethod
 
 
@@ -31,7 +30,6 @@ class BaseNN(ABC):
     prefix = None
 
     def __init__(self, network_shape, learning_rate, optimizer, max_iter, ctx):
-        self.task_idx = mx.nd.array([-1], dtype=np.float32)
         self.model = None
         self.network_shape = network_shape
         self.learning_rate = learning_rate
@@ -45,14 +43,32 @@ class BaseNN(ABC):
         self.create_net()
         self.loss = SoftmaxCrossEntropyLoss()
 
+    @property
+    def single_head(self):
+        if isinstance(self.network_shape[-1], int):
+            return True
+        if isinstance(self.network_shape[-1], (tuple, list)):
+            return False
+        raise ValueError("Unsupported network shape")
+
+    @property
+    def num_heads(self):
+        return 1 if self.single_head else len(self.network_shape[-1])
+
     def create_net(self):
         # Create net
         self.net = HybridSequential(prefix=self.prefix)
         with self.net.name_scope():
             for i in range(1, len(self.network_shape) - 1):
                 self.net.add(Dense(self.network_shape[i], activation="relu", in_units=self.network_shape[i - 1]))
-            #  Last layer for classification
-            self.net.add(Dense(self.network_shape[-1], in_units=self.network_shape[-2]))
+
+            # Last layer for classification - one per head for multi-head networks
+            if self.single_head:
+                self.net.add(Dense(self.network_shape[-1], in_units=self.network_shape[-2]))
+            else:
+                for label_shape in self.network_shape[-1]:
+                    self.net.add(Dense(label_shape, in_units=self.network_shape[-2]))
+
         self.net.initialize(Xavier(magnitude=2.34), ctx=self.ctx)
 
     def forward(self, data):
@@ -62,6 +78,12 @@ class BaseNN(ABC):
         return output
 
     def evaluate_accuracy(self, data_iterator):
+        """
+        Evaluate the accuracy of the model on the given data iterator
+        :param data_iterator: data iterator
+        :return: accuracy
+        :rtype: float
+        """
         acc = Accuracy()
         for i, batch in enumerate(data_iterator):
             output = self.forward(batch.data[0])
@@ -71,7 +93,7 @@ class BaseNN(ABC):
         return acc.get()[1]
 
     @abstractmethod
-    def train(self, train_iterator, validation_iterator, task_id, batch_size, epochs, priors=None, verbose=True):
+    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None, verbose=True):
         raise NotImplementedError
 
     def prediction_prob(self, test_iter, task_idx):
@@ -92,7 +114,7 @@ class BaseNN(ABC):
 class VanillaNN(BaseNN):
     prefix = 'vanilla_'
 
-    def train(self, train_iterator, validation_iterator, task_id, batch_size, epochs, priors=None, verbose=True):
+    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None, verbose=True):
         trainer = Trainer(self.net.collect_params(), self.optimizer, dict(learning_rate=self.learning_rate))
 
         num_examples = 0
@@ -123,21 +145,50 @@ class BayesianNN(BaseNN):
         self.create_model()
 
     def create_model(self):
-        self.model = Model()
+        self.model = Model(verbose=True)
         self.model.N = Variable()
-        self.model.f = MXFusionGluonFunction(self.net, num_outputs=1, broadcastable=False)
+        self.model.f = MXFusionGluonFunction(self.net, num_outputs=self.num_heads, broadcastable=False)
         self.model.x = Variable(shape=(self.model.N, self.network_shape[0]))
-        self.model.r = self.model.f(self.model.x)
-        self.model.y = Categorical.define_variable(log_prob=self.model.r, shape=(self.model.N, 1), num_classes=2)
 
-        for v in self.model.r.factor.parameters.values():
+        if self.single_head:
+            self.model.r = self.model.f(self.model.x)
+            self.model.y = Categorical.define_variable(
+                log_prob=self.model.r, shape=(self.model.N, 1), num_classes=self.network_shape[-1])
+            self.create_prior_variables(self.model.r)
+        else:
+            for head, label_shape in enumerate(self.network_shape[-1]):
+                r = self.model.f(self.model.x)[head] if self.num_heads > 1 else self.model.f(self.model.x)
+                setattr(self.model, f'r{head}', r)
+                y = Categorical.define_variable(log_prob=r, shape=(self.model.N, 1), num_classes=label_shape)
+                setattr(self.model, f'y{head}', y)
+                # TODO the statement below could probably be done only for the first head, since they all share the same
+                # factor parameters
+                self.create_prior_variables(r)
+
+    def create_prior_variables(self, r):
+        for v in r.factor.parameters.values():
+            # First check that the variables haven't already been created (in multi-head case)
+            if getattr(self.model, v.inherited_name + "_mean", None) is not None:
+                continue
+            if getattr(self.model, v.inherited_name + "_variance", None) is not None:
+                continue
+
             means = Variable(shape=v.shape)
             variances = Variable(shape=v.shape)
             setattr(self.model, v.inherited_name + "_mean", means)
             setattr(self.model, v.inherited_name + "_variance", variances)
             v.set_prior(Normal(mean=means, variance=variances))
 
-    def train(self, train_iterator, validation_iterator, task_id, batch_size, epochs, priors=None, verbose=True):
+    # noinspection PyUnresolvedReferences
+    def get_net_parameters(self, head):
+        if self.single_head:
+            r = self.model.r
+        else:
+            r = getattr(self.model, f'r{head}')
+        return r.factor.parameters
+
+    # noinspection PyUnresolvedReferences
+    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None, verbose=True):
         for i, batch in enumerate(train_iterator):
             if i > 0:
                 raise NotImplementedError("Currently not supported for more than one batch of data. "
@@ -147,29 +198,41 @@ class BayesianNN(BaseNN):
             labels = mx.nd.expand_dims(batch.label[0], axis=-1).as_in_context(self.ctx)
 
             # pass some data to initialise the net
-            self.net(data[:1])
+            # self.net(data[:1])
 
             # TODO: Would rather have done this before!
             # self.create_model()
 
-            observed = [self.model.x, self.model.y]
+            if self.single_head:
+                observed = [self.model.x, self.model.y]
+                kwargs = dict(y=labels, x=data)
+            else:
+                observed = [self.model.x, getattr(self.model, f"y{head}")]
+                kwargs = {'x': data, f'y{head}': labels}
+
             q = create_Gaussian_meanfield(model=self.model, observed=observed)
             alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
             self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
-            self.inference.initialize(y=labels, x=data)
+            self.inference.initialize(**kwargs)
 
-            for v in self.model.r.factor.parameters.values():
+            def prior_mean(shape):
+                return mx.nd.zeros(shape=shape)
+
+            def prior_variance(shape):
+                return mx.nd.ones(shape=shape) * 3
+
+            for v in self.get_net_parameters(head).values():
                 v_name_mean = v.inherited_name + "_mean"
                 v_name_variance = v.inherited_name + "_variance"
 
-                if priors is None:
-                    means = mx.nd.zeros(shape=v.shape)
-                    variances = mx.nd.ones(shape=v.shape) * 3
+                if priors is None or (v_name_mean not in priors and v_name_variance not in priors):
+                    means = prior_mean(shape=v.shape)
+                    variances = prior_variance(shape=v.shape)
                 elif isinstance(priors, ParameterDict):
                     # This is a maximum likelihood estimate
                     short_name = v.inherited_name.partition(self.prefix)[-1]
                     means = priors.get(short_name).data()
-                    variances = mx.nd.ones(shape=v.shape) * 3
+                    variances = prior_variance(shape=v.shape)
                 else:
                     # Use posteriors from previous round of inference
                     means = priors[v_name_mean]
@@ -188,18 +251,27 @@ class BayesianNN(BaseNN):
                 self.inference.params.param_dict[variance_prior]._grad_req = 'null'
 
             self.inference.run(max_iter=self.max_iter, learning_rate=self.learning_rate,
-                               x=data, y=labels, verbose=False, callback=self.print_status)
+                               verbose=False, callback=self.print_status, **kwargs)
 
+    # noinspection PyUnresolvedReferences
     @property
     def posteriors(self):
         q = self.inference.inference_algorithm.posterior
         posteriors = dict()
-        for v_name, v in self.model.r.factor.parameters.items():
-            posteriors[v.inherited_name + "_mean"] = self.inference.params[q[v.uuid].factor.mean].asnumpy()
-            posteriors[v.inherited_name + "_variance"] = self.inference.params[q[v.uuid].factor.variance].asnumpy()
+        if self.single_head:
+            for v_name, v in self.model.r.factor.parameters.items():
+                posteriors[v.inherited_name + "_mean"] = self.inference.params[q[v.uuid].factor.mean].asnumpy()
+                posteriors[v.inherited_name + "_variance"] = self.inference.params[q[v.uuid].factor.variance].asnumpy()
+        else:
+            for head in range(self.num_heads):
+                for v in self.get_net_parameters(head).values():
+                    posteriors[v.inherited_name + "_mean"] = self.inference.params[q[v.uuid].factor.mean].asnumpy()
+                    posteriors[v.inherited_name + "_variance"] = \
+                        self.inference.params[q[v.uuid].factor.variance].asnumpy()
         return posteriors
 
-    def prediction_prob(self, test_iter, task_idx):
+    # noinspection PyUnresolvedReferences
+    def prediction_prob(self, test_iter, head):
         if self.inference is None:
             raise RuntimeError("Model not yet learnt")
 
@@ -209,9 +281,13 @@ class BayesianNN(BaseNN):
                                           "Please switch to using the MinibatchInferenceLoop")
 
             data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
-            N, D = map(lambda x: mx.nd.array([x], ctx=self.ctx), data.shape)
+
+            if self.single_head:
+                r = self.model.r
+            else:
+                r = getattr(self.model, f'r{head}')
 
             prediction_inference = VariationalPosteriorForwardSampling(
-                10, [self.model.x], self.inference, [self.model.r])
+                10, [self.model.x], self.inference, [r])
             res = prediction_inference.run(x=mx.nd.array(data))
             return res[0].asnumpy()
