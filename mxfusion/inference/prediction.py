@@ -21,7 +21,8 @@ from ..common.exceptions import InferenceError
 
 class ModulePredictionAlgorithm(SamplingAlgorithm):
     """
-    A prediction algorithm for modules. The algorithm evaluates all the functions, draws samples from distributions and runs the predict method on all the modules.
+    A prediction algorithm for modules. The algorithm evaluates all the functions, draws samples from distributions and
+    runs the predict method on all the modules.
 
     :param model: the definition of the probabilistic model
     :type model: Model

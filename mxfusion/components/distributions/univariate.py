@@ -40,7 +40,6 @@ class UnivariateLogPDFDecorator(LogPDFDecorator):
 
             num_samples = max([get_num_samples(F, v) for v in variables.values()])
             full_shape = (num_samples,) + rv_shape
-
             variables = {name: broadcast_to_w_samples(F, v, full_shape) for
                          name, v in variables.items()}
             res = func(self, F=F, **variables)

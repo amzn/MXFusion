@@ -76,6 +76,7 @@ class Module(Factor):
                 if key in g:
                     return g[key]
         return self._module_graph[key]
+
     def _generate_outputs(self, output_shapes):
         """
         Generate the output of the module with given output_shapes.

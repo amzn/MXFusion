@@ -146,6 +146,10 @@ class InferenceParameters(object):
         #     if to_var_uuid in carryover.param_dict}
         self._params.update(carryover_pairs)
 
+    def fix_all(self):
+        for p in self.param_dict.collect_params():
+            p.grad_req = 'null'
+
     @property
     def param_dict(self):
         return self._params

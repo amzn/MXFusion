@@ -304,3 +304,51 @@ class TransferInference(Inference):
         self.params.initialize_with_carryover_params(
             self._graphs, self.observed_variable_UUIDs, self._var_tie,
             init_outcomes(self._inherited_params))
+
+class GradTransferInference(TransferInference):
+    """
+    The abstract Inference method for transferring the outcome of one inference
+    method to another.
+
+    :param inference_algorithm: The applied inference algorithm
+    :type inference_algorithm: InferenceAlgorithm
+    :param constants: Specify a list of model variables as constants
+    :type constants: {Variable: mxnet.ndarray}
+    :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
+    :type hybridize: boolean
+    :param dtype: data type for internal numerical representation
+    :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
+    :param context: The MXNet context
+    :type context: {mxnet.cpu or mxnet.gpu}
+    """
+
+    def __init__(self, inference_algorithm, infr_params, var_tie=None,
+                 constants=None, hybridize=False, dtype=None, context=None):
+        self._var_tie = var_tie if var_tie is not None else {}
+        self._inherited_params = infr_params
+        super(TransferInference, self).__init__(
+            inference_algorithm=inference_algorithm, constants=constants,
+            hybridize=hybridize, dtype=dtype, context=context)
+
+    def generate_executor(self, **kw):
+
+        data_shapes = [kw[v] for v in self.observed_variable_names]
+        if not self._initialized:
+            self._initialize_run(self._var_tie, self._inherited_params,
+                                 data_shapes)
+            self._initialized = True
+
+        infr = self._inference_algorithm.create_executor(
+            data_def=self.observed_variable_UUIDs, params=self.params,
+            var_ties=self.params.var_ties)
+        if self._hybridize:
+            infr.hybridize()
+        infr.initialize()
+        return infr
+
+    def _initialize_params(self):
+        self.params.initialize_with_carryover_params(
+            self._graphs, self.observed_variable_UUIDs, self._var_tie,
+            init_outcomes(self._inherited_params))
+        self.params.fix_all()
+
