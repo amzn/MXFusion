@@ -12,9 +12,10 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 import mxnet as mx
-from mxnet.gluon import Trainer, ParameterDict
+from mxnet.gluon import Trainer, ParameterDict, Block
+from mxnet.gluon.contrib.nn import Concurrent
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
-from mxnet.gluon.nn import HybridSequential, Dense
+from mxnet.gluon.nn import HybridSequential, Dense, Sequential
 from mxnet.initializer import Xavier
 from mxnet.metric import Accuracy
 
@@ -55,21 +56,62 @@ class BaseNN(ABC):
     def num_heads(self):
         return 1 if self.single_head else len(self.network_shape[-1])
 
+    class MLP(Block):
+        def __init__(self, prefix, network_shape, single_head, **kwargs):
+            super().__init__(prefix=prefix, **kwargs)
+            # self.hidden_layers = []
+            self.single_head = single_head
+
+            with self.name_scope():
+                self.hidden = Sequential()
+                for i in range(1, len(network_shape) - 1):
+                    self.hidden.add(Dense(network_shape[i], activation="relu", in_units=network_shape[i - 1]))
+
+                # for i in range(1, len(network_shape) - 1):
+                #     self.hidden_layers.append(
+                #         Dense(network_shape[i], activation="relu", in_units=network_shape[i - 1]))
+
+                self.dense1 = Dense(64, activation="relu")
+
+                if single_head:
+                    self.head = Dense(network_shape[-1], in_units=network_shape[-2])
+                else:
+                    self.concurrent = Concurrent()
+                    # self.heads = []
+                    for label_shape in network_shape[-1]:
+                        self.concurrent.add(Dense(label_shape, in_units=network_shape[-2]))
+                        # self.heads.append(Dense(label_shape, in_units=network_shape[-2]))
+
+        def forward(self, x):
+            for i in range(len(self.hidden)):
+                x = self.hidden[i](x)
+
+            # for layer in self.hidden_layers:
+            #     x = layer(x)
+
+            if self.single_head:
+                return self.head(x)
+            else:
+                return tuple(map(lambda h: h(x), self.concurrent))
+                # return tuple(map(lambda h: h(x), self.heads))
+
     def create_net(self):
         # Create net
-        self.net = HybridSequential(prefix=self.prefix)
-        with self.net.name_scope():
-            for i in range(1, len(self.network_shape) - 1):
-                self.net.add(Dense(self.network_shape[i], activation="relu", in_units=self.network_shape[i - 1]))
-
-            # Last layer for classification - one per head for multi-head networks
-            if self.single_head:
-                self.net.add(Dense(self.network_shape[-1], in_units=self.network_shape[-2]))
-            else:
-                for label_shape in self.network_shape[-1]:
-                    self.net.add(Dense(label_shape, in_units=self.network_shape[-2]))
-
+        self.net = self.MLP(self.prefix, self.network_shape, self.single_head)
         self.net.initialize(Xavier(magnitude=2.34), ctx=self.ctx)
+
+        # self.net = HybridSequential(prefix=self.prefix)
+        # with self.net.name_scope():
+        #     for i in range(1, len(self.network_shape) - 1):
+        #         self.net.add(Dense(self.network_shape[i], activation="relu", in_units=self.network_shape[i - 1]))
+        #
+        #     # Last layer for classification - one per head for multi-head networks
+        #     if self.single_head:
+        #         self.net.add(Dense(self.network_shape[-1], in_units=self.network_shape[-2]))
+        #     else:
+        #         for label_shape in self.network_shape[-1]:
+        #             self.net.add(Dense(label_shape, in_units=self.network_shape[-2]))
+        # self.net.initialize(Xavier(magnitude=2.34), ctx=self.ctx)
 
     def forward(self, data):
         # Flatten the data from 4-D shape into 2-D (batch_size, num_channel*width*height)
@@ -122,7 +164,7 @@ class VanillaNN(BaseNN):
             cumulative_loss = 0
             for i, batch in enumerate(train_iterator):
                 with mx.autograd.record():
-                    output = self.forward(batch.data[0])
+                    output = self.forward(batch.data[0].as_in_context(self.ctx))[head]
                     labels = batch.label[0].as_in_context(self.ctx)
                     loss = self.loss(output, labels)
                 loss.backward()
@@ -215,24 +257,18 @@ class BayesianNN(BaseNN):
             self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
             self.inference.initialize(**kwargs)
 
-            def prior_mean(shape):
-                return mx.nd.zeros(shape=shape)
-
-            def prior_variance(shape):
-                return mx.nd.ones(shape=shape) * 3
-
             for v in self.get_net_parameters(head).values():
                 v_name_mean = v.inherited_name + "_mean"
                 v_name_variance = v.inherited_name + "_variance"
 
                 if priors is None or (v_name_mean not in priors and v_name_variance not in priors):
-                    means = prior_mean(shape=v.shape)
-                    variances = prior_variance(shape=v.shape)
+                    means = self.prior_mean(shape=v.shape)
+                    variances = self.prior_variance(shape=v.shape)
                 elif isinstance(priors, ParameterDict):
                     # This is a maximum likelihood estimate
                     short_name = v.inherited_name.partition(self.prefix)[-1]
                     means = priors.get(short_name).data()
-                    variances = prior_variance(shape=v.shape)
+                    variances = self.prior_variance(shape=v.shape)
                 else:
                     # Use posteriors from previous round of inference
                     means = priors[v_name_mean]
@@ -291,3 +327,11 @@ class BayesianNN(BaseNN):
                 10, [self.model.x], self.inference, [r])
             res = prediction_inference.run(x=mx.nd.array(data))
             return res[0].asnumpy()
+
+    @staticmethod
+    def prior_mean(shape):
+        return mx.nd.zeros(shape=shape)
+
+    @staticmethod
+    def prior_variance(shape):
+        return mx.nd.ones(shape=shape) * 3
