@@ -90,20 +90,20 @@ if __name__ == "__main__":
     optimizer = 'adam'
 
     experiment_parameters = (
-        dict(
-            coreset=Vanilla(),
-            learning_rate=learning_rate,
-            optimizer=optimizer,
-            network_shape=network_shape,
-            num_epochs=num_epochs,
-            single_head=single_head),
         # dict(
-        #     coreset=Random(coreset_size=coreset_size),
+        #     coreset=Vanilla(),
         #     learning_rate=learning_rate,
         #     optimizer=optimizer,
         #     network_shape=network_shape,
         #     num_epochs=num_epochs,
         #     single_head=single_head),
+        dict(
+            coreset=Random(coreset_size=coreset_size),
+            learning_rate=learning_rate,
+            optimizer=optimizer,
+            network_shape=network_shape,
+            num_epochs=num_epochs,
+            single_head=single_head),
         # dict(
         #     coreset=KCenter(coreset_size=coreset_size),
         #     learning_rate=learning_rate,

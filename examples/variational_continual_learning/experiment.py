@@ -37,7 +37,9 @@ class Experiment:
         self.test_iterators = None
         self.vanilla_model = None
         self.bayesian_model = None
-        self.prediction_model = None
+
+        # self.prediction_models = dict()
+        self.task_ids = []
 
     @property
     def model_params(self):
@@ -54,13 +56,33 @@ class Experiment:
         self.network_shape = self.original_network_shape
         self.overall_accuracy = np.array([])
         self.test_iterators = dict()
+        self.task_ids = []
 
         print("Creating Vanilla Model")
         self.vanilla_model = VanillaNN(**self.model_params)
-        print("Creating Bayesian Model")
+
+        # print("Creating Bayesian Model")
+        # self.bayesian_model = BayesianNN(**self.model_params)
+
+        # if self.single_head:
+        #     print("Creating Prediction Model")
+        #     self.prediction_models[0] = BayesianNN(**self.model_params)
+
+    def new_task(self, task):
+        if self.single_head:
+            return
+
+        if len(self.task_ids) > 0:
+            self.network_shape = self.network_shape[0:-1] + (self.network_shape[-1] + (task.number_of_classes,),)
+
+        self.task_ids.append(task.task_id)
+
+        # TODO: Would be nice if we could use the same object here
         self.bayesian_model = BayesianNN(**self.model_params)
-        print("Creating Prediction Model")
-        self.prediction_model = BayesianNN(**self.model_params)
+
+        # if len(self.coreset.iterator) > 0:
+        #     # We'll keep the prediction model for each task since they'll get reused
+        #     self.prediction_models[task.task_id] = BayesianNN(**self.model_params)
 
     def run(self, verbose=True):
         self.reset()
@@ -83,24 +105,20 @@ class Experiment:
             batch_size = label_shape[0] if self.batch_size is None else self.batch_size
 
             # Train network with maximum likelihood to initialize first model
-            if task.task_id == 0:
+            if len(self.task_ids) == 0:
                 print("Training non-Bayesian neural network as starting point")
                 self.vanilla_model.train(
                     train_iterator=train_iterator,
                     validation_iterator=task.test_iterator,
-                    head=task.task_id,
+                    head=head,
                     epochs=5,
                     batch_size=batch_size,
                     verbose=verbose)
 
                 priors = self.vanilla_model.net.collect_params()
                 train_iterator.reset()
-            else:
-                if not self.single_head:
-                    self.network_shape = self.network_shape[0:-1] + \
-                                         (self.network_shape[-1] + (task.number_of_classes,),)
-                    # TODO: Would be nice if we could use the same object here
-                    self.bayesian_model = BayesianNN(**self.model_params)
+
+            self.new_task(task)
 
             # Train on non-coreset data
             print("Training main model")
@@ -110,7 +128,8 @@ class Experiment:
                 head=head,
                 epochs=self.num_epochs,
                 batch_size=self.batch_size,
-                priors=priors)
+                priors=priors,
+                verbose=verbose)
 
             # Set the priors for the next round of inference to be the current posteriors
             priors = self.bayesian_model.posteriors
@@ -118,65 +137,77 @@ class Experiment:
             # Incorporate coreset data and make prediction
             acc = self.get_scores()
             print("Accuracies after task {}: [{}]".format(task.task_id, ", ".join(map("{:.3f}".format, acc))))
-            self.overall_accuracy = self.concatenate_results(acc, self.overall_accuracy)
+            self.overall_accuracy = concatenate_results(acc, self.overall_accuracy)
+
+    def get_coreset(self, task_id):
+        """
+        For multi-headed models gets the coreset for the given task id.
+        For single-headed models this will return a merged coreset
+        :param task_id: The task id
+        :return: iterator for the coreset
+        """
+        if self.single_head:
+            # TODO: Cache the results if this is expensive?
+            return Coreset.merge(self.coreset)
+        else:
+            if len(self.coreset.iterator) > 0:
+                return self.coreset.iterator[task_id]
+            else:
+                return None
+
+    def fine_tune(self, task_id):
+        """
+        Fine tune the latest trained model using the coreset(s)
+        :param task_id: the task id
+        :return: the fine tuned prediction model
+        """
+        train_iterator = self.get_coreset(task_id)
+
+        if train_iterator is None:
+            print(f"Empty coreset: Using main model as prediction model for task {task_id}")
+            return self.bayesian_model
+
+        train_iterator.reset()
+        batch_size = train_iterator.provide_label[0].shape[0]
+        # prediction_model = self.prediction_models[task_id]
+        prediction_model = BayesianNN(**self.model_params)
+
+        print(f"Fine tuning prediction model for task {task_id}")
+        prediction_model.train(
+            train_iterator=train_iterator,
+            validation_iterator=None,
+            head=task_id,
+            epochs=self.num_epochs,
+            batch_size=batch_size,
+            priors=self.bayesian_model.posteriors)
+        return prediction_model
 
     def get_scores(self):
-        acc = []
-        prediction_model = self.prediction_model
-
-        if self.single_head:
-            if len(self.coreset.iterator) > 0:
-                train_iterator = Coreset.merge(self.coreset)
-                batch_size = train_iterator.provide_label.shape[0] if (self.batch_size is None) else self.batch_size
-                priors = self.bayesian_model.posteriors
-                print("Training single-head prediction model")
-                prediction_model.train(
-                    train_iterator=train_iterator,
-                    validation_iterator=None,
-                    head=0,
-                    epochs=self.num_epochs,
-                    batch_size=batch_size,
-                    priors=priors)
-            else:
-                print("Using main model as prediction model")
-                prediction_model = self.bayesian_model
+        scores = []
+        # TODO: different learning rate and max iter here?
 
         for task_id, test_iterator in self.test_iterators.items():
             test_iterator.reset()
-            if not self.single_head:
-                # TODO: What's the validation data here?
-                # TODO: different learning rate and max iter here?
-                if len(self.coreset.iterator) > 0:
-                    print("Training multi-head prediction model")
-                    prediction_model.train(
-                        train_iterator=self.coreset.iterator,
-                        validation_iterator=None,
-                        head=task_id,
-                        epochs=self.num_epochs,
-                        batch_size=self.batch_size,
-                        priors=self.bayesian_model.posteriors)
-                else:
-                    print(f"Using main model as prediction model for task {task_id}")
-                    prediction_model = self.bayesian_model
 
             head = 0 if self.single_head else task_id
+            prediction_model = self.fine_tune(task_id)
 
             print(f"Generating predictions for task {task_id}")
             predictions = prediction_model.prediction_prob(test_iterator, head)
             predicted_means = np.mean(predictions, axis=0)
             predicted_labels = np.argmax(predicted_means, axis=1)
             test_labels = test_iterator.label[0][1].asnumpy()
-            cur_acc = len(np.where(np.abs(predicted_labels - test_labels) < 1e-10)[0]) * 1.0 / test_labels.shape[0]
-            acc.append(cur_acc)
-        return acc
+            score = len(np.where(np.abs(predicted_labels - test_labels) < 1e-10)[0]) * 1.0 / test_labels.shape[0]
+            scores.append(score)
+        return scores
 
-    @staticmethod
-    def concatenate_results(score, all_score):
-        if all_score.size == 0:
-            all_score = np.reshape(score, (1, -1))
-        else:
-            new_arr = np.empty((all_score.shape[0], all_score.shape[1] + 1))
-            new_arr[:] = np.nan
-            new_arr[:, :-1] = all_score
-            all_score = np.vstack((new_arr, score))
-        return all_score
+
+def concatenate_results(score, all_score):
+    if all_score.size == 0:
+        all_score = np.reshape(score, (1, -1))
+    else:
+        new_arr = np.empty((all_score.shape[0], all_score.shape[1] + 1))
+        new_arr[:] = np.nan
+        new_arr[:, :-1] = all_score
+        all_score = np.vstack((new_arr, score))
+    return all_score

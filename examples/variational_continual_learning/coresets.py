@@ -42,6 +42,9 @@ class MultiIter(DataIter):
     def __len__(self):
         return len(self.iterators)
 
+    def __getitem__(self, item):
+        return self.iterators[item]
+
     def reset(self):
         for i in self.iterators:
             i.reset()

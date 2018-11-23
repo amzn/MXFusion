@@ -12,10 +12,8 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 import mxnet as mx
-from mxnet.gluon import Trainer, ParameterDict, Block
-from mxnet.gluon.contrib.nn import Concurrent
+from mxnet.gluon import Trainer, ParameterDict
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
-from mxnet.gluon.nn import HybridSequential, Dense, Sequential
 from mxnet.initializer import Xavier
 from mxnet.metric import Accuracy
 
@@ -25,6 +23,8 @@ from mxfusion.components.distributions import Normal, Categorical
 from mxfusion.inference import BatchInferenceLoop, create_Gaussian_meanfield, GradBasedInference, \
     StochasticVariationalInference, VariationalPosteriorForwardSampling
 from abc import ABC, abstractmethod
+
+from .mlp import MLP
 
 
 class BaseNN(ABC):
@@ -56,62 +56,10 @@ class BaseNN(ABC):
     def num_heads(self):
         return 1 if self.single_head else len(self.network_shape[-1])
 
-    class MLP(Block):
-        def __init__(self, prefix, network_shape, single_head, **kwargs):
-            super().__init__(prefix=prefix, **kwargs)
-            # self.hidden_layers = []
-            self.single_head = single_head
-
-            with self.name_scope():
-                self.hidden = Sequential()
-                for i in range(1, len(network_shape) - 1):
-                    self.hidden.add(Dense(network_shape[i], activation="relu", in_units=network_shape[i - 1]))
-
-                # for i in range(1, len(network_shape) - 1):
-                #     self.hidden_layers.append(
-                #         Dense(network_shape[i], activation="relu", in_units=network_shape[i - 1]))
-
-                self.dense1 = Dense(64, activation="relu")
-
-                if single_head:
-                    self.head = Dense(network_shape[-1], in_units=network_shape[-2])
-                else:
-                    self.concurrent = Concurrent()
-                    # self.heads = []
-                    for label_shape in network_shape[-1]:
-                        self.concurrent.add(Dense(label_shape, in_units=network_shape[-2]))
-                        # self.heads.append(Dense(label_shape, in_units=network_shape[-2]))
-
-        def forward(self, x):
-            for i in range(len(self.hidden)):
-                x = self.hidden[i](x)
-
-            # for layer in self.hidden_layers:
-            #     x = layer(x)
-
-            if self.single_head:
-                return self.head(x)
-            else:
-                return tuple(map(lambda h: h(x), self.concurrent))
-                # return tuple(map(lambda h: h(x), self.heads))
-
     def create_net(self):
         # Create net
-        self.net = self.MLP(self.prefix, self.network_shape, self.single_head)
+        self.net = MLP(self.prefix, self.network_shape, self.single_head)
         self.net.initialize(Xavier(magnitude=2.34), ctx=self.ctx)
-
-        # self.net = HybridSequential(prefix=self.prefix)
-        # with self.net.name_scope():
-        #     for i in range(1, len(self.network_shape) - 1):
-        #         self.net.add(Dense(self.network_shape[i], activation="relu", in_units=self.network_shape[i - 1]))
-        #
-        #     # Last layer for classification - one per head for multi-head networks
-        #     if self.single_head:
-        #         self.net.add(Dense(self.network_shape[-1], in_units=self.network_shape[-2]))
-        #     else:
-        #         for label_shape in self.network_shape[-1]:
-        #             self.net.add(Dense(label_shape, in_units=self.network_shape[-2]))
-        # self.net.initialize(Xavier(magnitude=2.34), ctx=self.ctx)
 
     def forward(self, data):
         # Flatten the data from 4-D shape into 2-D (batch_size, num_channel*width*height)
@@ -119,16 +67,21 @@ class BaseNN(ABC):
         output = self.net(data)
         return output
 
-    def evaluate_accuracy(self, data_iterator):
+    def evaluate_accuracy(self, data_iterator, head=0):
         """
         Evaluate the accuracy of the model on the given data iterator
         :param data_iterator: data iterator
+        :param head: the head of the network (for multi-head models)
         :return: accuracy
         :rtype: float
         """
         acc = Accuracy()
         for i, batch in enumerate(data_iterator):
-            output = self.forward(batch.data[0])
+            if self.single_head:
+                output = self.forward(batch.data[0])
+            else:
+                output = self.forward(batch.data[0])[head]
+
             labels = batch.label[0].as_in_context(self.ctx)
             predictions = mx.nd.argmax(output, axis=1)
             acc.update(preds=predictions, labels=labels)
@@ -174,8 +127,8 @@ class VanillaNN(BaseNN):
 
             train_iterator.reset()
             validation_iterator.reset()
-            train_accuracy = self.evaluate_accuracy(train_iterator)
-            validation_accuracy = self.evaluate_accuracy(validation_iterator)
+            train_accuracy = self.evaluate_accuracy(train_iterator, head=head)
+            validation_accuracy = self.evaluate_accuracy(validation_iterator, head=head)
             self.print_status(epoch + 1, cumulative_loss / num_examples, train_accuracy, validation_accuracy)
 
 
@@ -286,6 +239,10 @@ class BayesianNN(BaseNN):
                 self.inference.params.param_dict[mean_prior]._grad_req = 'null'
                 self.inference.params.param_dict[variance_prior]._grad_req = 'null'
 
+            if self.single_head:
+                print(f"Running single-headed inference")
+            else:
+                print(f"Running multi-headed inference for head {head}")
             self.inference.run(max_iter=self.max_iter, learning_rate=self.learning_rate,
                                verbose=False, callback=self.print_status, **kwargs)
 
@@ -318,13 +275,11 @@ class BayesianNN(BaseNN):
 
             data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
 
-            if self.single_head:
-                r = self.model.r
-            else:
-                r = getattr(self.model, f'r{head}')
+            r = self.model.r if self.single_head else getattr(self.model, f'r{head}')
 
-            prediction_inference = VariationalPosteriorForwardSampling(
-                10, [self.model.x], self.inference, [r])
+            print(data.shape)
+
+            prediction_inference = VariationalPosteriorForwardSampling(10, [self.model.x], self.inference, [r])
             res = prediction_inference.run(x=mx.nd.array(data))
             return res[0].asnumpy()
 
