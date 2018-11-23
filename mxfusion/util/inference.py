@@ -15,10 +15,19 @@
 
 from ..common.exceptions import ModelSpecificationError
 from ..components.variables import Variable, VariableType
-from ..components.variables.runtime_variable import get_num_samples
 
 
 def broadcast_samples_dict(F, array_dict, num_samples=None):
+    """
+    Broadcast the shape of arrays in the provided dictionary. When the num_samples argument is given, all the sample dimesnions (the first dimension) of the arrays in the dictionary will be broadcasted to the size of num_samples. If the num_samples argument is not given, the sample dimensions of the arrays in the dictionary will be broadcasted to the maximum number of the sizes of the sample dimensions.
+
+    :param F: the execution mode of MXNet.
+    :type F: mxnet.ndarray or mxnet.symbol
+    :param array_dict: the dictionary of arrays
+    :type array_dict: {str: MXNet NDArray or Symbol}
+    :param num_samples: (optional) the target size of the sample dimension
+    :type num_samples: None or int
+    """
 
     shape_dict = {k: v.shape for k, v in array_dict.items()}
     if num_samples is None:

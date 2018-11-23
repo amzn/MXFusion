@@ -45,6 +45,17 @@ class FunctionEvaluation(Factor):
         return replicant
 
     def eval(self, F, variables, always_return_tuple=False):
+        """
+        Evaluate the function with the pre-specified input arguments in the model defintion. All the input arguments are automatically collected from a dictionary of variables according to the UUIDs of the input arguments.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :param variables: the set of variables where the dependent variables are collected from.
+        :type variables: {str(UUID): MXNet NDArray or Symbol}
+        :param always_return_tuple: whether to always return the function outcome in a tuple, even if there is only one output variable. This makes programming easy, as the downstream code can consistently expect a tuple.
+        :type always_return_tuple: boolean
+        :returns: the outcome of the function evaluation
+        :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
+        """
         kwargs = {name: variables[var.uuid] for name, var in self.inputs
                   if not var.isInherited or var.type == VariableType.RANDVAR}
         if self.broadcastable:

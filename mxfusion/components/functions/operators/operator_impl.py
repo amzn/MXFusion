@@ -95,7 +95,20 @@ def transpose(F, data, axes=None):
 
 
 def broadcast_to(data, shape):
-    """The broadcast_to operator"""
+    """
+    This operator broadcast a variable to a target shape. The broadcasting rule is the same as [the numpy broadcasting rule](https://docs.scipy.org/doc/numpy-1.13.0/user/basics.broadcasting.html). See the following example:
+
+    ```python
+    m.x = Gaussian.define_variable(mean=broadcast_to(array([0]), (2,)),
+                                   variance=broadcast_to(array([1]), (2,))),
+                                   shape=(2,))
+    ```
+
+    :param data: the variable to be broadcasted
+    :type data: Variable
+    :param shape: the shape of which the variable will be broadcasted to
+    :type shape: tuple of int or Variable
+    """
     class BroadcastToOperator(Operator):
 
         def __init__(self, data, shape):
