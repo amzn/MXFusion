@@ -26,6 +26,7 @@ from ...inference.inference_alg import SamplingAlgorithm
 from ...util.customop import broadcast_to_w_samples
 from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.functions.operators import broadcast_to
 
 
 class SparseGPRegressionLogPdf(VariationalInference):
@@ -296,7 +297,7 @@ class SparseGPRegression(Module):
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel

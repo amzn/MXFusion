@@ -17,6 +17,31 @@ from ..common.exceptions import ModelSpecificationError
 from ..components.variables import Variable, VariableType
 
 
+def broadcast_samples_dict(F, array_dict, num_samples=None):
+    """
+    Broadcast the shape of arrays in the provided dictionary. When the num_samples argument is given, all the sample dimesnions (the first dimension) of the arrays in the dictionary will be broadcasted to the size of num_samples. If the num_samples argument is not given, the sample dimensions of the arrays in the dictionary will be broadcasted to the maximum number of the sizes of the sample dimensions.
+
+    :param F: the execution mode of MXNet.
+    :type F: mxnet.ndarray or mxnet.symbol
+    :param array_dict: the dictionary of arrays
+    :type array_dict: {str: MXNet NDArray or Symbol}
+    :param num_samples: (optional) the target size of the sample dimension
+    :type num_samples: None or int
+    """
+
+    shape_dict = {k: v.shape for k, v in array_dict.items()}
+    if num_samples is None:
+        num_samples = max([s[0] for s in shape_dict.values()])
+
+    if num_samples > 1:
+        array_dict = {
+            k: v if shape_dict[k] == num_samples
+            else F.broadcast_to(v, (num_samples,) +
+                                shape_dict[k][1:])
+            for k, v in array_dict.items()}
+    return array_dict
+
+
 def variables_to_UUID(variables):
     return [v.uuid if isinstance(v, Variable) else v for v in variables]
 

@@ -28,11 +28,11 @@ from scipy.stats import beta
 class TestBetaDistribution(object):
 
     @pytest.mark.parametrize("dtype, a, a_is_samples, b, b_is_samples, rv, rv_is_samples, num_samples", [
-        (np.float64, np.random.uniform(0.5, 2, size=(5, 2)), True, np.random.uniform(0.5, 2, size=(2,)), False, np.random.beta(1, 1, size=(5, 3, 2)), True, 5),
-        (np.float64, np.random.uniform(0.5, 2, size=(5, 2)), True, np.random.uniform(0.5, 2, size=(2,)), False, np.random.beta(1, 1, size=(5, 3, 2)), False, 5),
-        (np.float64, np.random.uniform(0.5, 2, size=(2,)), False, np.random.uniform(0.5, 2, size=(2,)), False, np.random.beta(1, 1, size=(5, 3, 2)), False, 5),
-        (np.float64, np.random.uniform(0.5, 2, size=(5, 2)), True, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.beta(1, 1, size=(5, 3, 2)), True, 5),
-        (np.float32, np.random.uniform(0.5, 2, size=(5, 2)), True, np.random.uniform(0.5, 2, size=(2,)), False, np.random.beta(1, 1, size=(5, 3, 2)), True, 5),
+        (np.float64, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.uniform(0.5, 2, size=(3, 2)), False, np.random.beta(1, 1, size=(5, 3, 2)), True, 5),
+        (np.float64, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.beta(1, 1, size=(5, 3, 2)), True, 5),
+        (np.float64, np.random.uniform(0.5, 2, size=(3, 2)), False, np.random.uniform(0.5, 2, size=(3, 2)), False, np.random.beta(1, 1, size=(5, 3, 2)), False, 5),
+        (np.float64, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.beta(1, 1, size=(5, 3, 2)), True, 5),
+        (np.float32, np.random.uniform(0.5, 2, size=(5, 3, 2)), True, np.random.uniform(0.5, 2, size=(3, 2)), False, np.random.beta(1, 1, size=(3, 2)), False, 5),
         ])
     def test_log_pdf(self, dtype, a, a_is_samples, b, b_is_samples, rv, rv_is_samples, num_samples):
 
@@ -55,7 +55,7 @@ class TestBetaDistribution(object):
         rv_mx = mx.nd.array(rv, dtype=dtype)
         if not rv_is_samples:
             rv_mx = add_sample_dimension(mx.nd, rv_mx)
-        variables = {var.a.uuid: a_mx, var.b.uuid: b_mx, var.random_variable.uuid: rv_mx}
+        variables = {var.alpha.uuid: a_mx, var.beta.uuid: b_mx, var.random_variable.uuid: rv_mx}
         log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
@@ -70,7 +70,7 @@ class TestBetaDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, a_shape, a_is_samples, b_shape, b_is_samples, rv_shape, num_samples", [
-            (np.float64, (int(1e4), 2), True, (2,), False, (3, 2), int(1e4)),
+            (np.float64, (3, 2), False, (3,2), False, (3, 2), 1000),
             # (np.float64, (2,), False, (int(1e4), 2), True, (3, 2), int(1e4)),
             # (np.float64, (2,), False, (2,), False, (3, 2), int(1e7)),
             # (np.float64, (int(1e5), 2), True, (int(1e5), 3, 2), True, (3, 2), int(1e5)),
@@ -98,20 +98,20 @@ class TestBetaDistribution(object):
         if not b_is_samples:
             b_mx = add_sample_dimension(mx.nd, b_mx)
 
-        variables = {var.a.uuid: a_mx, var.b.uuid: b_mx}
-        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
+        variables = {var.alpha.uuid: a_mx, var.beta.uuid: b_mx}
+        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples).asnumpy()
 
         assert np.issubdtype(rv_samples_rt.dtype, dtype)
         assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
-        rtol, atol = 1e-1, 1e-1
+        rtol, atol = 1e-2, 1e-2
 
-        from itertools import product
-        fits_np = [beta.fit(rv_samples_np[:, i, j])[0:2] for i, j in (product(*map(range, rv_shape)))]
-        fits_rt = [beta.fit(rv_samples_rt.asnumpy()[:, i, j])[0:2] for i, j in (product(*map(range, rv_shape)))]
+        moments_np = [np.mean(rv_samples_np), np.var(rv_samples_np)]
+        moments_mf = [np.mean(rv_samples_rt), np.var(rv_samples_rt)]
 
-        assert np.allclose(fits_np, fits_rt, rtol=rtol, atol=atol)
+        assert np.allclose(moments_np, moments_mf, rtol=rtol, atol=atol)
+
 
     def test_draw_samples_non_mock(self, plot=False):
         # Also make sure the non-mock sampler works
@@ -128,7 +128,7 @@ class TestBetaDistribution(object):
 
         rand_gen = None
         var = Beta.define_variable(shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
-        variables = {var.a.uuid: a_mx, var.b.uuid: b_mx}
+        variables = {var.alpha.uuid: a_mx, var.beta.uuid: b_mx}
         rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert array_has_samples(mx.nd, rv_samples_rt)
