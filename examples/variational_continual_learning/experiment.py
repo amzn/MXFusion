@@ -20,7 +20,7 @@ from examples.variational_continual_learning.coresets import Coreset
 
 class Experiment:
     def __init__(self, network_shape, num_epochs, learning_rate, optimizer, data_generator,
-                 coreset, batch_size, single_head, ctx):
+                 coreset, batch_size, single_head, ctx, verbose):
         self.network_shape = network_shape
         self.original_network_shape = network_shape  # Only used when resetting
         self.num_epochs = num_epochs
@@ -31,6 +31,7 @@ class Experiment:
         self.batch_size = batch_size
         self.single_head = single_head
         self.context = ctx
+        self.verbose = verbose
 
         # The following are to keep lint happy:
         self.overall_accuracy = None
@@ -48,7 +49,8 @@ class Experiment:
             learning_rate=self.learning_rate,
             optimizer=self.optimizer,
             max_iter=self.num_epochs,
-            ctx=self.context
+            ctx=self.context,
+            verbose=self.verbose
         )
 
     def reset(self):
@@ -84,7 +86,7 @@ class Experiment:
         #     # We'll keep the prediction model for each task since they'll get reused
         #     self.prediction_models[task.task_id] = BayesianNN(**self.model_params)
 
-    def run(self, verbose=True):
+    def run(self):
         self.reset()
 
         # To begin with, set the priors to None.
@@ -112,10 +114,10 @@ class Experiment:
                     validation_iterator=task.test_iterator,
                     head=head,
                     epochs=5,
-                    batch_size=batch_size,
-                    verbose=verbose)
+                    batch_size=batch_size)
 
                 priors = self.vanilla_model.net.collect_params()
+                print(f"Number of variables in priors: {len(priors.items())}")
                 train_iterator.reset()
 
             self.new_task(task)
@@ -128,11 +130,11 @@ class Experiment:
                 head=head,
                 epochs=self.num_epochs,
                 batch_size=self.batch_size,
-                priors=priors,
-                verbose=verbose)
+                priors=priors)
 
             # Set the priors for the next round of inference to be the current posteriors
             priors = self.bayesian_model.posteriors
+            print(f"Number of variables in priors: {len(priors)}")
 
             # Incorporate coreset data and make prediction
             acc = self.get_scores()
@@ -161,25 +163,29 @@ class Experiment:
         :param task_id: the task id
         :return: the fine tuned prediction model
         """
-        train_iterator = self.get_coreset(task_id)
+        coreset_iterator = self.get_coreset(task_id)
 
-        if train_iterator is None:
+        if coreset_iterator is None:
             print(f"Empty coreset: Using main model as prediction model for task {task_id}")
             return self.bayesian_model
 
-        train_iterator.reset()
-        batch_size = train_iterator.provide_label[0].shape[0]
+        coreset_iterator.reset()
+        batch_size = coreset_iterator.provide_label[0].shape[0]
         # prediction_model = self.prediction_models[task_id]
         prediction_model = BayesianNN(**self.model_params)
 
+        priors = self.bayesian_model.posteriors
+        print(f"Number of variables in priors: {len(priors)}")
+
         print(f"Fine tuning prediction model for task {task_id}")
         prediction_model.train(
-            train_iterator=train_iterator,
+            train_iterator=coreset_iterator,
             validation_iterator=None,
             head=task_id,
             epochs=self.num_epochs,
             batch_size=batch_size,
-            priors=self.bayesian_model.posteriors)
+            priors=priors)
+
         return prediction_model
 
     def get_scores(self):

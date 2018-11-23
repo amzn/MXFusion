@@ -30,7 +30,7 @@ from .mlp import MLP
 class BaseNN(ABC):
     prefix = None
 
-    def __init__(self, network_shape, learning_rate, optimizer, max_iter, ctx):
+    def __init__(self, network_shape, learning_rate, optimizer, max_iter, ctx, verbose):
         self.model = None
         self.network_shape = network_shape
         self.learning_rate = learning_rate
@@ -43,6 +43,7 @@ class BaseNN(ABC):
         self.inference = None
         self.create_net()
         self.loss = SoftmaxCrossEntropyLoss()
+        self.verbose = verbose
 
     @property
     def single_head(self):
@@ -88,7 +89,7 @@ class BaseNN(ABC):
         return acc.get()[1]
 
     @abstractmethod
-    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None, verbose=True):
+    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None):
         raise NotImplementedError
 
     def prediction_prob(self, test_iter, task_idx):
@@ -109,7 +110,7 @@ class BaseNN(ABC):
 class VanillaNN(BaseNN):
     prefix = 'vanilla_'
 
-    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None, verbose=True):
+    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None):
         trainer = Trainer(self.net.collect_params(), self.optimizer, dict(learning_rate=self.learning_rate))
 
         num_examples = 0
@@ -135,12 +136,12 @@ class VanillaNN(BaseNN):
 class BayesianNN(BaseNN):
     prefix = 'bayesian_'
 
-    def __init__(self, network_shape, learning_rate, optimizer, max_iter, ctx):
-        super().__init__(network_shape, learning_rate, optimizer, max_iter, ctx)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.create_model()
 
     def create_model(self):
-        self.model = Model(verbose=True)
+        self.model = Model(verbose=self.verbose)
         self.model.N = Variable()
         self.model.f = MXFusionGluonFunction(self.net, num_outputs=self.num_heads, broadcastable=False)
         self.model.x = Variable(shape=(self.model.N, self.network_shape[0]))
@@ -151,14 +152,15 @@ class BayesianNN(BaseNN):
                 log_prob=self.model.r, shape=(self.model.N, 1), num_classes=self.network_shape[-1])
             self.create_prior_variables(self.model.r)
         else:
+            r = self.model.f(self.model.x)
             for head, label_shape in enumerate(self.network_shape[-1]):
-                r = self.model.f(self.model.x)[head] if self.num_heads > 1 else self.model.f(self.model.x)
-                setattr(self.model, f'r{head}', r)
-                y = Categorical.define_variable(log_prob=r, shape=(self.model.N, 1), num_classes=label_shape)
+                rh = r[head] if self.num_heads > 1 else r
+                setattr(self.model, f'r{head}', rh)
+                y = Categorical.define_variable(log_prob=rh, shape=(self.model.N, 1), num_classes=label_shape)
                 setattr(self.model, f'y{head}', y)
                 # TODO the statement below could probably be done only for the first head, since they all share the same
                 # factor parameters
-                self.create_prior_variables(r)
+                self.create_prior_variables(rh)
 
     def create_prior_variables(self, r):
         for v in r.factor.parameters.values():
@@ -183,7 +185,7 @@ class BayesianNN(BaseNN):
         return r.factor.parameters
 
     # noinspection PyUnresolvedReferences
-    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None, verbose=True):
+    def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None):
         for i, batch in enumerate(train_iterator):
             if i > 0:
                 raise NotImplementedError("Currently not supported for more than one batch of data. "
@@ -192,8 +194,11 @@ class BayesianNN(BaseNN):
             data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
             labels = mx.nd.expand_dims(batch.label[0], axis=-1).as_in_context(self.ctx)
 
+            if self.verbose:
+                print(f"Data shape {data.shape}")
+
             # pass some data to initialise the net
-            # self.net(data[:1])
+            self.net(data[:1])
 
             # TODO: Would rather have done this before!
             # self.create_model()
@@ -204,6 +209,11 @@ class BayesianNN(BaseNN):
             else:
                 observed = [self.model.x, getattr(self.model, f"y{head}")]
                 kwargs = {'x': data, f'y{head}': labels}
+                # observed = [self.model.x] + [getattr(self.model, f"y{h}") for h in range(self.num_heads)]
+                # kwargs = {'x': data, f'y{head}': labels}
+                # for h in range(self.num_heads):
+                #     if h != head:
+                #         kwargs[f"y{h}"] = None
 
             q = create_Gaussian_meanfield(model=self.model, observed=observed)
             alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
@@ -250,6 +260,8 @@ class BayesianNN(BaseNN):
     @property
     def posteriors(self):
         q = self.inference.inference_algorithm.posterior
+
+        # TODO: don't convert to numpy arrays
         posteriors = dict()
         if self.single_head:
             for v_name, v in self.model.r.factor.parameters.items():
@@ -261,6 +273,8 @@ class BayesianNN(BaseNN):
                     posteriors[v.inherited_name + "_mean"] = self.inference.params[q[v.uuid].factor.mean].asnumpy()
                     posteriors[v.inherited_name + "_variance"] = \
                         self.inference.params[q[v.uuid].factor.variance].asnumpy()
+                    print(f"Head {head}, variable {v.inherited_name}, "
+                          f"shape {posteriors[v.inherited_name + '_mean'].shape}")
         return posteriors
 
     # noinspection PyUnresolvedReferences
@@ -275,9 +289,13 @@ class BayesianNN(BaseNN):
 
             data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
 
+            # pass some data to initialise the net
+            self.net(data[:1])
+
             r = self.model.r if self.single_head else getattr(self.model, f'r{head}')
 
-            print(data.shape)
+            if self.verbose:
+                print(f"Data shape {data.shape}")
 
             prediction_inference = VariationalPosteriorForwardSampling(10, [self.model.x], self.inference, [r])
             res = prediction_inference.run(x=mx.nd.array(data))

@@ -60,6 +60,7 @@ if __name__ == "__main__":
     # Load data
     data = mx.test_utils.get_mnist()
     input_dim = int(np.prod(data['train_data'][0].shape))  # Note the data will get flattened later
+    verbose = True
 
     # noinspection PyUnreachableCode
     if True:
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         set_seeds()
         experiment = Experiment(batch_size=batch_size,
                                 data_generator=gen(data, batch_size=batch_size, tasks=tasks),
-                                ctx=CTX,
+                                ctx=CTX, verbose=verbose,
                                 **params)
         experiment.run()
         print(experiment.overall_accuracy)
