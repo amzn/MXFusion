@@ -264,7 +264,6 @@ class Variable(ModelComponent):
         from ..functions.operators import power
         return power(self, y)
 
-    @property
-    def T(self):
+    def transpose(self):
         from ..functions.operators import transpose
         return transpose(self)
