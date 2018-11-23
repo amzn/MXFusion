@@ -89,7 +89,7 @@ class FunctionEvaluationDecorator(object):
                         results.append(r)
                     if isinstance(results[0], (list, tuple)):
                         # if the function has multiple output variables.
-                        results = [F.concat([r[i] for r in results], dim=0) for
+                        results = [F.concat(*[r[i] for r in results], dim=0) for
                                    i in range(len(results[0]))]
                     else:
                         results = F.concat(*results, dim=0)
