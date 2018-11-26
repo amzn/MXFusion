@@ -205,17 +205,21 @@ class BayesianNN(BaseNN):
 
             if self.single_head:
                 observed = [self.model.x, self.model.y]
+                ignored = None
                 kwargs = dict(y=labels, x=data)
             else:
                 observed = [self.model.x, getattr(self.model, f"y{head}")]
-                kwargs = {'x': data, f'y{head}': labels}
+                y_other = [getattr(self.model, f"y{h}") for h in range(self.num_heads) if h != head]
+                r_other = [getattr(self.model, f"r{h}") for h in range(self.num_heads) if h != head]
+                ignored = y_other
+                kwargs = {'x': data, f'y{head}': labels, 'ignored': y_other + r_other}
                 # observed = [self.model.x] + [getattr(self.model, f"y{h}") for h in range(self.num_heads)]
                 # kwargs = {'x': data, f'y{head}': labels}
                 # for h in range(self.num_heads):
                 #     if h != head:
                 #         kwargs[f"y{h}"] = None
 
-            q = create_Gaussian_meanfield(model=self.model, observed=observed)
+            q = create_Gaussian_meanfield(model=self.model, ignored=ignored, observed=observed)
             alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
             self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
             self.inference.initialize(**kwargs)
