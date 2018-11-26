@@ -147,7 +147,7 @@ class InferenceParameters(object):
         self._params.update(carryover_pairs)
 
     def fix_all(self):
-        for p in self.param_dict.collect_params():
+        for p in self.param_dict.values():
             p.grad_req = 'null'
 
     @property

@@ -37,7 +37,7 @@ Submodules
 
 from .map import MAP
 from .batch_loop import BatchInferenceLoop
-from .inference import Inference, TransferInference
+from .inference import Inference, TransferInference, GradTransferInference
 from .minibatch_loop import MinibatchInferenceLoop
 from .meanfield import create_Gaussian_meanfield
 from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampling, ForwardSamplingAlgorithm
@@ -47,3 +47,4 @@ from .inference_parameters import InferenceParameters
 from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
 from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
 from .prediction import ModulePredictionAlgorithm
+from .model_based_alg import ModelBasedAlgorithm

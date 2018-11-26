@@ -58,7 +58,7 @@ class Inference(object):
     def print_params(self):
         """
         Returns a string with the inference parameters nicely formatted for display, showing which model they came from and their name + uuid.
-        
+
         Format:
         > infr.print_params()
         Variable(1ab23)(name=y) - (Model/Posterior(123ge2)) - (first mxnet values/shape)
@@ -321,30 +321,6 @@ class GradTransferInference(TransferInference):
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
     """
-
-    def __init__(self, inference_algorithm, infr_params, var_tie=None,
-                 constants=None, hybridize=False, dtype=None, context=None):
-        self._var_tie = var_tie if var_tie is not None else {}
-        self._inherited_params = infr_params
-        super(TransferInference, self).__init__(
-            inference_algorithm=inference_algorithm, constants=constants,
-            hybridize=hybridize, dtype=dtype, context=context)
-
-    def generate_executor(self, **kw):
-
-        data_shapes = [kw[v] for v in self.observed_variable_names]
-        if not self._initialized:
-            self._initialize_run(self._var_tie, self._inherited_params,
-                                 data_shapes)
-            self._initialized = True
-
-        infr = self._inference_algorithm.create_executor(
-            data_def=self.observed_variable_UUIDs, params=self.params,
-            var_ties=self.params.var_ties)
-        if self._hybridize:
-            infr.hybridize()
-        infr.initialize()
-        return infr
 
     def _initialize_params(self):
         self.params.initialize_with_carryover_params(

@@ -33,13 +33,14 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
                          algorithm.
     :type extra_graphs: [FactorGraph]
     """
-    def __init__(self, model, observed, cost_function, policy, n_time_steps, s_0, extra_graphs=None):
-        # model is a GP module
+    def __init__(self, model, observed, cost_function, policy, n_time_steps, initial_state, extra_graphs=None, num_samples=3):
+        # TODO model should be a GP module
         super(ModelBasedAlgorithm, self).__init__(model, observed, extra_graphs=extra_graphs)
         self.cost_function = cost_function
         self.policy = policy
-        self.s_0 = s_0
+        self.s_0 = initial_state
         self.n_time_steps = n_time_steps
+        self.num_samples = num_samples
 
     def compute(self, F, variables):
         """
@@ -51,29 +52,29 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         variables at runtime.
         :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the inference algorithm
-        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        :rtype: mxnet.NDArray or mxnet.Symbol
         """
-
-        from mxfusion.inference import TransferInference, ModulePredictionAlgorithm
-        infr_pred = TransferInference(ModulePredictionAlgorithm(model=self.model, observed=[self.model.X],
-                                                                target_variables=[self.model.Y]),
-                                      infr_params=self.infr.params)
-
         a_0 = self.policy(self.s_0)
-        x_t = mx.nd.concatenate([self.s_0, a_0], axis=1)
-        cost = mx.nd.array([0.])
+        x_t_pre = mx.nd.expand_dims(mx.nd.concat(self.s_0, a_0, dim=1), axis=0)
+        x_t = mx.nd.broadcast_to(x_t_pre, shape=(self.num_samples,) + x_t_pre.shape[1:])
+        cost = mx.nd.zeros(shape=(self.num_samples,1), dtype='float64')
         for t in range(self.n_time_steps):
 
-            # s_t_plus_1, _ = self.model.GP.predict(x_t)
+            variables[self.model.X] = x_t
+            res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y])
+            s_t_mean = res[0][0]
+            s_t_std = mx.nd.sqrt(res[0][1])
+            s_t_std = mx.nd.expand_dims(mx.nd.broadcast_axis(s_t_std, axis=1, size=self.s_0.shape[-1]), axis=1)
+            die = F.random.normal(shape=s_t_mean.shape, dtype='float64')
+            s_t_plus_1 = s_t_mean + s_t_std * die
+            # s_t_plus_1 = F.random.normal(loc=s_t_mean, scale=s_t_std, dtype='float64')
+            # import pdb; pdb.set_trace()
+            # print(s_t_plus_1)
 
-            variables[model.X] = x_t
-            res = self.model.predict(F, variables, targets=[self.model.Y])
-            # res = infr_pred.run(X=x_t)
-            # s_t_plus_1_var = res[1].asnumpy()[0]
-            s_t_plus_1 = res[0].asnumpy()[0]
+            cost = mx.nd.concat(cost, self.cost_function(s_t_plus_1), dim=1)
 
-            cost = cost.concat(self.cost_function(s_t_plus_1))
-
-            a_t_plus_1 = self.policy(s_t_plus_1)
-            x_t = mx.nd.concatenate([s_t_plus_1, a_t_plus_1], axis=1)
-        return F.sum(cost)
+            a_t_plus_1 = mx.nd.expand_dims(self.policy(s_t_plus_1), axis=2)
+            x_t = mx.nd.concat(s_t_plus_1, a_t_plus_1, dim=2)
+            # import pdb; pdb.set_trace()
+        total_cost = F.sum(cost)
+        return total_cost, total_cost
