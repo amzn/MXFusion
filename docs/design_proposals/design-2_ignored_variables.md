@@ -75,7 +75,13 @@ kwargs = dict(x=x, y0=y, ignored=[model.y1, model.r1])
 inference.run(max_iter=max_iter, learning_rate=learning_rate, verbose=False, callback=print_status, **kwargs)
 ```
 
-Note here that we have additionally specified that the parent of `y1`, `r1`, should also be ignored.
+Note here that we have additionally specified that the parent of `y1`, `r1`, should also be ignored. In terms of the Machine Learning algorithm, this would then be estimating the posterior:
+
+```
+p(Θ, r0, r1 | x, y0, y1) = p(Θ, r0 | x, y0) ∝ p(x, y0 , r0| Θ) p(Θ) 
+```
+
+where `Θ` denotes all of the weights and biases collected together.
 
 ## Rejected Alternatives
 
