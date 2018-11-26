@@ -13,14 +13,8 @@
 # ==============================================================================
 
 
-import numpy as np
-import mxnet as mx
 from ...common.config import get_default_MXNet_mode
-from ..variables import Variable
-from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
-from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import array_has_samples, get_num_samples
-from ...util.customop import broadcast_to_w_samples
+from .univariate import UnivariateDistribution
 
 
 class Gamma(UnivariateDistribution):
@@ -44,12 +38,11 @@ class Gamma(UnivariateDistribution):
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(Gamma, self).__init__(inputs=inputs, outputs=None,
-                                     input_names=input_names,
-                                     output_names=output_names,
-                                     rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+                                    input_names=input_names,
+                                    output_names=output_names,
+                                    rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, alpha, beta, random_variable, F=None):
+    def log_pdf_impl(self, alpha, beta, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the Gamma distribution.
 
@@ -65,8 +58,7 @@ class Gamma(UnivariateDistribution):
         p1 = (alpha - 1.) * F.log(random_variable)
         return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, alpha, beta, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, alpha, beta, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the Gamma distribution.
         :param rv_shape: the shape of each sample.
@@ -78,7 +70,8 @@ class Gamma(UnivariateDistribution):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
-        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype, ctx=self.ctx)
+        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype,
+                              ctx=self.ctx)
 
     @staticmethod
     def define_variable(alpha=0., beta=1., shape=None, rand_gen=None,
@@ -98,9 +91,10 @@ class Gamma(UnivariateDistribution):
         :rtypes: Variable
         """
         dist = Gamma(alpha=alpha, beta=beta, rand_gen=rand_gen,
-                        dtype=dtype, ctx=ctx)
+                     dtype=dtype, ctx=ctx)
         dist._generate_outputs(shape=shape)
         return dist.random_variable
+
 
 class GammaMeanVariance(UnivariateDistribution):
     """
@@ -122,10 +116,9 @@ class GammaMeanVariance(UnivariateDistribution):
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
-        super(GammaMeanVariance, self).__init__(inputs=inputs, outputs=None,
-                                     input_names=input_names,
-                                     output_names=output_names,
-                                     rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+        super(GammaMeanVariance, self).__init__(
+            inputs=inputs, outputs=None, input_names=input_names,
+            output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
     def _get_alpha_beta(self, a, b):
         """
@@ -140,8 +133,7 @@ class GammaMeanVariance(UnivariateDistribution):
         alpha = a * beta
         return alpha, beta
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, mean, variance, random_variable, F=None):
+    def log_pdf_impl(self, mean, variance, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the Gamma distribution.
 
@@ -158,8 +150,8 @@ class GammaMeanVariance(UnivariateDistribution):
         p1 = (alpha - 1.) * F.log(random_variable)
         return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, mean, variance, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw samples from the Gamma distribution.
         :param rv_shape: the shape of each sample.
@@ -172,7 +164,8 @@ class GammaMeanVariance(UnivariateDistribution):
         """
         F = get_default_MXNet_mode() if F is None else F
         alpha, beta = self._get_alpha_beta(mean, variance)
-        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype, ctx=self.ctx)
+        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype,
+                              ctx=self.ctx)
 
     @staticmethod
     def define_variable(mean=0., variance=1., shape=None, rand_gen=None,
@@ -191,7 +184,7 @@ class GammaMeanVariance(UnivariateDistribution):
         :returns: the random variables drawn from the Gamma distribution.
         :rtypes: Variable
         """
-        dist = GammaMeanVariance(mean=mean, variance=variance, rand_gen=rand_gen,
-                        dtype=dtype, ctx=ctx)
+        dist = GammaMeanVariance(mean=mean, variance=variance,
+                                 rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         dist._generate_outputs(shape=shape)
         return dist.random_variable

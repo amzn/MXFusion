@@ -1,6 +1,6 @@
 from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
-from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
+from .univariate import UnivariateDistribution
 
 
 class Uniform(UnivariateDistribution):
@@ -35,8 +35,7 @@ class Uniform(UnivariateDistribution):
                                       output_names=output_names,
                                       rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, low, high, random_variable, F=None):
+    def log_pdf_impl(self, low, high, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the Uniform distribution.
 
@@ -62,8 +61,7 @@ class Uniform(UnivariateDistribution):
             F.log(F.zeros_like(random_variable))) * self.log_pdf_scaling
         return log_likelihood
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, low, high, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, low, high, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the Uniform distribution over the half-open interval [low, high)
         (includes low, but excludes high).

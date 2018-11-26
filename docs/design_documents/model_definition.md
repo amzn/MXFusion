@@ -57,11 +57,13 @@ In a probabilistic model, random variables relate to each other through
 probabilistic distributions.
 
 During model definition, the typical interface to generate a 2 dimensional
-random variable *x* from a zero mean unit variance Gaussian distribution looks
-like:
+random variable ```m.x``` from a zero mean unit variance Gaussian distribution
+looks like:
 
 ```python
-m.x = Normal.define_variable(mean=0, variance=1, shape=(2,))
+from mxnet.ndarray import array
+
+m.x = Normal.define_variable(mean=array([0, 0]), variance=array([1, 1]), shape=(2,))
 ```
 
 The two dimensions are
@@ -70,9 +72,11 @@ distribution. The parameters or shape of a distribution can also be variables, f
 example:
 
 ```python
+from mxnet.ndarray import array
+
 m.mean = Variable(shape=(2,))
 m.y_shape = Variable()
-m.y = Normal.define_variable(mean=m.mean, variance=1, shape=m.y_shape)
+m.y = Normal.define_variable(mean=m.mean, variance=array([1, 1]), shape=(m.y_shape,))
 ```
 
 MXFusion also allows users to specify a prior distribution over pre-existing
@@ -83,12 +87,20 @@ distribution looks like:
 
 ```Python
 m.x = Variable(shape=(2,))
-m.x.set_prior(Gaussian(mean=0, variance=1))
+m.x.set_prior(Gaussian(mean=array([0, 0]), variance=array([1, 1]))
 ```
 
-The above code defines a variable *x* and sets the prior distribution of each
-dimension of *x* to be a scalar unit Gaussian distribution.
+The above code defines a variable ```m.x``` and sets the prior distribution of
+each dimension of ```m.x``` to be a scalar unit Gaussian distribution.
 
+In many cases, we apply the same prior distribution to multiple dimensions. In the above example, we simply want to set the individual dimensions of ```m.x``` to follow a zero-mean and unit-variance Gaussian. A more elegant way to define the above prior distribution is to make use of the broadcasting rule of multi-dimensional arrays:
+```Python
+from mxfusion.components.functions.operators import broadcast_to
+
+m.x.set_prior(Gaussian(mean=broadcast_to(array([0]), m.x.shape),
+                       variance=broadcast_to(array([1]), m.x.shape)))
+```
+Note that the shape of ```m.x``` may not always be available. In those cases, it is better to explicitly define the shape to be broadcasted to.
 
 Because Models are FactorGraphs, it is common to want to know what ModelComponents come before or after a particular component in the graph. These are accessed through the ModelComponent properties ```successors``` and ```predecessors```.
 
