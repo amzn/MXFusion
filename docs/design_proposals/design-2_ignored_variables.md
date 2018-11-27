@@ -16,6 +16,8 @@ Note that the model assumes here that there are different "prediction tasks", bu
 
 Including the variable `N` for the number of data points there are `14 + 8 * h` variables in the model (where `h` is the number of heads), and we wish to have `12 + 6 * h` variables in the posterior, since we will have variables for each of the weights, biases, and their respective `µ` and `σ` variables. 
 
+(Here note in fact the variables that are present for the means and standard variances of the NN weights are there to allow online/transfer learning by using the mean-field posteriors as priors, and will not be optimized during inference. This currently is achieved by setting the `_grad_req = 'null'` for these parameters.)
+
 The current design of the interface for creating a posterior distribution does not allow for variables to be ignored in this manner. For example, if we use the Gaussian mean-field posterior, the logic is as follows:
 
 ```python
