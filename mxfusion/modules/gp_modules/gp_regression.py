@@ -33,6 +33,11 @@ class GPRegressionLogPdf(VariationalInference):
     The method to compute the logarithm of the probability density function of
     a Gaussian process model with Gaussian likelihood.
     """
+    def __init__(self, model, posterior, observed, jitter=0.):
+        super(GPRegressionLogPdf, self).__init__(
+            model=model, posterior=posterior, observed=observed)
+        self.jitter = jitter
+
     def compute(self, F, variables):
         X = variables[self.model.X]
         Y = variables[self.model.Y]
@@ -48,6 +53,9 @@ class GPRegressionLogPdf(VariationalInference):
         K = kern.K(F, X, **kern_params) + \
             F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
             F.expand_dims(noise_var, axis=-2)
+        if self.jitter > 0.:
+            K = K + F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+                self.jitter
         L = F.linalg.potrf(K)
 
         if self.model.mean_func is not None:
