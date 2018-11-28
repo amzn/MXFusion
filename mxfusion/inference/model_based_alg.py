@@ -15,6 +15,7 @@
 import mxnet as mx
 
 from .inference_alg import SamplingAlgorithm
+from ..common.config import get_default_dtype, get_default_device
 
 
 class ModelBasedAlgorithm(SamplingAlgorithm):
