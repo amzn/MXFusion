@@ -45,7 +45,6 @@ class TestWishartDistribution(object):
     @pytest.mark.parametrize("dtype_dof, dtype, degrees_of_freedom, random_state, scale_is_samples, "
                              "rv_is_samples, num_data_points, num_samples, broadcast",
                              [
-                                 (np.int32, np.float32, 2, 0, False, True, 3, 6, True),
                                  (np.int32, np.float32, 2, 0, True, True, 3, 6, False),
                              ])
     def test_log_pdf(self, dtype_dof, dtype, degrees_of_freedom, random_state,
@@ -98,67 +97,6 @@ class TestWishartDistribution(object):
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
-
-    @pytest.mark.parametrize(
-        "dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape, num_samples", [
-            (np.int64, np.float64, 3, make_spd_matrix(3, 0), False, (100, 3, 3), 100),
-        ])
-    def test_draw_samples_with_broadcast(self, dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape,
-                                         num_samples):
-
-        degrees_of_freedom_mx = mx.nd.array([degrees_of_freedom], dtype=dtype_dof)
-        scale_mx = mx.nd.array(scale, dtype=dtype)
-        if not scale_is_samples:
-            scale_mx = add_sample_dimension(mx.nd, scale_mx)
-
-        rand = np.random.rand(num_samples, *rv_shape)
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-        reps = 1000
-        mins = np.zeros(reps)
-        maxs = np.zeros(reps)
-        for i in range(reps):
-            rvs = wishart.rvs(df=degrees_of_freedom, scale=scale, size=num_samples)
-            mins[i] = rvs.min()
-            maxs[i] = rvs.max()
-        # rv_samples_np = wishart.rvs(df=degrees_of_freedom, scale=scale, size=num_samples)
-
-        var = Wishart.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {var.degrees_of_freedom.uuid: degrees_of_freedom_mx, var.scale.uuid: scale_mx}
-        draw_samples_rt = var.draw_samples(F=mx.nd, variables=variables)
-
-        assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, draw_samples_rt) == scale_is_samples
-        if scale_is_samples:
-            assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt),
-                                                                            num_samples)
-        assert mins.min() < draw_samples_rt.asnumpy().min()
-        assert maxs.max() > draw_samples_rt.asnumpy().max()
-
-
-    @pytest.mark.parametrize(
-        "dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape, num_samples", [
-            (np.int64, np.float64, 2, make_spd_matrix(2, 0), False, (5, 3, 2, 2), 5),
-            (np.int64, np.float64, 2, make_spd_matrix(2, 0), False, (5, 3, 2, 2), 5),
-            (np.int64, np.float64, 2, make_spd_matrices_3d(5, 2, 0), True, (5, 3, 2, 2), 5),
-            (np.int64, np.float64, 2, make_spd_matrices_3d(5, 2, 0), True, (5, 3, 2, 2), 5),
-        ])
-    def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype_dof, dtype, degrees_of_freedom, scale,
-                                                               scale_is_samples, rv_shape, num_samples):
-
-        degrees_of_freedom_mx = mx.nd.array([degrees_of_freedom], dtype=dtype_dof)
-        scale_mx = mx.nd.array(scale, dtype=dtype)
-        if not scale_is_samples:
-            scale_mx = add_sample_dimension(mx.nd, scale_mx)
-
-        rand = np.random.rand(num_samples, *rv_shape)
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        var = Wishart.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {var.degrees_of_freedom.uuid: degrees_of_freedom_mx, var.scale.uuid: scale_mx}
-        draw_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, draw_samples_rt)
 
     @pytest.mark.parametrize(
         "dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape, num_samples", [

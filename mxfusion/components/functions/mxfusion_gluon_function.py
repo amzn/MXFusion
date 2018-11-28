@@ -19,7 +19,7 @@ from .gluon_func_eval import GluonFunctionEvaluation
 from .mxfusion_function import MXFusionFunction
 from ..variables import Variable, VariableType
 from mxnet.gluon import ParameterDict, Block, HybridBlock
-from ...common.exceptions import ModelSpecificationError, InferenceError
+from ...common.exceptions import ModelSpecificationError
 
 
 class MXFusionGluonFunction(MXFusionFunction):

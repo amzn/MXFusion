@@ -13,84 +13,8 @@
 # ==============================================================================
 
 
-from ..variables import Variable
 from .univariate import UnivariateDistribution
-from .distribution import LogPDFDecorator, DrawSamplesDecorator
-from ...util.customop import broadcast_to_w_samples
-from ..variables import get_num_samples, array_has_samples
 from ...common.config import get_default_MXNet_mode
-from ...common.exceptions import InferenceError
-
-
-class BernoulliLogPDFDecorator(LogPDFDecorator):
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        def log_pdf_broadcast(self, F, **kw):
-            """
-            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param kw: the dict of input and output variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            variables = {name: kw[name] for name, _ in self.inputs}
-            variables['random_variable'] = kw['random_variable']
-            rv_shape = variables['random_variable'].shape[1:]
-
-            n_samples = max([get_num_samples(F, v) for v in variables.values()])
-            full_shape = (n_samples,) + rv_shape
-
-            variables = {
-                name: broadcast_to_w_samples(F, v, full_shape[:-1]+(v.shape[-1],)) for name, v in variables.items()}
-            res = func(self, F=F, **variables)
-            return res
-        return log_pdf_broadcast
-
-
-class BernoulliDrawSamplesDecorator(DrawSamplesDecorator):
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        def draw_samples_broadcast(self, F, rv_shape, num_samples=1,
-                                   always_return_tuple=False, **kw):
-            """
-            Draw a number of samples from the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param num_samples: the number of drawn samples (default: one)
-            :int n_samples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
-            :param kw: the dict of input variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
-            """
-            rv_shape = list(rv_shape.values())[0]
-            variables = {name: kw[name] for name, _ in self.inputs}
-
-            is_samples = any([array_has_samples(F, v) for v in variables.values()])
-            if is_samples:
-                num_samples_inferred = max([get_num_samples(F, v) for v in variables.values()])
-                if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the n_samples argument of draw_samples of "
-                                         "Bernoulli has to be the same as the number of samples given "
-                                         "to the inputs. n_samples: {} the inferred number of samples from "
-                                         "inputs: {}.".format(num_samples, num_samples_inferred))
-            full_shape = (num_samples,) + rv_shape
-
-            variables = {
-                name: broadcast_to_w_samples(F, v, full_shape[:-1]+(v.shape[-1],)) for name, v in
-                variables.items()}
-            res = func(self, F=F, rv_shape=rv_shape, num_samples=num_samples,
-                       **variables)
-            if always_return_tuple:
-                res = (res,)
-            return res
-        return draw_samples_broadcast
 
 
 class Bernoulli(UnivariateDistribution):
@@ -134,8 +58,7 @@ class Bernoulli(UnivariateDistribution):
         replicant = super(Bernoulli, self).replicate_self(attribute_map=attribute_map)
         return replicant
 
-    @BernoulliLogPDFDecorator()
-    def log_pdf(self, prob_true, random_variable, F=None):
+    def log_pdf_impl(self, prob_true, random_variable, F=None):
         """
         Computes the logarithm of probabilistic mass function of the Bernoulli distribution.
 
@@ -153,8 +76,7 @@ class Bernoulli(UnivariateDistribution):
         logL = logL * self.log_pdf_scaling
         return logL
 
-    @BernoulliDrawSamplesDecorator()
-    def draw_samples(self, prob_true, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, prob_true, rv_shape, num_samples=1, F=None):
         """
         Draw a number of samples from the Bernoulli distribution.
 
@@ -169,7 +91,8 @@ class Bernoulli(UnivariateDistribution):
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
-        return self._rand_gen.sample_bernoulli(prob_true, shape=(num_samples,) + rv_shape, dtype=self.dtype, F=F)
+        return self._rand_gen.sample_bernoulli(
+            prob_true, shape=(num_samples,) + rv_shape, dtype=self.dtype, F=F)
 
     @staticmethod
     def define_variable(prob_true, shape=None, rand_gen=None, dtype=None, ctx=None):
@@ -189,6 +112,7 @@ class Bernoulli(UnivariateDistribution):
         :returns: RandomVariable drawn from the Bernoulli distribution.
         :rtypes: Variable
         """
-        bernoulli = Bernoulli(prob_true=prob_true, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+        bernoulli = Bernoulli(prob_true=prob_true, rand_gen=rand_gen,
+                              dtype=dtype, ctx=ctx)
         bernoulli._generate_outputs(shape=shape)
         return bernoulli.random_variable

@@ -25,6 +25,7 @@ from ...util.inference import realize_shape
 from ...inference.variational import VariationalInference
 from ...util.customop import broadcast_to_w_samples
 from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.functions.operators import broadcast_to
 
 
 class GPRegressionLogPdf(VariationalInference):
@@ -300,7 +301,7 @@ class GPRegression(Module):
             dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.F.factor.kernel
@@ -379,3 +380,46 @@ class GPRegression(Module):
         rep.kernel = self.kernel.replicate_self(attribute_map)
         rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
         return rep
+
+    def draw_parametric_samples(self, F, variables, num_samples=1,
+                                approx_samples=5000):
+        lengthscale = variables[self.kernel.lengthscale][0]
+        variance = variables[self.kernel.variance][0]
+        input_dim = self.kernel.input_dim
+        X = variables[self.X][0]
+        Y = variables[self.random_variable][0]
+        noise_var = variables[self.noise_var][0]
+
+        # Draw random fourious features
+        W = F.random.normal(shape=(input_dim, approx_samples), dtype=self.dtype, ctx=self.ctx) / F.expand_dims(lengthscale, axis=-1)
+        b = 2 * np.pi * F.random.uniform(
+            shape=(1, approx_samples), dtype=self.dtype, ctx=self.ctx)
+
+        # Computer coefficients
+        PhiT = F.sqrt(2 * variance / approx_samples) * \
+            F.cos(F.linalg.gemm2(X, W) + b)
+        C = F.eye(approx_samples, dtype=self.dtype, ctx=self.ctx) + \
+            F.linalg.syrk(PhiT, transpose=True) / noise_var
+        w_var_inv_L = F.linalg.potrf(C)
+        PhiY = F.linalg.gemm2(PhiT, Y, True, False) / noise_var
+        w_mean = F.linalg.trsm(w_var_inv_L, F.linalg.trsm(w_var_inv_L, PhiY),
+                               transpose=True)
+
+        # Draw random parametric functions
+        basis_alpha = F.sqrt(2 * variance / approx_samples)
+        r = F.random.normal(shape=(num_samples, approx_samples),
+                            dtype=self.dtype, ctx=self.ctx)
+        weights = F.expand_dims(w_mean, axis=0) + \
+            F.expand_dims(F.linalg.trsm(w_var_inv_L, r, rightside=True),
+                          axis=-1)
+            # F.expand_dims(F.linalg.gemm2(r, w_var_inv_L, False, True), axis=-1)
+
+        def parametric_sample(F, x):
+            nSamples, N = x.shape[0], x.shape[1]
+            x_flat = F.reshape(x, shape=(-1, x.shape[-1]))
+            basis = basis_alpha * F.cos(
+                F.broadcast_add(F.linalg.gemm2(x_flat, W), b))
+            basis = F.reshape(basis, shape=(nSamples, N, -1))
+            return F.linalg.gemm2(basis, weights)
+
+        return parametric_sample

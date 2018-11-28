@@ -31,9 +31,9 @@ class TestDirichletDistribution(object):
     # scipy implementation of dirichlet throws an error if x_i does not sum to one and float32 is
     # not precise enough to have sum close enough to 1 after normalisation so using float64
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv, rv_is_samples, num_samples", [
-        (np.float64, np.random.rand(2), False, np.random.rand(5, 3, 2), True, 5),
-        (np.float64, np.random.rand(2), False, np.random.rand(10, 3, 2), True, 10),
-        (np.float64, np.random.rand(2), False, np.random.rand(3, 2), False, 5)
+        (np.float64, np.random.rand(3,2), False, np.random.rand(5, 3, 2), True, 5),
+        (np.float64, np.random.rand(10,3,2), True, np.random.rand(10, 3, 2), True, 10),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3, 2), False, 5)
         ])
     def test_log_pdf_with_broadcast(self, dtype, a, a_is_samples, rv, rv_is_samples, num_samples):
         # Add sample dimension if varaible is not samples
@@ -67,8 +67,8 @@ class TestDirichletDistribution(object):
             r.append(a)
         log_pdf_np = np.array(r)
 
-        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {dirichlet.a.uuid: a_mx, dirichlet.random_variable.uuid: rv_mx}
+        dirichlet = Dirichlet.define_variable(alpha=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        variables = {dirichlet.alpha.uuid: a_mx, dirichlet.random_variable.uuid: rv_mx}
         log_pdf_rt = dirichlet.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
@@ -112,8 +112,8 @@ class TestDirichletDistribution(object):
             r.append(a)
         log_pdf_np = np.array(r)
 
-        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {dirichlet.a.uuid: a_mx, dirichlet.random_variable.uuid: rv_mx}
+        dirichlet = Dirichlet.define_variable(alpha=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        variables = {dirichlet.alpha.uuid: a_mx, dirichlet.random_variable.uuid: rv_mx}
         log_pdf_rt = dirichlet.log_pdf(F=mx.nd, variables=variables)
 
         assert np.issubdtype(log_pdf_rt.dtype, dtype)
@@ -123,7 +123,7 @@ class TestDirichletDistribution(object):
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
 
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv_shape, num_samples", [
-        (np.float64, np.random.rand(2), False, (3, 2), 5)
+        (np.float64, np.random.rand(3,2), False, (3, 2), 5)
         ])
     def test_draw_samples_with_broadcast(self, dtype, a, a_is_samples, rv_shape, num_samples):
         a_mx = mx.nd.array(a, dtype=dtype)
@@ -134,8 +134,8 @@ class TestDirichletDistribution(object):
         draw_samples_np = rand / np.sum(rand)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
-        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {dirichlet.a.uuid: a_mx}
+        dirichlet = Dirichlet.define_variable(alpha=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        variables = {dirichlet.alpha.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
@@ -143,15 +143,15 @@ class TestDirichletDistribution(object):
         assert np.allclose(draw_samples_np, draw_samples_rt.asnumpy())
 
     @pytest.mark.parametrize("dtype, a, a_is_samples, rv_shape, num_samples", [
-        (np.float64, np.random.rand(5, 2), True, (3, 2), 5)
+        (np.float64, np.random.rand(5,3, 2), True, (3, 2), 5)
         ])
     def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype, a, a_is_samples, rv_shape, num_samples):
         a_mx = mx.nd.array(a, dtype=dtype)
         if not a_is_samples:
             a_mx = add_sample_dimension(mx.nd, a_mx)
 
-        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype).factor
-        variables = {dirichlet.a.uuid: a_mx}
+        dirichlet = Dirichlet.define_variable(alpha=Variable(), shape=rv_shape, dtype=dtype).factor
+        variables = {dirichlet.alpha.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)
@@ -169,8 +169,8 @@ class TestDirichletDistribution(object):
         draw_samples_np = rand / np.sum(rand)
         rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
 
-        dirichlet = Dirichlet.define_variable(a=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {dirichlet.a.uuid: a_mx}
+        dirichlet = Dirichlet.define_variable(alpha=Variable(), shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
+        variables = {dirichlet.alpha.uuid: a_mx}
         draw_samples_rt = dirichlet.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
 
         assert np.issubdtype(draw_samples_rt.dtype, dtype)

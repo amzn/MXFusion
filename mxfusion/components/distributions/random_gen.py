@@ -98,7 +98,8 @@ class MXNetRandomGenerator(RandomGenerator):
             shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
 
     @staticmethod
-    def sample_multinomial(data, get_prob=True, dtype='int32', F=None):
+    def sample_multinomial(data, shape=None, get_prob=False, dtype='int32',
+                           F=None):
         """
         Sample Multinomial distributed variables
 
@@ -115,8 +116,12 @@ class MXNetRandomGenerator(RandomGenerator):
         :return: Array of samples
         """
         F = get_default_MXNet_mode() if F is None else F
-        return F.random.multinomial(
-            data=data, get_prob=get_prob, dtype=dtype)
+        if shape:
+            return F.random.multinomial(
+                data=data, shape=shape, get_prob=get_prob, dtype=dtype)
+        else:
+            return F.random.multinomial(
+                data=data, get_prob=get_prob, dtype=dtype)
 
     @staticmethod
     def sample_bernoulli(prob_true=0.5, dtype=None, shape=None, F=None):
