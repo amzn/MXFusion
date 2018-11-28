@@ -33,7 +33,7 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
                          algorithm.
     :type extra_graphs: [FactorGraph]
     """
-    def __init__(self, model, observed, cost_function, policy, n_time_steps, initial_state_generator, extra_graphs=None, num_samples=3):
+    def __init__(self, model, observed, cost_function, policy, n_time_steps, initial_state_generator, extra_graphs=None, num_samples=3, ctx=None, dtype=None):
         # TODO model should be a GP module
         super(ModelBasedAlgorithm, self).__init__(model, observed, extra_graphs=extra_graphs)
         self.cost_function = cost_function
@@ -41,6 +41,9 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         self.initial_state_generator = initial_state_generator
         self.n_time_steps = n_time_steps
         self.num_samples = num_samples
+        self.dtype = dtype if dtype is not None else get_default_dtype()
+        self.mxnet_context = context if context is not None else get_default_device()
+
 
     def compute(self, F, variables):
         """
@@ -57,7 +60,7 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         s_0 = self.initial_state_generator(self.num_samples)
         a_0 = self.policy(s_0)
         x_t = F.expand_dims(F.concat(s_0, a_0, dim=1), axis=1)
-        cost = mx.nd.zeros(shape=(self.num_samples,1), dtype='float64')
+        cost = mx.nd.zeros(shape=(self.num_samples,1), dtype=self.dtype, ctx=self.mxnet_context)
         for t in range(self.n_time_steps):
             variables[self.model.X] = x_t
             res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)
