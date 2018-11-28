@@ -63,14 +63,10 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
             variables[self.model.X] = x_t
             res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)
             s_t_plus_1 = res[0]
-            # s_t_plus_1 = F.random.normal(loc=s_t_mean, scale=s_t_std, dtype='float64')
-            # import pdb; pdb.set_trace()
-            # print(s_t_plus_1)
 
             cost = mx.nd.concat(cost, self.cost_function(s_t_plus_1), dim=1)
 
             a_t_plus_1 = mx.nd.expand_dims(self.policy(s_t_plus_1), axis=2)
             x_t = mx.nd.concat(s_t_plus_1, a_t_plus_1, dim=2)
-            # import pdb; pdb.set_trace()
         total_cost = F.sum(cost)
         return total_cost, total_cost
