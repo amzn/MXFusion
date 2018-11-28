@@ -43,7 +43,7 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         self.n_time_steps = n_time_steps
         self.num_samples = num_samples
         self.dtype = dtype if dtype is not None else get_default_dtype()
-        self.mxnet_context = context if context is not None else get_default_device()
+        self.mxnet_context = ctx if ctx is not None else get_default_device()
 
 
     def compute(self, F, variables):
