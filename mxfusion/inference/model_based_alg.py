@@ -61,12 +61,8 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         for t in range(self.n_time_steps):
 
             variables[self.model.X] = x_t
-            res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y])
-            s_t_mean = res[0][0]
-            s_t_std = mx.nd.sqrt(res[0][1])
-            s_t_std = mx.nd.expand_dims(mx.nd.broadcast_axis(s_t_std, axis=1, size=self.s_0.shape[-1]), axis=1)
-            die = F.random.normal(shape=s_t_mean.shape, dtype='float64')
-            s_t_plus_1 = s_t_mean + s_t_std * die
+            res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)
+            s_t_plus_1 = res[0]
             # s_t_plus_1 = F.random.normal(loc=s_t_mean, scale=s_t_std, dtype='float64')
             # import pdb; pdb.set_trace()
             # print(s_t_plus_1)

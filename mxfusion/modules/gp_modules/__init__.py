@@ -28,6 +28,6 @@ Submodules
 
 __all__ = ['gp_regression', 'sparsegp_regression', 'svgp_regression']
 
-from .gp_regression import GPRegression
+from .gp_regression import GPRegression, GPRegressionSamplingPrediction
 from .sparsegp_regression import SparseGPRegression
 from .svgp_regression import SVGPRegression

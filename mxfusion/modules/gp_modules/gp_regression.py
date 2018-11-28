@@ -162,6 +162,9 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
 
 
 class GPRegressionSamplingPrediction(SamplingAlgorithm):
+    """
+    The method for drawing samples from the posterior distribution of a Gaussian process regression model.
+    """
     def __init__(self, model, posterior, observed, rand_gen=None,
                  noise_free=True, diagonal_variance=True, jitter=0.):
         super(GPRegressionSamplingPrediction, self).__init__(
