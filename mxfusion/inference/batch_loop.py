@@ -51,13 +51,13 @@ class BatchInferenceLoop(GradLoop):
                 loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
                 loss_for_gradient.backward()
 
-            for p in param_dict.values():
-                if p.grad_req != 'null':
-                    print(p, p.grad(), p.data(), "\n")
             if verbose:
                 print('\rIteration {} loss: {}'.format(i + 1, loss.asscalar()),
                       end='')
                 if i % iter_step == 0 and i > 0:
                     print()
+                    for p in param_dict.values():
+                        if p.grad_req != 'null':
+                            print(p, p.grad(), p.data(), "\n")
             trainer.step(batch_size=1, ignore_stale_grad=True)
         loss = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)

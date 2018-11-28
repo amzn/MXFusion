@@ -33,12 +33,12 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
                          algorithm.
     :type extra_graphs: [FactorGraph]
     """
-    def __init__(self, model, observed, cost_function, policy, n_time_steps, initial_state, extra_graphs=None, num_samples=3):
+    def __init__(self, model, observed, cost_function, policy, n_time_steps, initial_state_generator, extra_graphs=None, num_samples=3):
         # TODO model should be a GP module
         super(ModelBasedAlgorithm, self).__init__(model, observed, extra_graphs=extra_graphs)
         self.cost_function = cost_function
         self.policy = policy
-        self.s_0 = initial_state
+        self.initial_state_generator = initial_state_generator
         self.n_time_steps = n_time_steps
         self.num_samples = num_samples
 
@@ -54,12 +54,11 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         :returns: the outcome of the inference algorithm
         :rtype: mxnet.NDArray or mxnet.Symbol
         """
-        a_0 = self.policy(self.s_0)
-        x_t_pre = mx.nd.expand_dims(mx.nd.concat(self.s_0, a_0, dim=1), axis=0)
-        x_t = mx.nd.broadcast_to(x_t_pre, shape=(self.num_samples,) + x_t_pre.shape[1:])
+        s_0 = self.initial_state_generator(self.num_samples)
+        a_0 = self.policy(s_0)
+        x_t = F.expand_dims(F.concat(s_0, a_0, dim=1), axis=1)
         cost = mx.nd.zeros(shape=(self.num_samples,1), dtype='float64')
         for t in range(self.n_time_steps):
-
             variables[self.model.X] = x_t
             res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)
             s_t_plus_1 = res[0]
