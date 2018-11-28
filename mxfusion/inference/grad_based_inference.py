@@ -15,6 +15,7 @@
 
 from .inference import Inference
 from .batch_loop import BatchInferenceLoop
+from ..util.inference import init_outcomes
 
 
 class GradBasedInference(Inference):
@@ -88,5 +89,68 @@ class GradBasedInference(Inference):
         infr = self.create_executor()
         return self._grad_loop.run(
             infr_executor=infr, data=data, param_dict=self.params.param_dict,
+            ctx=self.mxnet_context, optimizer=optimizer,
+            learning_rate=learning_rate, max_iter=max_iter, verbose=verbose)
+
+
+class GradTransferInference(GradBasedInference):
+    """
+    The abstract Inference method for transferring the outcome of one inference
+    method to another.
+
+    :param inference_algorithm: The applied inference algorithm
+    :type inference_algorithm: InferenceAlgorithm
+    :param train_params:
+    :param constants: Specify a list of model variables as constants
+    :type constants: {Variable: mxnet.ndarray}
+    :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
+    :type hybridize: boolean
+    :param dtype: data type for internal numerical representation
+    :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
+    :param context: The MXNet context
+    :type context: {mxnet.cpu or mxnet.gpu}
+    """
+
+    def __init__(self, inference_algorithm, infr_params, train_params,
+                 grad_loop=None, var_tie=None,
+                 constants=None, hybridize=False,
+                 dtype=None, context=None):
+        self._var_tie = var_tie if var_tie is not None else {}
+        self._inherited_params = infr_params
+        self.train_params = train_params
+        super(GradTransferInference, self).__init__(
+            inference_algorithm=inference_algorithm,
+            grad_loop=grad_loop, constants=constants,
+            hybridize=hybridize, dtype=dtype, context=context)
+
+    def _initialize_params(self):
+        self.params.initialize_with_carryover_params(
+            self._graphs, self.observed_variable_UUIDs, self._var_tie,
+            init_outcomes(self._inherited_params))
+        self.params.fix_all()
+
+
+    def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
+            verbose=False, **kwargs):
+        """
+        Run the inference method.
+
+        :param optimizer: the choice of optimizer (default: 'adam')
+        :type optimizer: str
+        :param learning_rate: the learning rate of the gradient optimizer (default: 0.001)
+        :type learning_rate: float
+        :param max_iter: the maximum number of iterations of gradient optimization
+        :type max_iter: int
+        :param verbose: whether to print per-iteration messages.
+        :type verbose: boolean
+        :param **kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of the corresponding
+            variable in model definition and the value of the argument is the data in numpy array format.
+        """
+        data = [kwargs[v] for v in self.observed_variable_names]
+        self.initialize(**kwargs)
+
+        infr = self.create_executor()
+        return self._grad_loop.run(
+            infr_executor=infr, data=data, param_dict=self.train_params,
             ctx=self.mxnet_context, optimizer=optimizer,
             learning_rate=learning_rate, max_iter=max_iter, verbose=verbose)
