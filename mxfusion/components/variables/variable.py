@@ -263,14 +263,3 @@ class Variable(ModelComponent):
     def __pow__(self, y):
         from ..functions.operators import power
         return power(self, y)
-
-    def transpose(self):
-        """
-        Creates a variable that is the transpose of this variable.
-        Note that this variable will be attached to the graph as a descendant to self via the transpose operator.
-        Also note that [this replaces the .T property](https://github.com/amzn/MXFusion/pull/137#issue-233291080)
-
-        :return: the transposed variable
-        """
-        from ..functions.operators import transpose
-        return transpose(self)
