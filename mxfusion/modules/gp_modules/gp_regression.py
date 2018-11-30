@@ -383,6 +383,8 @@ class GPRegression(Module):
 
     def draw_parametric_samples(self, F, variables, num_samples=1,
                                 approx_samples=5000):
+
+        # This only works for RBF kernel at the moment.
         lengthscale = variables[self.kernel.lengthscale][0]
         variance = variables[self.kernel.variance][0]
         input_dim = self.kernel.input_dim
