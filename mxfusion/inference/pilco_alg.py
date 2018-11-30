@@ -18,7 +18,7 @@ from .inference_alg import SamplingAlgorithm
 from ..common.config import get_default_dtype, get_default_device
 
 
-class ModelBasedAlgorithm(SamplingAlgorithm):
+class PILCOAlgorithm(SamplingAlgorithm):
     """
     Sampling-based inference algorithm that returns the expectation of each variable in the model.
 
@@ -35,8 +35,16 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
     :type extra_graphs: [FactorGraph]
     """
     def __init__(self, model, observed, cost_function, policy, n_time_steps, initial_state_generator, extra_graphs=None, num_samples=3, ctx=None, dtype=None):
-        # TODO model should be a GP module
-        super(ModelBasedAlgorithm, self).__init__(model, observed, extra_graphs=extra_graphs)
+        """
+        :param model: The model to use to generate the next state from a state/action pair.
+        :param observed: Observed variables for the model.
+        :param cost_function: The cost function to evaluate state/action pairs on.
+        :param policy: The policy function to determine what action to take next from a particular state.
+        :param n_time_steps: How many time steps to roll forward using the model+policy to generate a trajectory.
+        :param initial_state_generator: Function that generates initial states for the model to begin at.
+        :param num_samples: How many sample trajectories to compute at once
+        """
+        super(PILCOAlgorithm, self).__init__(model, observed, extra_graphs=extra_graphs)
         self.cost_function = cost_function
         self.policy = policy
         self.initial_state_generator = initial_state_generator
@@ -48,7 +56,15 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
 
     def compute(self, F, variables):
         """
-        Compute the inference algorithm
+        Compute the PILCO algorithm's policy computation loop.
+
+        1. Generates a number of initial state + action pairs
+        2. For each state+action pair:
+          1. Predict the new state (s_t_plus_1) given the current state and action pair
+          2. Compute the cost of being in that state
+          3. Use the policy to compute the next action (a_t_plus_1) to take from s_t_plus_1
+          4. Repeat n_time_steps into the future, using the previous round's state/action pairs to roll forward.
+        3. Return the total cost of all sample trajectories over time.
 
         :param F: the execution context (mxnet.ndarray or mxnet.symbol)
         :type F: Python module
