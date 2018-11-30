@@ -47,4 +47,4 @@ from .inference_parameters import InferenceParameters
 from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
 from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
 from .prediction import ModulePredictionAlgorithm
-from .model_based_alg import ModelBasedAlgorithm
+from .pilco_alg import PILCOAlgorithm

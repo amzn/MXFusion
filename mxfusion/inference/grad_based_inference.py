@@ -129,7 +129,6 @@ class GradTransferInference(GradBasedInference):
             init_outcomes(self._inherited_params))
         self.params.fix_all()
 
-
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
             verbose=False, **kwargs):
         """
