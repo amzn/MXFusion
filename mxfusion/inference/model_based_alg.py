@@ -60,6 +60,7 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
         """
         s_0 = self.initial_state_generator(self.num_samples)
         a_0 = self.policy(s_0)
+        a_t_plus_1 = a_0
         x_t = F.expand_dims(F.concat(s_0, a_0, dim=1), axis=1)
         cost = 0
         for t in range(self.n_time_steps):
@@ -67,7 +68,7 @@ class ModelBasedAlgorithm(SamplingAlgorithm):
             res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)
             s_t_plus_1 = res[0]
 
-            cost = cost + self.cost_function(s_t_plus_1)
+            cost = cost + self.cost_function(s_t_plus_1, a_t_plus_1)
 
             a_t_plus_1 = mx.nd.expand_dims(self.policy(s_t_plus_1), axis=2)
             x_t = mx.nd.concat(s_t_plus_1, a_t_plus_1, dim=2)
