@@ -29,10 +29,10 @@ class TestBernoulliDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, prob_true, prob_true_is_samples, rv, rv_is_samples, num_samples", [
-            (np.float64, np.random.beta(a=1, b=1, size=(5, 4, 3)), True, np.random.normal(size=(5, 4, 1)) > 0, True, 5),
-            (np.float64, np.random.beta(a=1, b=1, size=(4, 3)), False, np.random.normal(size=(4, 1)) > 0, False, 1),
-            (np.float64, np.random.beta(a=1, b=1, size=(5, 4, 3)), True, np.random.normal(size=(4, 1)) > 0, False, 5),
-            (np.float64, np.random.beta(a=1, b=1, size=(4, 3)), False, np.random.normal(size=(5, 4, 1)) > 0, True, 5),
+            (np.float64, np.random.beta(a=1, b=1, size=(5, 4, 3)), True, np.random.normal(size=(5, 4, 3)) > 0, True, 5),
+            (np.float64, np.random.beta(a=1, b=1, size=(4, 3)), False, np.random.normal(size=(4, 3)) > 0, False, 1),
+            (np.float64, np.random.beta(a=1, b=1, size=(5, 4, 3)), True, np.random.normal(size=(4, 3)) > 0, False, 5),
+            (np.float64, np.random.beta(a=1, b=1, size=(4, 3)), False, np.random.normal(size=(5, 4, 3)) > 0, True, 5),
         ])
     def test_log_pdf(self, dtype, prob_true, prob_true_is_samples, rv, rv_is_samples, num_samples):
 
@@ -61,8 +61,8 @@ class TestBernoulliDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, prob_true, prob_true_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.rand(5, 4, 3), True, (4, 1), 5),
-            (np.float64, np.random.rand(4, 3), False, (4, 1), 5),
+            (np.float64, np.random.rand(5, 4, 3), True, (4, 3), 5),
+            (np.float64, np.random.rand(4, 3), False, (4, 3), 5),
             (np.float64, np.random.rand(5, 4, 3), True, (4, 3), 5),
             (np.float64, np.random.rand(4, 3), False, (4, 3), 5),
             (np.float32, np.random.rand(4, 3), False, (4, 3), 5),

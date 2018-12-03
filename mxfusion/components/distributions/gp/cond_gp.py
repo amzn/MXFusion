@@ -18,90 +18,8 @@ from ....common.config import get_default_MXNet_mode
 from ....common.exceptions import InferenceError
 from ...variables.variable import Variable
 from ....util.customop import broadcast_to_w_samples
-from ..distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
+from ..distribution import Distribution
 from ...variables.runtime_variable import get_num_samples
-
-
-class ConditionalGaussianProcessLogPDFDecorator(LogPDFDecorator):
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        def log_pdf_broadcast(self, F, **kw):
-            """
-            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param kw: the dict of input and output variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            variables = {name: kw[name] for name, _ in self.inputs}
-            variables['random_variable'] = kw['random_variable']
-            rv_shape = variables['random_variable'].shape[1:]
-
-            num_samples = max([get_num_samples(F, v) for v in variables.values()])
-            X_shape = (num_samples,) + rv_shape[:-1] + (self.kernel.input_dim,)
-            X_cond_shape = (num_samples,) + rv_shape[:-2] + \
-                variables['X_cond'].shape[-2:]
-            Y_cond_shape = (num_samples,) + rv_shape[:-2] + \
-                variables['Y_cond'].shape[-2:]
-            rv_shape = (num_samples,) + rv_shape
-
-            variables['X'] = broadcast_to_w_samples(F, variables['X'], X_shape)
-            variables['X_cond'] = broadcast_to_w_samples(
-                F, variables['X_cond'], X_cond_shape)
-            variables['Y_cond'] = broadcast_to_w_samples(
-                F, variables['Y_cond'], Y_cond_shape)
-            variables['random_variable'] = broadcast_to_w_samples(
-                F, variables['random_variable'], rv_shape)
-            return func(self, F=F, **variables)
-        return log_pdf_broadcast
-
-
-class ConditionalGaussianProcessDrawSamplesDecorator(DrawSamplesDecorator):
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        def draw_samples_broadcast(self, F, rv_shape, num_samples=1,
-                                   always_return_tuple=False, **kw):
-            """
-            Draw a number of samples from the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param nSamples: the number of drawn samples (default: one)
-            :int nSamples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
-            :param kw: the dict of input variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
-            """
-            rv_shape = list(rv_shape.values())[0]
-            variables = {name: kw[name] for name, _ in self.inputs}
-
-            num_samples_inferred = max([get_num_samples(F, v) for v in
-                                        variables.values()])
-            if num_samples_inferred > 1 and num_samples_inferred != num_samples:
-                raise InferenceError("The number of samples in the num_samples argument of draw_samples of Gaussian process has to be the same as the number of samples given to the inputs. num_samples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
-            X_shape = (num_samples,) + rv_shape[:-1] + (self.kernel.input_dim,)
-            X_cond_shape = (num_samples,) + rv_shape[:-2] + \
-                variables['X_cond'].shape[-2:]
-            Y_cond_shape = (num_samples,) + rv_shape[:-2] + \
-                variables['Y_cond'].shape[-2:]
-
-            variables['X'] = broadcast_to_w_samples(F, variables['X'], X_shape)
-            variables['X_cond'] = broadcast_to_w_samples(
-                F, variables['X_cond'], X_cond_shape)
-            variables['Y_cond'] = broadcast_to_w_samples(
-                F, variables['Y_cond'], Y_cond_shape)
-            res = func(self, F=F, rv_shape=rv_shape, num_samples=num_samples,
-                       **variables)
-            if always_return_tuple:
-                res = (res,)
-            return res
-        return draw_samples_broadcast
 
 
 class ConditionalGaussianProcess(Distribution):
@@ -184,8 +102,7 @@ class ConditionalGaussianProcess(Distribution):
                                shape is None else shape))]
         return gp.random_variable
 
-    @ConditionalGaussianProcessLogPDFDecorator()
-    def log_pdf(self, X, X_cond, Y_cond, random_variable, F=None,
+    def log_pdf_impl(self, X, X_cond, Y_cond, random_variable, F=None,
                 **kernel_params):
         """
         Computes the logarithm of the probability density function (PDF) of the conditional Gaussian process.
@@ -230,9 +147,8 @@ class ConditionalGaussianProcess(Distribution):
         return (- logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi),
                 axis=-1) / 2) * self.log_pdf_scaling
 
-    @ConditionalGaussianProcessDrawSamplesDecorator()
-    def draw_samples(self, X, X_cond, Y_cond, rv_shape, num_samples=1, F=None,
-                     **kernel_params):
+    def draw_samples_impl(self, X, X_cond, Y_cond, rv_shape, num_samples=1,
+                          F=None, **kernel_params):
         """
         Draw a number of samples from the conditional Gaussian process.
 

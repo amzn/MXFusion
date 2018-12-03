@@ -1,6 +1,6 @@
 from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
-from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
+from .univariate import UnivariateDistribution
 
 
 class Laplace(UnivariateDistribution):
@@ -34,8 +34,7 @@ class Laplace(UnivariateDistribution):
                                       output_names=output_names,
                                       rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, location, scale, random_variable, F=None):
+    def log_pdf_impl(self, location, scale, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the Laplace distribution.
 
@@ -55,8 +54,8 @@ class Laplace(UnivariateDistribution):
             F.abs(F.broadcast_minus(random_variable, location)), scale)) * self.log_pdf_scaling
         return logL
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, location, scale, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, location, scale, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw samples from the Laplace distribution.
 

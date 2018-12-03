@@ -139,10 +139,13 @@ class Variable(ModelComponent):
         return ss
 
     def display_str(self, temp_name=None):
-        name = temp_name if temp_name is not None else self.name
-        name = "Variable(%s)" % self.uuid[:5] if name is None else name
-        string = name
-        return string
+        if temp_name is not None:
+            return temp_name
+        name = "Variable"
+        if self.name is not None:
+            name += " {}".format(self.name)
+        name += " ({})".format(self.uuid[:5])
+        return name
 
     def __repr__(self):
         return self.display_str()

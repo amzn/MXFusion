@@ -22,6 +22,8 @@ from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.components.functions import MXFusionGluonFunction
 from mxfusion.util.testutils import make_basic_model
 from mxfusion.common.config import get_default_dtype
+from mxfusion.components.functions.operators import broadcast_to
+from mxfusion import Variable
 
 
 class MeanFieldInferenceTests(unittest.TestCase):
@@ -39,19 +41,21 @@ class MeanFieldInferenceTests(unittest.TestCase):
         m.prior_variance = mf.components.Variable(shape=(1,), transformation=PositiveTransformation())
         m.r = m.f(m.x)
         for _, v in m.r.factor.parameters.items():
-            v.set_prior(mf.components.distributions.Normal(mean=mx.nd.array([0], dtype=dtype), variance=m.prior_variance))
-        m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=m.v, shape=(m.N, 1))
-
+            mean = broadcast_to(Variable(mx.nd.array([0], dtype=dtype)),
+                                v.shape)
+            var = broadcast_to(m.prior_variance, v.shape)
+            v.set_prior(mf.components.distributions.Normal(mean=mean, variance=var))
+        m.y = mf.components.distributions.Normal.define_variable(mean=m.r, variance=broadcast_to(m.v, (m.N, 1)), shape=(m.N, 1))
         return m
 
     def make_net(self):
         dtype = get_default_dtype()
-        D = 100
+        D = 15
         net = nn.HybridSequential(prefix='hybrid0_')
         with net.name_scope():
-            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
-            net.add(nn.Dense(D, activation="tanh", dtype=dtype))
-            net.add(nn.Dense(1, dtype=dtype))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype, in_units=1))
+            net.add(nn.Dense(D, activation="tanh", dtype=dtype, in_units=D))
+            net.add(nn.Dense(1, dtype=dtype, in_units=D))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
 

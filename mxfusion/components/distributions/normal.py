@@ -16,15 +16,11 @@
 import numpy as np
 import mxnet as mx
 import itertools
-
 from ...util.special import log_determinant
 from ...common.config import get_default_MXNet_mode
-from ...common.exceptions import InferenceError
 from ..variables import Variable
-from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
-from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import array_has_samples, get_num_samples
-from ...util.customop import broadcast_to_w_samples
+from .distribution import Distribution
+from .univariate import UnivariateDistribution
 
 
 class Normal(UnivariateDistribution):
@@ -52,8 +48,7 @@ class Normal(UnivariateDistribution):
                                      output_names=output_names,
                                      rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, mean, variance, random_variable, F=None):
+    def log_pdf_impl(self, mean, variance, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the normal distribution.
 
@@ -73,8 +68,8 @@ class Normal(UnivariateDistribution):
             F.broadcast_minus(random_variable, mean)), -2 * variance)) * self.log_pdf_scaling
         return logL
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, mean, variance, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw samples from the normal distribution.
 
@@ -121,90 +116,6 @@ class Normal(UnivariateDistribution):
         return normal.random_variable
 
 
-class MultivariateNormalLogPDFDecorator(LogPDFDecorator):
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        def log_pdf_broadcast(self, F, **kw):
-            """
-            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
-
-            Shape assumptions:
-            * mean is S x N x D
-            * covariance is S x N x D x D
-            * random_variable is S x N x D
-
-            Where:
-            * S, the number of samples, is optional. If more than one of the variables has samples, the number of samples in each variable must be the same. S is 1 by default if not a sampled variable.
-            * N is the number of data points. N can be any number of dimensions (N_1, N_2, ...) but must be broadcastable to the shape of random_variable.
-            * D is the dimension of the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param kw: the dict of input and output variables of the distribution
-            :type kw: {str (name): MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            variables = {name: kw[name] for name, _ in self.inputs}
-            variables['random_variable'] = kw['random_variable']
-            rv_shape = variables['random_variable'].shape[1:]
-
-            nSamples = max([get_num_samples(F, v) for v in variables.values()])
-
-            shapes_map = {}
-            shapes_map['mean'] = (nSamples,) + rv_shape
-            shapes_map['covariance'] = (nSamples,) + rv_shape + (rv_shape[-1],)
-            shapes_map['random_variable'] = (nSamples,) + rv_shape
-            variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
-                         for name, v in variables.items()}
-            res = func(self, F=F, **variables)
-            return res
-        return log_pdf_broadcast
-
-
-class MultivariateNormalDrawSamplesDecorator(DrawSamplesDecorator):
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        def draw_samples_broadcast(self, F, rv_shape, num_samples=1,
-                                   always_return_tuple=False, **kw):
-            """
-            Draw a number of samples from the distribution. The inputs and outputs variables are in RTVariable format.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param num_samples: the number of drawn samples (default: one)
-            :int num_samples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
-            :param kw: the dict of input variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
-            """
-            rv_shape = list(rv_shape.values())[0]
-            variables = {name: kw[name] for name, _ in self.inputs}
-
-            isSamples = any([array_has_samples(F, v) for v in variables.values()])
-            if isSamples:
-                num_samples_inferred = max([get_num_samples(F, v) for v in
-                                           variables.values()])
-                if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Normal distribution must be the same as the number of samples given to the inputs. nSamples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
-
-            shapes_map = {}
-            shapes_map['mean'] = (num_samples,) + rv_shape
-            shapes_map['covariance'] = (num_samples,) + rv_shape + (rv_shape[-1],)
-            variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
-                         for name, v in variables.items()}
-
-            res = func(self, F=F, rv_shape=rv_shape, num_samples=num_samples,
-                       **variables)
-            if always_return_tuple:
-                res = (res,)
-            return res
-        return draw_samples_broadcast
-
-
 class MultivariateNormal(Distribution):
     """
     The multi-dimensional normal distribution.
@@ -243,8 +154,7 @@ class MultivariateNormal(Distribution):
         replicant = super(MultivariateNormal, self).replicate_self(attribute_map)
         return replicant
 
-    @MultivariateNormalLogPDFDecorator()
-    def log_pdf(self, mean, covariance, random_variable, F=None):
+    def log_pdf_impl(self, mean, covariance, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the normal distribution.
 
@@ -267,8 +177,8 @@ class MultivariateNormal(Distribution):
         sqnorm_z = - F.sum(F.square(zvec), axis=-1)
         return (0.5 * (sqnorm_z - (N * np.log(2 * np.pi))) + logdetl)* self.log_pdf_scaling
 
-    @MultivariateNormalDrawSamplesDecorator()
-    def draw_samples(self, mean, covariance, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, mean, covariance, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw a number of samples from the normal distribution.
 
@@ -355,8 +265,7 @@ class NormalMeanPrecision(UnivariateDistribution):
                                                   output_names=output_names,
                                                   rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, mean, precision, random_variable, F=None):
+    def log_pdf_impl(self, mean, precision, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the normal distribution.
 
@@ -376,8 +285,8 @@ class NormalMeanPrecision(UnivariateDistribution):
             F.broadcast_minus(random_variable, mean)), -precision / 2)) * self.log_pdf_scaling
         return logL
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, mean, precision, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw samples from the normal distribution.
 
@@ -423,94 +332,6 @@ class NormalMeanPrecision(UnivariateDistribution):
         return normal.random_variable
 
 
-class MultivariateNormalMeanPrecisionLogPDFDecorator(LogPDFDecorator):
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        def log_pdf_broadcast(self, F, **kw):
-            """
-            Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. The inputs and outputs variables are in RTVariable format.
-
-            Shape assumptions:
-            * mean is S x N x D
-            * precision is S x N x D x D
-            * random_variable is S x N x D
-
-            Where:
-            * S, the number of samples, is optional. If more than one of the variables has samples, the number of samples in each variable must be the same. S is 1 by default if not a sampled variable.
-            * N is the number of data points. N can be any number of dimensions (N_1, N_2, ...) but must be broadcastable to the shape of random_variable.
-            * D is the dimension of the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param kw: the dict of input and output variables of the distribution
-            :type kw: {str (name): MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            variables = {name: kw[name] for name, _ in self.inputs}
-            variables['random_variable'] = kw['random_variable']
-            rv_shape = variables['random_variable'].shape[1:]
-
-            n_samples = max([get_num_samples(F, v) for v in variables.values()])
-
-            shapes_map = dict(
-                mean=(n_samples,) + rv_shape,
-                precision=(n_samples,) + rv_shape + (rv_shape[-1],),
-                random_variable=(n_samples,) + rv_shape)
-            variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
-                         for name, v in variables.items()}
-            res = func(self, F=F, **variables)
-            return res
-        return log_pdf_broadcast
-
-
-class MultivariateNormalMeanPrecisionDrawSamplesDecorator(DrawSamplesDecorator):
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        def draw_samples_broadcast(self, F, rv_shape, num_samples=1,
-                                   always_return_tuple=False, **kw):
-            """
-            Draw a number of samples from the distribution. The inputs and outputs variables are in RTVariable format.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param num_samples: the number of drawn samples (default: one)
-            :int num_samples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
-            :param kw: the dict of input variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
-            """
-            rv_shape = list(rv_shape.values())[0]
-            variables = {name: kw[name] for name, _ in self.inputs}
-
-            isSamples = any([array_has_samples(F, v) for v in variables.values()])
-            if isSamples:
-                num_samples_inferred = max([get_num_samples(F, v) for v in
-                                           variables.values()])
-                if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of "
-                                         "Normal distribution must be the same as the number of samples given "
-                                         "to the inputs. nSamples: {} the inferred number of samples from "
-                                         "inputs: {}.".format(num_samples, num_samples_inferred))
-
-            shapes_map = dict(
-                mean=(num_samples,) + rv_shape,
-                precision=(num_samples,) + rv_shape + (rv_shape[-1],),
-                random_variable=(num_samples,) + rv_shape)
-            variables = {name: broadcast_to_w_samples(F, v, shapes_map[name])
-                         for name, v in variables.items()}
-
-            res = func(self, F=F, rv_shape=rv_shape, num_samples=num_samples,
-                       **variables)
-            if always_return_tuple:
-                res = (res,)
-            return res
-        return draw_samples_broadcast
-
-
 class MultivariateNormalMeanPrecision(Distribution):
     """
     The multi-dimensional normal distribution parameterized by mean and precision rather than mean and variance.
@@ -531,10 +352,9 @@ class MultivariateNormalMeanPrecision(Distribution):
         inputs = [('mean', mean), ('precision', precision)]
         input_names = ['mean', 'precision']
         output_names = ['random_variable']
-        super(MultivariateNormalMeanPrecision, self).__init__(inputs=inputs, outputs=None,
-                                                              input_names=input_names,
-                                                              output_names=output_names,
-                                                              rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+        super(MultivariateNormalMeanPrecision, self).__init__(
+            inputs=inputs, outputs=None, input_names=input_names,
+            output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
     def replicate_self(self, attribute_map=None):
         """
@@ -549,8 +369,7 @@ class MultivariateNormalMeanPrecision(Distribution):
         replicant = super(MultivariateNormalMeanPrecision, self).replicate_self(attribute_map)
         return replicant
 
-    @MultivariateNormalMeanPrecisionLogPDFDecorator()
-    def log_pdf(self, mean, precision, random_variable, F=None):
+    def log_pdf_impl(self, mean, precision, random_variable, F=None):
         """
         Computes the logarithm of the probability density function (PDF) of the normal distribution.
 
@@ -577,8 +396,8 @@ class MultivariateNormalMeanPrecision(Distribution):
 
         return -0.5 * (sqnorm_z + c + logdetl) * self.log_pdf_scaling
 
-    @MultivariateNormalMeanPrecisionDrawSamplesDecorator()
-    def draw_samples(self, mean, precision, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1,
+                          F=None):
         """
         Draw a number of samples from the normal distribution.
 

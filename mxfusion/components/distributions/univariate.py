@@ -13,80 +13,8 @@
 # ==============================================================================
 
 
-from ...common.exceptions import InferenceError
 from ..variables import Variable
-from .distribution import Distribution, LogPDFDecorator, DrawSamplesDecorator
-from ..variables import array_has_samples, get_num_samples
-from ...util.customop import broadcast_to_w_samples
-
-
-class UnivariateLogPDFDecorator(LogPDFDecorator):
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        def log_pdf_broadcast(self, F, **kws):
-            """
-            Computes the logarithm of the probability density/mass function
-            (PDF/PMF) of the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param kws: the dict of input and output variables of the distribution
-            :type kws: {name: MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            variables = {name: kws[name] for name, _ in self.inputs}
-            variables['random_variable'] = kws['random_variable']
-            rv_shape = variables['random_variable'].shape[1:]
-
-            num_samples = max([get_num_samples(F, v) for v in variables.values()])
-            full_shape = (num_samples,) + rv_shape
-
-            variables = {name: broadcast_to_w_samples(F, v, full_shape) for
-                         name, v in variables.items()}
-            res = func(self, F=F, **variables)
-            return res
-        return log_pdf_broadcast
-
-
-class UnivariateDrawSamplesDecorator(DrawSamplesDecorator):
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        def draw_samples_broadcast(self, F, rv_shape, num_samples=1,
-                                   always_return_tuple=False, **kws):
-            """
-            Draw a number of samples from the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param nSamples: the number of drawn samples (default: one)
-            :int nSamples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
-            :param kws: the dict of input variables of the distribution
-            :type kws: {name: MXNet NDArray or MXNet Symbol}
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
-            """
-            rv_shape = list(rv_shape.values())[0]
-            variables = {name: kws[name] for name, _ in self.inputs}
-
-            isSamples = any([array_has_samples(F, v) for v in variables.values()])
-            if isSamples:
-                num_samples_inferred = max([get_num_samples(F, v) for v in
-                                           variables.values()])
-                if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Gaussian process has to be the same as the number of samples given to the inputs. nSamples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
-            full_shape = (num_samples,) + rv_shape
-
-            variables = {name: broadcast_to_w_samples(F, v, full_shape) for
-                         name, v in variables.items()}
-            res = func(self, F=F, rv_shape=rv_shape, num_samples=num_samples,
-                       **variables)
-            if always_return_tuple:
-                res = (res,)
-            return res
-        return draw_samples_broadcast
+from .distribution import Distribution
 
 
 class UnivariateDistribution(Distribution):

@@ -14,8 +14,7 @@
 
 
 from ..variables import Variable
-from .univariate import UnivariateDistribution, UnivariateLogPDFDecorator, UnivariateDrawSamplesDecorator
-from ...util.customop import broadcast_to_w_samples
+from .univariate import UnivariateDistribution
 
 
 class PointMass(UnivariateDistribution):
@@ -33,8 +32,7 @@ class PointMass(UnivariateDistribution):
                                         output_names=output_names,
                                         rand_gen=rand_gen, dtype=dtype, ctx=ctx)
 
-    @UnivariateLogPDFDecorator()
-    def log_pdf(self, location, random_variable, F=None):
+    def log_pdf_impl(self, location, random_variable, F=None):
         """
         Computes the logarithm of probabilistic density function of the normal distribution.
 
@@ -45,10 +43,12 @@ class PointMass(UnivariateDistribution):
         """
         return 0.
 
-    @UnivariateDrawSamplesDecorator()
-    def draw_samples(self, location, rv_shape, num_samples=1, F=None):
-        return broadcast_to_w_samples(F, location, False, (num_samples,) +
-                                      rv_shape)
+    def draw_samples_impl(self, location, rv_shape, num_samples=1, F=None):
+        if num_samples == location.shape[0]:
+            return location
+        else:
+            return F.broadcast_to(
+                location, shape=(num_samples,)+location.shape[1:])
 
     @staticmethod
     def define_variable(location, shape=None, rand_gen=None, dtype=None,
@@ -62,8 +62,9 @@ class PointMass(UnivariateDistribution):
         :returns: RandomVariable drawn from the distribution specified.
         """
         if not isinstance(location, Variable):
-            loc = Variable(value=location)
+            location = Variable(value=location)
 
-        p = PointMass(location=loc, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+        p = PointMass(location=location, rand_gen=rand_gen, dtype=dtype,
+                      ctx=ctx)
         p._generate_outputs(shape=shape)
         return p.random_variable
