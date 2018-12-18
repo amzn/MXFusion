@@ -40,7 +40,7 @@ class MinibatchInferenceLoop(GradLoop):
             if rv_scaling is not None else rv_scaling
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, verbose=False):
+            learning_rate=1e-3, max_iter=1000, verbose=False, callback=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -56,6 +56,8 @@ class MinibatchInferenceLoop(GradLoop):
         :type learning_rate: float
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
+        :param callback: Callback function for custom print statements
+        :type callback: func
         :param verbose: whether to print per-iteration messages.
         :type verbose: boolean
         """
@@ -86,4 +88,7 @@ class MinibatchInferenceLoop(GradLoop):
                 L_e += loss.asscalar() / self.batch_size
                 n_batches += 1
             if verbose:
-                print('epoch-loss: {} '.format(L_e / n_batches))
+                if callback is None:
+                    print('epoch-loss: {} '.format(L_e / n_batches))
+                else:
+                    callback(e, L_e)

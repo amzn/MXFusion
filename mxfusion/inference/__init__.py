@@ -41,7 +41,7 @@ from .inference import Inference, TransferInference
 from .minibatch_loop import MinibatchInferenceLoop
 from .meanfield import create_Gaussian_meanfield
 from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampling, ForwardSamplingAlgorithm
-from .grad_based_inference import GradBasedInference
+from .grad_based_inference import GradBasedInference, GradIteratorBasedInference
 from .variational import StochasticVariationalInference
 from .inference_parameters import InferenceParameters
 from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
