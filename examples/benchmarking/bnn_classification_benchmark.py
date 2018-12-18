@@ -227,7 +227,7 @@ if __name__ == "__main__":
 
     models = {
         VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
-        MeanFieldNN: dict(epochs=1, optimizer='sgd', optimizer_params=dict(learning_rate=0.1))
+        MeanFieldNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.1))
     }
 
     # for model_class in VanillaNN, MeanFieldNN:
