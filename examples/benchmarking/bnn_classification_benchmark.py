@@ -157,7 +157,7 @@ class MeanFieldNN(VanillaNN):
         # x_init = nd.random.normal(shape=(batch_size, self.num_dims))
         # y_init = nd.random.multinomial(
         #     data=nd.ones(self.num_classes) / float(self.num_classes), shape=(batch_size, 1))
-        x, y = next(iter(train_loader))
+        x, y = next(iter(train_loader)).as_in_context(self.ctx)
         self.net.forward(x)
 
         observed = [self.model.x, self.model.y]
@@ -226,7 +226,7 @@ if __name__ == "__main__":
     data_name, train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = get_mnist(batch_size)
 
     models = {
-        VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
+        # VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
         MeanFieldNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.1))
     }
 
