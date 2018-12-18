@@ -41,7 +41,6 @@ from time import time
 
 warnings.filterwarnings('ignore')
 logging.getLogger().setLevel(logging.DEBUG)  # logging to stdout
-CPU_COUNT = cpu_count()
 
 
 def timing(f):
@@ -142,8 +141,8 @@ class MeanFieldNN(VanillaNN):
         m.x = Variable(shape=(m.N, num_dims))
         m.r = m.f(m.x)
         for _, v in m.r.factor.parameters.items():
-            v.set_prior(Normal(mean=broadcast_to(mx.nd.array([0]), v.shape),
-                               variance=broadcast_to(mx.nd.array([1.]), v.shape)))
+            v.set_prior(Normal(mean=broadcast_to(mx.nd.array([0], ctx=self.ctx), v.shape),
+                               variance=broadcast_to(mx.nd.array([1.], ctx=self.ctx), v.shape)))
         m.y = Categorical.define_variable(log_prob=m.r, shape=(m.N, 1), num_classes=num_classes)
         print(m)
         self.model = m
@@ -158,7 +157,9 @@ class MeanFieldNN(VanillaNN):
         # y_init = nd.random.multinomial(
         #     data=nd.ones(self.num_classes) / float(self.num_classes), shape=(batch_size, 1))
         x, y = next(iter(train_loader))
-        self.net.forward(x.as_in_context(self.ctx))
+        x = x.as_in_context(self.ctx)
+        y = y.as_in_context(self.ctx)
+        self.net.forward(x)
 
         observed = [self.model.x, self.model.y]
         q = create_Gaussian_meanfield(model=self.model, observed=observed)
@@ -172,9 +173,9 @@ class MeanFieldNN(VanillaNN):
         self.inference.initialize(x=x, y=y)
 
         for v_name, v in self.model.r.factor.parameters.items():
-            self.inference.params[q[v].factor.mean] = self.net.collect_params()[v_name].data()
+            self.inference.params[q[v].factor.mean] = self.net.collect_params()[v_name].data().as_in_context(ctx)
             self.inference.params[q[v].factor.variance] = mx.nd.ones_like(
-                self.inference.params[q[v].factor.variance]) * 1e-6
+                self.inference.params[q[v].factor.variance], ctx=self.ctx) * 1e-6
 
         self.inference.run(data=train_loader, max_iter=epochs, **optimizer_params, verbose=True, x=None, y=None,
                            callback=lambda *args, **kwargs: self.print_progress(*args, **kwargs, val_loader=val_loader))
@@ -195,7 +196,10 @@ class MeanFieldNN(VanillaNN):
         return acc.get()[1]
 
 
-def get_mnist(batch_size):
+def get_mnist(batch_size, ctx):
+    cpu_count = 1 if ctx == mx.context.gpu() else cpu_count()
+    print(f"CPU count {cpu_count}")
+
     # Load MNIST Data
     def transform(data, label):
         return data.reshape(-1).astype('float32') / 255, label.astype('float32')
@@ -207,9 +211,9 @@ def get_mnist(batch_size):
     data_shape = train_dataset._data.shape
     data_shape = data_shape[0], int(np.product(data_shape[1:]))
 
-    train_data_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=CPU_COUNT)
-    valid_data_loader = DataLoader(valid_dataset, batch_size, num_workers=CPU_COUNT)
-    test_data_loader = DataLoader(valid_dataset, batch_size, num_workers=CPU_COUNT)
+    train_data_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=cpu_count)
+    valid_data_loader = DataLoader(valid_dataset, batch_size, num_workers=cpu_count)
+    test_data_loader = DataLoader(valid_dataset, batch_size, num_workers=cpu_count)
 
     return MNIST.__name__, train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape
 
@@ -223,7 +227,7 @@ if __name__ == "__main__":
     print(f"Context: {ctx}")
 
     batch_size = 100
-    data_name, train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = get_mnist(batch_size)
+    data_name, train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = get_mnist(batch_size, ctx)
 
     models = {
         # VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
