@@ -82,7 +82,7 @@ class VanillaNN:
             net.add(nn.Dense(128, activation="relu", flatten=False, in_units=num_dims))
             net.add(nn.Dense(64, activation="relu", flatten=False, in_units=128))
             net.add(nn.Dense(num_classes, flatten=False, in_units=64))
-        net.initialize(mx.init.Xavier(magnitude=2.34))
+        net.initialize(mx.init.Xavier(magnitude=2.34), ctx=ctx)
         net.hybridize(static_alloc=True, static_shape=True)
         self.num_classes = num_classes
         self.num_dims = num_dims
@@ -154,10 +154,11 @@ class MeanFieldNN(VanillaNN):
         data_shape = train_loader._dataset._data.shape
 
         # Create some dummy data and pass it through the net to initialise it
-        x_init = nd.random.normal(shape=(batch_size, self.num_dims))
-        y_init = nd.random.multinomial(
-            data=nd.ones(self.num_classes) / float(self.num_classes), shape=(batch_size, 1))
-        self.net.forward(x_init)
+        # x_init = nd.random.normal(shape=(batch_size, self.num_dims))
+        # y_init = nd.random.multinomial(
+        #     data=nd.ones(self.num_classes) / float(self.num_classes), shape=(batch_size, 1))
+        x, y = next(iter(train_loader))
+        self.net.forward(x)
 
         observed = [self.model.x, self.model.y]
         q = create_Gaussian_meanfield(model=self.model, observed=observed)
@@ -168,7 +169,6 @@ class MeanFieldNN(VanillaNN):
         # self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
 
         # self.inference.initialize(x=x_init, y=y_init)
-        x, y = next(iter(train_loader))
         self.inference.initialize(x=x, y=y)
 
         for v_name, v in self.model.r.factor.parameters.items():
