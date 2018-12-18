@@ -26,10 +26,6 @@ class GradBasedInference(Inference):
 
     :param inference_algorithm: The applied inference algorithm
     :type inference_algorithm: InferenceAlgorithm
-    :param graphs: a list of graph definitions required by the inference method. It includes the model definition and necessary posterior approximation.
-    :type graphs: [FactorGraph]
-    :param observed: A list of observed variables
-    :type observed: [Variable]
     :param grad_loop: The reference to the main loop of gradient optimization
     :type grad_loop: GradLoop
     :param constants: Specify a list of model variables as constants
@@ -68,7 +64,7 @@ class GradBasedInference(Inference):
         return infr
 
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
-            verbose=False, **kwargs):
+            verbose=False, callback=None, **kwargs):
         """
         Run the inference method.
 
@@ -80,8 +76,10 @@ class GradBasedInference(Inference):
         :type max_iter: int
         :param verbose: whether to print per-iteration messages.
         :type verbose: boolean
-        :param **kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of the corresponding
-            variable in model definition and the value of the argument is the data in numpy array format.
+        :param callback: Callback function for custom print statements
+        :type callback: func
+        :param kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of
+        the corresponding variable in model definition and the value of the argument is the data in numpy array format.
         """
         data = [kwargs[v] for v in self.observed_variable_names]
         self.initialize(**kwargs)
