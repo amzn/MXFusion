@@ -157,8 +157,8 @@ class MeanFieldNN(VanillaNN):
         # x_init = nd.random.normal(shape=(batch_size, self.num_dims))
         # y_init = nd.random.multinomial(
         #     data=nd.ones(self.num_classes) / float(self.num_classes), shape=(batch_size, 1))
-        x, y = next(iter(train_loader)).as_in_context(self.ctx)
-        self.net.forward(x)
+        x, y = next(iter(train_loader))
+        self.net.forward(x.as_in_context(self.ctx))
 
         observed = [self.model.x, self.model.y]
         q = create_Gaussian_meanfield(model=self.model, observed=observed)
