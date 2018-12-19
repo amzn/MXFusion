@@ -187,7 +187,7 @@ class MeanFieldNN(VanillaNN):
         if self.inference is None:
             raise ValueError("Model not yet trained")
 
-        inference = VariationalPosteriorForwardSampling(10, [self.model.x], self.inference, [self.model.r])
+        inference = VariationalPosteriorForwardSampling(10, [self.model.x], self.inference, [self.model.r], context=ctx)
 
         for data, label in iter(data_loader):
             res = inference.run(x=data.as_in_context(self.ctx))
