@@ -33,9 +33,9 @@ from mxfusion.components.distributions import Normal, Categorical
 from mxfusion import Variable, Model
 from mxfusion.components.functions import MXFusionGluonFunction
 from tqdm import tqdm
+from mlp import MLP
 
 import warnings
-from multiprocessing import cpu_count
 from functools import wraps
 from time import time
 
@@ -76,16 +76,16 @@ DataLoader.__repr__ = lambda self: f"{self.__class__.__name__}()"
 
 class VanillaNN:
     def __init__(self, architecture, ctx):
-        net = nn.HybridSequential(prefix='nn_')
-        with net.name_scope():
-            net.add(nn.Dense(128, activation="relu", flatten=False, in_units=architecture[0]))
-            net.add(nn.Dense(64, activation="relu", flatten=False, in_units=128))
-            net.add(nn.Dense(architecture[-1], flatten=False, in_units=64))
-        net.initialize(mx.init.Xavier(magnitude=2.34), ctx=ctx)
-        net.hybridize(static_alloc=True, static_shape=True)
-        self.num_classes = num_classes
-        self.num_dims = num_dims
-        self.net = net
+        # net = nn.HybridSequential(prefix='nn_')
+        # with net.name_scope():
+        #     net.add(nn.Dense(128, activation="relu", flatten=False, in_units=architecture[0]))
+        #     net.add(nn.Dense(64, activation="relu", flatten=False, in_units=128))
+        #     net.add(nn.Dense(architecture[-1], flatten=False, in_units=64))
+        # net.hybridize(static_alloc=True, static_shape=True)
+        # self.num_classes = num_classes
+        # self.num_dims = num_dims
+        self.net = MLP(prefix=self.__class__.__name__, network_shape=architecture, single_head=False)
+        self.net.initialize(mx.init.Xavier(magnitude=2.34), ctx=ctx)
         self.ctx = ctx
 
     def __repr__(self):
@@ -99,7 +99,7 @@ class VanillaNN:
         for e in range(epochs):
             for data, label in tqdm(iter(train_loader)):
                 with autograd.record():
-                    output = self.net(data.as_in_context(self.ctx))
+                    output = self.net(data.as_in_context(self.ctx))[0]
                     loss = softmax_cross_entropy(output, label.as_in_context(self.ctx))
                     loss.backward()
                 trainer.step(data.shape[0])
@@ -126,7 +126,7 @@ class VanillaNN:
     def evaluate_accuracy(self, data_loader):
         acc = mx.metric.Accuracy()
         for data, label in iter(data_loader):
-            output = self.net(data.as_in_context(self.ctx))
+            output = self.net(data.as_in_context(self.ctx))[0]
             predictions = nd.argmax(output, axis=1)
             acc.update(preds=predictions, labels=label.as_in_context(self.ctx))
         return acc.get()[1]
@@ -138,12 +138,12 @@ class MeanFieldNN(VanillaNN):
         m = Model()
         m.N = Variable()
         m.f = MXFusionGluonFunction(self.net, num_outputs=1, broadcastable=False)
-        m.x = Variable(shape=(m.N, num_dims))
+        m.x = Variable(shape=(m.N, self.net.network_shape[0]))
         m.r = m.f(m.x)
         for _, v in m.r.factor.parameters.items():
             v.set_prior(Normal(mean=broadcast_to(mx.nd.array([0], ctx=self.ctx), v.shape),
                                variance=broadcast_to(mx.nd.array([1.], ctx=self.ctx), v.shape)))
-        m.y = Categorical.define_variable(log_prob=m.r, shape=(m.N, 1), num_classes=num_classes)
+        m.y = Categorical.define_variable(log_prob=m.r, shape=(m.N, 1), num_classes=self.net.network_shape[-1])
         # print(m)
         self.model = m
         self.inference = None
@@ -199,6 +199,7 @@ class MeanFieldNN(VanillaNN):
 
 
 def get_data(data_class, batch_size, ctx):
+    from multiprocessing import cpu_count
     cpu_count = 1 if ctx == mx.context.gpu() else cpu_count()
     print(f"CPU count {cpu_count}")
 
@@ -231,14 +232,13 @@ if __name__ == "__main__":
 
     batch_size = 100
 
-
     for data_class in (MNIST, ):
         train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = \
             get_data(data_class, batch_size, ctx)
 
-        hidden = (128, 64)
-        # hidden = (2500, 2000, 1500, 1000, 500)
-        architecture = (data_shape[1],) + hidden + (num_classes,)
+        # hidden = (128, 64)
+        hidden = (2500, 2000, 1500, 1000, 500)
+        architecture = (data_shape[1],) + hidden + ((num_classes,),)
 
         models = {
             VanillaNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.05)),
