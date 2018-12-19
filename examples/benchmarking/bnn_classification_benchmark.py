@@ -190,7 +190,7 @@ class MeanFieldNN(VanillaNN):
         inference = VariationalPosteriorForwardSampling(10, [self.model.x], self.inference, [self.model.r])
 
         for data, label in iter(data_loader):
-            res = inference.run(x=data)
+            res = inference.run(x=data.as_in_context(self.ctx))
             predictions = nd.argmax(nd.mean(res[0], axis=0), axis=1)
             acc.update(preds=predictions, labels=label.as_in_context(self.ctx))
         return acc.get()[1]
