@@ -108,7 +108,7 @@ class VanillaNN:
 
     def print_progress(self, e, cumulative_loss, val_loader):
         validation_accuracy = self.evaluate_accuracy(val_loader)
-        print(f"Epoch {e + 1}. Loss: {cumulative_loss}, Validation accuracy {validation_accuracy}")
+        print(f"epoch {e + 1}. Loss: {cumulative_loss}, Validation accuracy {validation_accuracy}")
 
     @timing
     def predict(self, data_loader):
