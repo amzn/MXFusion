@@ -250,6 +250,7 @@ if __name__ == "__main__":
             print("--------------------------------------")
             print(f"{model_class.__name__} on {data_class.__name__}")
             print(f"Data shape: {data_shape}")
+            print(f"Architecture: {architecture}")
 
             nn_wrapper = model_class(architecture, ctx=ctx)
             nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
