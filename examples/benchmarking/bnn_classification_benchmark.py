@@ -196,7 +196,7 @@ class MeanFieldNN(VanillaNN):
         return acc.get()[1]
 
 
-def get_mnist(batch_size, ctx):
+def get_data(data_class, batch_size, ctx):
     cpu_count = 1 if ctx == mx.context.gpu() else cpu_count()
     print(f"CPU count {cpu_count}")
 
@@ -204,18 +204,18 @@ def get_mnist(batch_size, ctx):
     def transform(data, label):
         return data.reshape(-1).astype('float32') / 255, label.astype('float32')
 
-    train_dataset = MNIST(train=True, transform=transform)
-    valid_dataset = MNIST(train=False, transform=transform)
-    num_classes = 10
+    train_dataset = data_class(train=True, transform=transform)
+    valid_dataset = data_class(train=False, transform=transform)
 
     data_shape = train_dataset._data.shape
     data_shape = data_shape[0], int(np.product(data_shape[1:]))
+    num_classes = len(np.unique(train_dataset._label))
 
     train_data_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=cpu_count)
     valid_data_loader = DataLoader(valid_dataset, batch_size, num_workers=cpu_count)
     test_data_loader = DataLoader(valid_dataset, batch_size, num_workers=cpu_count)
 
-    return MNIST.__name__, train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape
+    return train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape
 
 
 if __name__ == "__main__":
@@ -227,22 +227,25 @@ if __name__ == "__main__":
     print(f"Context: {ctx}")
 
     batch_size = 100
-    data_name, train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = get_mnist(batch_size, ctx)
 
-    models = {
-        # VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
-        MeanFieldNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.1))
-    }
+    for data_class in (MNIST, ):
+        train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = \
+            get_data(data_class, batch_size, ctx)
 
-    # for model_class in VanillaNN, MeanFieldNN:
-    for model_class, run_args in models.items():
-        print("--------------------------------------")
-        print(f"{model_class.__name__} on {data_name}")
-        print(f"Data shape: {data_shape}")
+        models = {
+            # VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
+            MeanFieldNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.1))
+        }
 
-        nn_wrapper = model_class(data_shape[1], num_classes, ctx=ctx)
-        nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
-        acc = nn_wrapper.evaluate_accuracy(test_data_loader)
-        print(f"Final test accuracy: {acc}")
-        assert acc > 0.96, f"Achieved accuracy ({acc:f}) is lower than expected (0.96)"
-        print()
+        # for model_class in VanillaNN, MeanFieldNN:
+        for model_class, run_args in models.items():
+            print("--------------------------------------")
+            print(f"{model_class.__name__} on {data_class.__name__}")
+            print(f"Data shape: {data_shape}")
+
+            nn_wrapper = model_class(data_shape[1], num_classes, ctx=ctx)
+            nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
+            acc = nn_wrapper.evaluate_accuracy(test_data_loader)
+            print(f"Final test accuracy: {acc}")
+            assert acc > 0.96, f"Achieved accuracy ({acc:f}) is lower than expected (0.96)"
+            print()
