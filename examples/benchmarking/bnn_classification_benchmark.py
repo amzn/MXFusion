@@ -166,7 +166,7 @@ class MeanFieldNN(VanillaNN):
         alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
         rv_scaling = data_shape[0] / (batch_size * epochs)
         grad_loop = MinibatchInferenceLoop(batch_size=batch_size, rv_scaling={self.model.y: rv_scaling})
-        self.inference = GradIteratorBasedInference(inference_algorithm=alg, grad_loop=grad_loop)
+        self.inference = GradIteratorBasedInference(inference_algorithm=alg, grad_loop=grad_loop, context=self.ctx)
         # self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
 
         # self.inference.initialize(x=x_init, y=y_init)
