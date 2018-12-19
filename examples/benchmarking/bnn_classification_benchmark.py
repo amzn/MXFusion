@@ -75,12 +75,12 @@ DataLoader.__repr__ = lambda self: f"{self.__class__.__name__}()"
 
 
 class VanillaNN:
-    def __init__(self, num_dims, num_classes, ctx):
+    def __init__(self, architecture, ctx):
         net = nn.HybridSequential(prefix='nn_')
         with net.name_scope():
-            net.add(nn.Dense(128, activation="relu", flatten=False, in_units=num_dims))
+            net.add(nn.Dense(128, activation="relu", flatten=False, in_units=architecture[0]))
             net.add(nn.Dense(64, activation="relu", flatten=False, in_units=128))
-            net.add(nn.Dense(num_classes, flatten=False, in_units=64))
+            net.add(nn.Dense(architecture[-1], flatten=False, in_units=64))
         net.initialize(mx.init.Xavier(magnitude=2.34), ctx=ctx)
         net.hybridize(static_alloc=True, static_shape=True)
         self.num_classes = num_classes
@@ -92,7 +92,7 @@ class VanillaNN:
         return f"{self.__class__.__name__}({self.num_dims}, {self.num_classes}, {self.ctx})"
 
     @timing
-    def train(self, train_loader, val_loader, batch_size, epochs, optimizer, optimizer_params):
+    def train(self, train_loader, val_loader, batch_size, epochs, optimizer, optimizer_params, **kwargs):
         trainer = Trainer(params=self.net.collect_params(), optimizer=optimizer, optimizer_params=optimizer_params)
         cumulative_loss = 0
 
@@ -108,7 +108,7 @@ class VanillaNN:
 
     def print_progress(self, e, cumulative_loss, val_loader):
         validation_accuracy = self.evaluate_accuracy(val_loader)
-        print(f"Epoch {e}. Loss: {cumulative_loss}, Validation accuracy {validation_accuracy}")
+        print(f"Epoch {e + 1}. Loss: {cumulative_loss}, Validation accuracy {validation_accuracy}")
 
     @timing
     def predict(self, data_loader):
@@ -133,8 +133,8 @@ class VanillaNN:
 
 
 class MeanFieldNN(VanillaNN):
-    def __init__(self, num_dims, num_classes, ctx):
-        super().__init__(num_dims, num_classes, ctx)
+    def __init__(self, architecture, ctx):
+        super().__init__(architecture, ctx)
         m = Model()
         m.N = Variable()
         m.f = MXFusionGluonFunction(self.net, num_outputs=1, broadcastable=False)
@@ -144,13 +144,15 @@ class MeanFieldNN(VanillaNN):
             v.set_prior(Normal(mean=broadcast_to(mx.nd.array([0], ctx=self.ctx), v.shape),
                                variance=broadcast_to(mx.nd.array([1.], ctx=self.ctx), v.shape)))
         m.y = Categorical.define_variable(log_prob=m.r, shape=(m.N, 1), num_classes=num_classes)
-        print(m)
+        # print(m)
         self.model = m
         self.inference = None
 
     @timing
-    def train(self, train_loader, val_loader, batch_size, epochs, optimizer, optimizer_params):
+    def train(self, train_loader, val_loader, batch_size, epochs, optimizer, optimizer_params, **kwargs):
         data_shape = train_loader._dataset._data.shape
+
+        initial_scaling = kwargs.get('initial_scaling', 1e-6)
 
         # Create some dummy data and pass it through the net to initialise it
         # x_init = nd.random.normal(shape=(batch_size, self.num_dims))
@@ -175,7 +177,7 @@ class MeanFieldNN(VanillaNN):
         for v_name, v in self.model.r.factor.parameters.items():
             self.inference.params[q[v].factor.mean] = self.net.collect_params()[v_name].data().as_in_context(ctx)
             self.inference.params[q[v].factor.variance] = mx.nd.ones_like(
-                self.inference.params[q[v].factor.variance], ctx=self.ctx) * 1e-6
+                self.inference.params[q[v].factor.variance], ctx=self.ctx) * initial_scaling
 
         self.inference.run(data=train_loader, max_iter=epochs, **optimizer_params, verbose=True, x=None, y=None,
                            callback=lambda *args, **kwargs: self.print_progress(*args, **kwargs, val_loader=val_loader))
@@ -221,6 +223,7 @@ def get_data(data_class, batch_size, ctx):
 if __name__ == "__main__":
     # Fix the seed
     mx.random.seed(42)
+    np.random.seed(42)
 
     # Set the compute context, GPU is available otherwise CPU
     ctx = mx.gpu() if mx.test_utils.list_gpus() else mx.cpu()
@@ -228,13 +231,18 @@ if __name__ == "__main__":
 
     batch_size = 100
 
+
     for data_class in (MNIST, ):
         train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = \
             get_data(data_class, batch_size, ctx)
 
+        hidden = (128, 64)
+        # hidden = (2500, 2000, 1500, 1000, 500)
+        architecture = (data_shape[1],) + hidden + (num_classes,)
+
         models = {
-            # VanillaNN: dict(epochs=5, optimizer='sgd', optimizer_params=dict(learning_rate=0.1)),
-            MeanFieldNN: dict(epochs=1, optimizer='adam', optimizer_params=dict(learning_rate=0.001))
+            VanillaNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.05)),
+            MeanFieldNN: dict(epochs=10, optimizer='adam', optimizer_params=dict(learning_rate=0.001), initial_scaling=1e-9)
         }
 
         # for model_class in VanillaNN, MeanFieldNN:
@@ -243,9 +251,10 @@ if __name__ == "__main__":
             print(f"{model_class.__name__} on {data_class.__name__}")
             print(f"Data shape: {data_shape}")
 
-            nn_wrapper = model_class(data_shape[1], num_classes, ctx=ctx)
+            nn_wrapper = model_class(architecture, ctx=ctx)
             nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
             acc = nn_wrapper.evaluate_accuracy(test_data_loader)
             print(f"Final test accuracy: {acc}")
             assert acc > 0.96, f"Achieved accuracy ({acc:f}) is lower than expected (0.96)"
+            print(run_args)
             print()
