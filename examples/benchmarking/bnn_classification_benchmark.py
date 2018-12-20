@@ -17,23 +17,22 @@
 # Bayesian Neural Network (VI) for classification benchmarking
 
 import mxnet as mx
-from matplotlib.pyplot import plot
 from mxnet import autograd, nd
 from mxnet.gluon.data import DataLoader
-from mxnet.gluon import nn, Trainer
+from mxnet.gluon import Trainer
 import numpy as np
-from mxnet.gluon.data.vision import MNIST
+from mxnet.gluon.data.vision import MNIST, FashionMNIST, CIFAR10, CIFAR100
 from mxnet.ndarray import softmax_cross_entropy
 import logging
-from mxfusion.components.variables.var_trans import PositiveTransformation
-from mxfusion.inference import VariationalPosteriorForwardSampling, BatchInferenceLoop, create_Gaussian_meanfield, \
-    GradBasedInference, StochasticVariationalInference, GradIteratorBasedInference, MinibatchInferenceLoop
+from mxfusion.inference import VariationalPosteriorForwardSampling, create_Gaussian_meanfield, \
+    StochasticVariationalInference, GradIteratorBasedInference, MinibatchInferenceLoop
 from mxfusion.components.functions.operators import broadcast_to
 from mxfusion.components.distributions import Normal, Categorical
 from mxfusion import Variable, Model
 from mxfusion.components.functions import MXFusionGluonFunction
 from tqdm import tqdm
 from mlp import MLP
+import json
 
 import warnings
 from functools import wraps
@@ -49,43 +48,22 @@ def timing(f):
         ts = time()
         result = f(*args, **kw)
         te = time()
-        # print(f'func:{f.__name__!r} args:[{args!r}, {kw!r}] took: {te-ts:2.4f} sec')
         print(f'func:{f.__name__!r} took: {te-ts:2.4f} sec')
         return result
 
     return wrap
 
 
-# Monkey patch modified factor printing
-from mxfusion.components import Factor
-
-
-def print_factor(self):
-    out_str = self.__class__.__name__
-    if self.predecessors is not None:
-        out_str += '(' + ', '.join([str(name) + '=' + str(var) for name, var in self.predecessors]) \
-                   + (f", shape={self.outputs[0][1].shape})" if len(self.outputs) == 1 else ')')
-    return out_str
-
-
-Factor.__repr__ = print_factor
-
 # Monkey patch data loader printing
 DataLoader.__repr__ = lambda self: f"{self.__class__.__name__}()"
 
 
 class VanillaNN:
-    def __init__(self, architecture, ctx):
-        # net = nn.HybridSequential(prefix='nn_')
-        # with net.name_scope():
-        #     net.add(nn.Dense(128, activation="relu", flatten=False, in_units=architecture[0]))
-        #     net.add(nn.Dense(64, activation="relu", flatten=False, in_units=128))
-        #     net.add(nn.Dense(architecture[-1], flatten=False, in_units=64))
-        # net.hybridize(static_alloc=True, static_shape=True)
-        # self.num_classes = num_classes
-        # self.num_dims = num_dims
-        self.net = MLP(prefix=self.__class__.__name__, network_shape=architecture, single_head=False)
+    def __init__(self, architecture, metrics, ctx):
+        self.net = MLP(prefix=self.__class__.__name__, network_shape=architecture)
         self.net.initialize(mx.init.Xavier(magnitude=2.34), ctx=ctx)
+        self.metrics = [metric_func() for metric_func in metrics]
+        self.validation_scores = dict((metric.name, []) for metric in self.metrics)
         self.ctx = ctx
 
     def __repr__(self):
@@ -96,45 +74,51 @@ class VanillaNN:
         trainer = Trainer(params=self.net.collect_params(), optimizer=optimizer, optimizer_params=optimizer_params)
         cumulative_loss = 0
 
+        for metric in self.metrics:
+            metric.reset()
+            self.validation_scores = dict((metric.name, []) for metric in self.metrics)
+
         for e in range(epochs):
             for data, label in tqdm(iter(train_loader)):
                 with autograd.record():
-                    output = self.net(data.as_in_context(self.ctx))[0]
+                    output = self.net(data.as_in_context(self.ctx))
                     loss = softmax_cross_entropy(output, label.as_in_context(self.ctx))
                     loss.backward()
                 trainer.step(data.shape[0])
                 cumulative_loss += nd.sum(loss).asscalar()
-            self.print_progress(e, cumulative_loss, val_loader)
+            self.epoch_callback(e, cumulative_loss, val_loader)
 
-    def print_progress(self, e, cumulative_loss, val_loader):
-        validation_accuracy = self.evaluate_accuracy(val_loader)
+    def epoch_callback(self, e, cumulative_loss, val_loader):
+        self.update_metrics(val_loader)
+
+        # TODO: this depends on accuracy being the first metric in the list
+        validation_accuracy = self.metrics[0].get()[1]
         print(f"epoch {e + 1}. Loss: {cumulative_loss}, Validation accuracy {validation_accuracy}")
 
-    @timing
-    def predict(self, data_loader):
-        predictions = nd.zeros(shape=(data_loader.num_data,))
-        i = 0
-        for data in iter(data_loader):
-            with autograd.predict_mode():
-                output = self.net(data.as_in_context(self.ctx))
-                predictions[i:i + data.shape[0]] = nd.argmax(output, axis=1)
-                i += data.shape[0]
-                i += data.shape[0]
-        return predictions
+        # Update validation scores
+        for metric in self.metrics:
+            self.validation_scores[metric.name].append(metric.get()[1])
+
+    def _update_metrics(self, output, label):
+        predictions = nd.argmax(output, axis=1)
+        probs = nd.softmax(output)
+        for metric in self.metrics:
+            if metric.name in ('mse', 'nll-loss'):
+                preds = probs
+            else:
+                preds = predictions
+            metric.update(preds=preds, labels=label.as_in_context(self.ctx))
 
     @timing
-    def evaluate_accuracy(self, data_loader):
-        acc = mx.metric.Accuracy()
+    def update_metrics(self, data_loader):
         for data, label in iter(data_loader):
-            output = self.net(data.as_in_context(self.ctx))[0]
-            predictions = nd.argmax(output, axis=1)
-            acc.update(preds=predictions, labels=label.as_in_context(self.ctx))
-        return acc.get()[1]
+            output = self.net(data.as_in_context(self.ctx))
+            self._update_metrics(output, label)
 
 
 class MeanFieldNN(VanillaNN):
-    def __init__(self, architecture, ctx):
-        super().__init__(architecture, ctx)
+    def __init__(self, architecture, metrics, ctx):
+        super().__init__(architecture, metrics, ctx)
         m = Model()
         m.N = Variable()
         m.f = MXFusionGluonFunction(self.net, num_outputs=1, broadcastable=False)
@@ -150,42 +134,41 @@ class MeanFieldNN(VanillaNN):
 
     @timing
     def train(self, train_loader, val_loader, batch_size, epochs, optimizer, optimizer_params, **kwargs):
+        for metric in self.metrics:
+            metric.reset()
+            self.validation_scores = dict((metric.name, []) for metric in self.metrics)
+
         data_shape = train_loader._dataset._data.shape
 
+        # Set the initial scaling if not supplied
         initial_scaling = kwargs.get('initial_scaling', 1e-6)
 
-        # Create some dummy data and pass it through the net to initialise it
-        # x_init = nd.random.normal(shape=(batch_size, self.num_dims))
-        # y_init = nd.random.multinomial(
-        #     data=nd.ones(self.num_classes) / float(self.num_classes), shape=(batch_size, 1))
+        # Pass the first batch of data through the network to initialise it
         x, y = next(iter(train_loader))
         x = x.as_in_context(self.ctx)
         y = y.as_in_context(self.ctx)
         self.net.forward(x)
 
+        # Setup the inference procedure
         observed = [self.model.x, self.model.y]
         q = create_Gaussian_meanfield(model=self.model, observed=observed)
         alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
         rv_scaling = data_shape[0] / (batch_size * epochs)
         grad_loop = MinibatchInferenceLoop(batch_size=batch_size, rv_scaling={self.model.y: rv_scaling})
         self.inference = GradIteratorBasedInference(inference_algorithm=alg, grad_loop=grad_loop, context=self.ctx)
-        # self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
-
-        # self.inference.initialize(x=x_init, y=y_init)
         self.inference.initialize(x=x, y=y)
 
+        # Initialise the NN weights
         for v_name, v in self.model.r.factor.parameters.items():
             self.inference.params[q[v].factor.mean] = self.net.collect_params()[v_name].data().as_in_context(ctx)
             self.inference.params[q[v].factor.variance] = mx.nd.ones_like(
                 self.inference.params[q[v].factor.variance], ctx=self.ctx) * initial_scaling
 
         self.inference.run(data=train_loader, max_iter=epochs, **optimizer_params, verbose=True, x=None, y=None,
-                           callback=lambda *args, **kwargs: self.print_progress(*args, **kwargs, val_loader=val_loader))
+                           callback=lambda *args, **kwargs: self.epoch_callback(*args, **kwargs, val_loader=val_loader))
 
     @timing
-    def evaluate_accuracy(self, data_loader):
-        acc = mx.metric.Accuracy()
-
+    def update_metrics(self, data_loader):
         if self.inference is None:
             raise ValueError("Model not yet trained")
 
@@ -193,9 +176,8 @@ class MeanFieldNN(VanillaNN):
 
         for data, label in iter(data_loader):
             res = inference.run(x=data.as_in_context(self.ctx))
-            predictions = nd.argmax(nd.mean(res[0], axis=0), axis=1)
-            acc.update(preds=predictions, labels=label.as_in_context(self.ctx))
-        return acc.get()[1]
+            output = nd.mean(res[0], axis=0)
+            self._update_metrics(output, label)
 
 
 def get_data(data_class, batch_size, ctx):
@@ -214,6 +196,7 @@ def get_data(data_class, batch_size, ctx):
     data_shape = data_shape[0], int(np.product(data_shape[1:]))
     num_classes = len(np.unique(train_dataset._label))
 
+    # TODO: Since we're not doing any parameter tuning, the validation and test sets are the same
     train_data_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=cpu_count)
     valid_data_loader = DataLoader(valid_dataset, batch_size, num_workers=cpu_count)
     test_data_loader = DataLoader(valid_dataset, batch_size, num_workers=cpu_count)
@@ -232,30 +215,60 @@ if __name__ == "__main__":
 
     batch_size = 100
 
-    for data_class in (MNIST, ):
-        train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = \
-            get_data(data_class, batch_size, ctx)
+    # Different numbers of hidden layers
+    hidden_choices = (
+        (1000,),
+        (128, 64),
+        (2500, 2000, 1500, 1000, 500)
+    )
 
-        # hidden = (128, 64)
-        hidden = (2500, 2000, 1500, 1000, 500)
-        architecture = (data_shape[1],) + hidden + ((num_classes,),)
+    # Different models
+    models = {
+        VanillaNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.05)),
+        MeanFieldNN: dict(epochs=10, optimizer='adam', optimizer_params=dict(learning_rate=0.001),
+                          initial_scaling=1e-9)
+    }
 
-        models = {
-            VanillaNN: dict(epochs=10, optimizer='sgd', optimizer_params=dict(learning_rate=0.05)),
-            MeanFieldNN: dict(epochs=10, optimizer='adam', optimizer_params=dict(learning_rate=0.001), initial_scaling=1e-9)
-        }
+    # Datasets
+    datasets = (MNIST, FashionMNIST, CIFAR10, CIFAR100)
 
-        # for model_class in VanillaNN, MeanFieldNN:
-        for model_class, run_args in models.items():
-            print("--------------------------------------")
-            print(f"{model_class.__name__} on {data_class.__name__}")
-            print(f"Data shape: {data_shape}")
-            print(f"Architecture: {architecture}")
+    metrics = (
+        mx.metric.Accuracy,
+        mx.metric.MSE,
+        mx.metric.NegativeLogLikelihood
+    )
 
-            nn_wrapper = model_class(architecture, ctx=ctx)
-            nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
-            acc = nn_wrapper.evaluate_accuracy(test_data_loader)
-            print(f"Final test accuracy: {acc}")
-            assert acc > 0.96, f"Achieved accuracy ({acc:f}) is lower than expected (0.96)"
-            print(run_args)
-            print()
+    with open('results.txt', 'w') as f:
+        for data_class in datasets:
+            train_data_loader, valid_data_loader, test_data_loader, num_classes, data_shape = \
+                get_data(data_class, batch_size, ctx)
+
+            for hidden in hidden_choices:
+                architecture = (data_shape[1],) + hidden + (num_classes,)
+
+                # for model_class in VanillaNN, MeanFieldNN:
+                for model_class, run_args in models.items():
+                    print("--------------------------------------")
+                    print(f"{model_class.__name__} on {data_class.__name__}")
+                    print(f"Data shape: {data_shape}")
+                    print(f"Architecture: {architecture}")
+                    print(f"Arguments: {run_args}")
+
+                    nn_wrapper = model_class(architecture, metrics=metrics, ctx=ctx)
+                    nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
+                    nn_wrapper.update_metrics(test_data_loader)
+
+                    evaluations = dict()
+                    for metric in nn_wrapper.metrics:
+                        evaluations[metric.name] = metric.get()[1]
+                        print(f"Final test {metric.name}: {evaluations[metric.name]}")
+                    print()
+
+                    results = dict(data=data_class.__name__,
+                                   architecture=architecture,
+                                   run_args=run_args,
+                                   model=model_class.__name__,
+                                   evaluations=evaluations,
+                                   validation_scores=nn_wrapper.validation_scores)
+                    f.write(json.dumps(results) + '\n')
+                    f.flush()
