@@ -104,10 +104,11 @@ class VanillaNN:
         probs = nd.softmax(output)
         for metric in self.metrics:
             if metric.name in ('mse', 'nll-loss'):
-                preds = probs
-            else:
-                preds = predictions
-            metric.update(preds=preds, labels=label.as_in_context(self.ctx))
+                predictions = probs
+                if metric.name == 'mse':
+                    # For MSE we also require one-hot encodings (since we're in fact computing the Brier Score)
+                    label = mx.nd.one_hot(label, depth=self.net.network_shape[-1])
+            metric.update(preds=predictions, labels=label.as_in_context(self.ctx))
 
     @timing
     def update_metrics(self, data_loader):
