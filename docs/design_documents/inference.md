@@ -2,7 +2,7 @@
 
 ## Overview
 
-Inference in MXFusion is broken down into a few logical pieces that can be combined together as necessary.
+Inference in MXFusion is broken down into a few logical pieces that can be combined together as necessary. MXFusion relies on MXNet's Gluon as the underlying computational engine.
 
 The highest level object you'll deal with will be derived from the ```mxfusion.inference.Inference``` class. This is the outer loop that drives the inference algorithm, holds the relevant parameters and models for training, and handles serialization after training. At a minimum, ```Inference``` objects take as input the ```InferenceAlgorithm``` to run. On creation, an ```InferenceParameters``` object is created and attached to the ```Inference``` method which will store and manage (MXNet) parameters during inference.
 
@@ -126,3 +126,35 @@ infr2.load(primary_model_file=PREFIX+'_graph_0.json',
 
 
 ```
+
+## Inference Internals
+
+This section goes into more details about the steps that happen under the hood when an inference method is actually run.
+
+Pseudocode for this process to reference:
+```
+
+m = make_model()
+observed = [m.y, m.x]
+q = Posterior(model=m)
+alg = StochasticVariationalInference(model=m, observed=observed, posterior=q)
+infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
+infr.initialize(y=y, x=x)
+infr.run(max_iter=1, learning_rate=1e-2, y=y, x=x)
+
+```
+
+
+As discussed above, the first thing that happens for a variational inference method is to create a ```Posterior``` from the ```Model```. This makes a copy of the model that can then be changed without altering the structure of the original model while allowing the user to logically reference the same variable in the model and posterior.
+
+When the ```InferenceAlgorithm``` object is created (```StochasticVariationalInference``` above), references to the ```Model``` and ```Posterior``` objects are kept but no additional MXNet memory or parameters are allocated at this time.
+
+When the ```Inference``` (```GradBasedInference``` above) object is created, again, references to the graph objects are kept but no MXNet memory is allocated yet. An ```InferenceParameters``` object is also created but parameters are not created in it yet.
+
+Some ```Inference``` classes need their ```initialize(...)``` methods be called before calling ```run(...)```, but most can be called by simply calling ```run(...)``` with the appropriate arguments, and it will call initialize before proceeding with the run step.
+
+When ```run(**kwargs)``` is called, the 3 primary steps happen:
+1. ```Inference.initialize()``` is called if not already initialized. This derives the correct shapes of everything from the data passed in via ```kwargs``` and initializes all of the MXNet Parameter objects needed for the computation.
+2. ```Inference.create_executor()``` is called (which calls it's ```InferenceAlgorithm.create_executor()```'s method) to create an ObjectiveBlock. This is an MXNet Gluon HybridBlock object. This is the primary computational graph object which gets executed to perform inference in MXFusion.
+ * If desired, this block can be hybridized and saved down into a symbolic graph for reloading by passing in ```hybridize=True``` when initializing your ```Inference``` object. See MXNet Gluon documentation on [hybrid mode](https://mxnet.incubator.apache.org/tutorials/gluon/hybrid.html) for more details.
+3. The ```ObjectiveBlock``` or ```executor``` created in the last step is now run, running data through the MXNet compute graph that was constructed.
