@@ -43,7 +43,8 @@ class Inference(object):
     """
 
     def __init__(self, inference_algorithm, constants=None,
-                 hybridize=False, dtype=None, context=None):
+                 hybridize=False, dtype=None, context=None,
+                 is_mcmc=False):
 
         self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
@@ -52,13 +53,14 @@ class Inference(object):
         self._inference_algorithm = inference_algorithm
         self.params = InferenceParameters(constants=constants,
                                           dtype=self.dtype,
-                                          context=self.mxnet_context)
+                                          context=self.mxnet_context,
+                                          is_mcmc=is_mcmc)
         self._initialized = False
 
     def print_params(self):
         """
         Returns a string with the inference parameters nicely formatted for display, showing which model they came from and their name + uuid.
-        
+
         Format:
         > infr.print_params()
         Variable(1ab23)(name=y) - (Model/Posterior(123ge2)) - (first mxnet values/shape)

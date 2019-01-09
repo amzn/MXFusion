@@ -130,7 +130,7 @@ class MCMCInference(Inference):
                  hybridize=False, dtype=None, context=None):
         super(MCMCInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
-            hybridize=hybridize, dtype=dtype, context=context)
+            hybridize=hybridize, dtype=dtype, context=context, is_mcmc=True)
         self._number_proposals = 0
         self.samples = {}
 

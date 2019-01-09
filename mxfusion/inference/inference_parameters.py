@@ -40,7 +40,7 @@ class InferenceParameters(object):
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
     """
-    def __init__(self, constants=None, dtype=None, context=None):
+    def __init__(self, constants=None, dtype=None, context=None, is_mcmc=False):
         self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._constants = {}
@@ -51,6 +51,7 @@ class InferenceParameters(object):
                 for k, v in constants.items()}
             self._constants.update(constant_uuids)
         self._params = ParameterDict()
+        self._is_mcmc = is_mcmc
 
     def update_constants(self, constants):
         """
@@ -86,9 +87,11 @@ class InferenceParameters(object):
 
             excluded = set(self._constants.keys()).union(observed_uuid)
             to_init = g.get_parameters(excluded=excluded,
-                                        include_inherited=False) + g.get_latent_variables(observed_uuid)
+                                        include_inherited=False)
+            if self._is_mcmc:
+                to_init = to_init + g.get_latent_variables(observed_uuid)
             for var in set(to_init):
-                if var in self._params:
+                if self._is_mcmc and var in self._params:
                     continue
                 var_shape = realize_shape(var.shape, self._constants)
                 init = initializer.Constant(var.initial_value_before_transformation) \
