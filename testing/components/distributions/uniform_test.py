@@ -98,7 +98,7 @@ class TestUniformDistribution(object):
     def test_draw_samples_non_mock(self, plot=False):
         # Also make sure the non-mock sampler works
         dtype = np.float32
-        num_samples = 10000
+        num_samples = 1000
 
         low = np.array([0.5])
         high = np.array([2])
