@@ -224,47 +224,32 @@ class InferenceParameters(object):
                 new_paramdict[name]._load_init(mapped_param, ip.mxnet_context)
             ip._params = new_paramdict
 
-        new_mxnet_constants = {}
         new_variable_constants = {}
         if variable_constants_file is not None:
             import json
             with open(variable_constants_file) as f:
                 old_constants = json.load(f)
                 new_variable_constants = {with_uuid_map(k, uuid_map): v for k, v in old_constants.items()}
-        if mxnet_constants_file is not None:
-            mxnet_constants = ndarray.load(mxnet_constants_file)
-            if isinstance(mxnet_constants, dict):
-                new_mxnet_constants = {with_uuid_map(k, uuid_map): v for k, v in mxnet_constants.items()}
-            else:
-                new_mxnet_constants = {}
         ip._constants = {}
         ip._constants.update(new_variable_constants)
-        ip._constants.update(new_mxnet_constants)
         return ip
 
     def save(self, prefix):
         """
         Saves the parameters and constants down to json files as maps from {uuid : value},
-        where value is an mx.ndarray for parameters and either primitive number types or mx.ndarray for constants.
-        Saves up to 3 files: prefix+["_params.json", "_variable_constants.json", "_mxnet_constants.json"]
+        where value is an mx.ndarray for parameters and primitive number types for constants.
+        Saves up to 2 files: prefix+["_params.json", "_variable_constants.json"]
 
         :param prefix: The directory and any appending tag for the files to save this Inference as.
         :type prefix: str , ex. "../saved_inferences/experiment_1"
         """
         param_file = prefix + "_params.json"
         variable_constants_file = prefix + "_variable_constants.json"
-        mxnet_constants_file = prefix + "_mxnet_constants.json"
         to_save = {key: value._reduce() for key, value in self._params.items()}
         ndarray.save(param_file, to_save)
 
-        mxnet_constants = {uuid: value
-                           for uuid, value in self._constants.items()
-                           if isinstance(value, mx.ndarray.ndarray.NDArray)}
-        ndarray.save(mxnet_constants_file, mxnet_constants)
-
         variable_constants = {uuid: value
-                              for uuid, value in self._constants.items()
-                              if uuid not in mxnet_constants}
+                              for uuid, value in self._constants.items()}
         import json
         with open(variable_constants_file, 'w') as f:
             json.dump(variable_constants, f, ensure_ascii=False)
