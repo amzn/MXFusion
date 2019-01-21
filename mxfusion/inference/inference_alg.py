@@ -16,6 +16,7 @@
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
 from mxnet import autograd
+import mxnet as mx
 from ..common.constants import SET_PARAMETER_PREFIX
 from ..components.variables import VariableType
 from ..components.variables import add_sample_dimension_to_arrays
@@ -78,7 +79,7 @@ class ObjectiveBlock(HybridBlock):
         for k, v in self._var_trans.items():
             kw[k] = v.transform(kw[k], F=F)
         add_sample_dimension_to_arrays(F, kw, out=variables)
-        add_sample_dimension_to_arrays(F, self._constants, out=variables)
+        variables.update(self._constants)
         obj = self._infr_method.compute(F=F, variables=variables)
         with autograd.pause():
             # An inference algorithm may directly set the value of a parameter instead of computing its gradient.
@@ -189,7 +190,7 @@ class InferenceAlgorithm(ABC):
         """
         Create a MXNet Gluon block to carry out the computation.
 
-        :param data_def: a list of unique ID of data variables. The order of
+        :param data_def: a list of unique IDs of data variables. The order of
             variables in the list corresponds to the order of variable in the
             positional arguments when calling the Gluon Block.
         :type data_def: [UUID of Variable (str)]
@@ -207,8 +208,10 @@ class InferenceAlgorithm(ABC):
             var_trans_m, excluded_m = m.prepare_executor(rv_scaling=rv_scaling)
             var_trans.update(var_trans_m)
             excluded = excluded.union(excluded_m)
+
+        non_mxnet_constants = {k:v for k,v in params.constants.items() if not isinstance(v, mx.ndarray.ndarray.NDArray)}
         block = ObjectiveBlock(infr_method=self, params=params,
-                               constants=params.constants,
+                               constants=non_mxnet_constants,
                                data_def=data_def, var_trans=var_trans,
                                var_ties=var_ties, excluded=excluded)
         return block

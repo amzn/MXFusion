@@ -59,7 +59,7 @@ class InferenceParameters(object):
         :param constants: The constants to be updated.
         :type constants: {Variable: float or MXNet NDArray}
         """
-        self.constants.update({
+        self._constants.update({
             (k.uuid if isinstance(k, ModelComponent) else k): v
             for k, v in constants.items()})
 
@@ -74,6 +74,8 @@ class InferenceParameters(object):
             warnings.warn("InferenceParameters has already been initialized.  The existing one will be overwritten.")
 
         self._params = ParameterDict()
+
+        inits = []
         for g in graphs:
             # load in parameterdict from external gluon blocks.
             for f in g.functions.values():
@@ -88,16 +90,24 @@ class InferenceParameters(object):
             for var in g.get_parameters(excluded=excluded,
                                         include_inherited=False):
                 var_shape = realize_shape(var.shape, self._constants)
-                init = initializer.Constant(var.initial_value_before_transformation) \
-                    if var.initial_value is not None else None
 
-                self._params.get(name=var.uuid, shape=var_shape,
-                                 dtype=self.dtype,
-                                 allow_deferred_init=True, init=init)
+                p = self._params.get(name=var.uuid, shape=var_shape,
+                                     dtype=self.dtype,
+                                     allow_deferred_init=True, init=None)
+                if var.initial_value is not None:
+                    inits.append((p, var.initial_value_before_transformation))
+
             for m in g.modules.values():
                 m.initialize_hidden_parameters(self._params, excluded, self._constants)
 
+        for uuid, constant in self._constants.items():
+            if isinstance(constant, mx.ndarray.ndarray.NDArray):
+                self._params.get_constant(uuid, constant)
+
         self._params.initialize(ctx=self.mxnet_context)
+
+        for p, v in inits:
+            p.set_data(v)
 
     def initialize_with_carryover_params(self, graphs, observed_uuid, var_ties,
                                          carryover_params):
@@ -128,22 +138,11 @@ class InferenceParameters(object):
                         warnings.warn('The variable with UUID '+uuid+' exists in multiple carryover parameter sets.')
                     carryover_pairs[uuid] = v
 
-        # self._var_ties = var_ties.copy()
-        # for g in graphs:
-        #     # TODO: check the behavior of var_ties in graph
-        #     self._var_ties.update(g.var_ties)
-        # for v_uuid in self.constants:
-        #     if v_uuid in self._var_ties:
-        #         del self._var_ties[v_uuid]
-
         observed_uuid = set(observed_uuid).union(carryover_pairs.keys())
         self.initialize_params(graphs, observed_uuid)
+        excluded = [k for k,p in carryover_pairs.items() if isinstance(p, mx.gluon.parameter.Constant) and k in self._params]
+        carryover_pairs = {k:p for k,p in carryover_pairs.items() if k not in excluded}
 
-        # carryover_pairs = {
-        #     to_var_uuid: carryover.param_dict[to_var_uuid]
-        #     for from_var_uuid, to_var_uuid in self._var_ties.items()
-        #     for carryover in carryover_params
-        #     if to_var_uuid in carryover.param_dict}
         self._params.update(carryover_pairs)
 
     @property
