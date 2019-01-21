@@ -30,13 +30,12 @@ class InferenceParametersTests(unittest.TestCase):
             os.remove(filename)
 
     def test_save_reload_constants(self):
-        constants = {Variable(): 5, 'uuid': mx.nd.array([1])}
+        constants = {Variable(): 5}
         ip = InferenceParameters(constants=constants)
         ip.save(prefix="constants_test")
         # assert the file is there
 
         ip2 = InferenceParameters.load_parameters(
-            mxnet_constants_file='constants_test_mxnet_constants.json',
             variable_constants_file='constants_test_variable_constants.json')
         print(ip.constants)
         print(ip2.constants)

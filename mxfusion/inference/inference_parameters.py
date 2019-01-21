@@ -103,6 +103,8 @@ class InferenceParameters(object):
         for uuid, constant in self._constants.items():
             if isinstance(constant, mx.ndarray.ndarray.NDArray):
                 self._params.get_constant(uuid, constant)
+        self._constants = {k:v for k,v in self._constants.items()
+                           if not isinstance(v, mx.ndarray.ndarray.NDArray)}
 
         self._params.initialize(ctx=self.mxnet_context)
 
@@ -151,7 +153,10 @@ class InferenceParameters(object):
 
     @property
     def constants(self):
-        return self._constants
+
+        consts = {k:p.data() for k,p in self._params.items() if isinstance(p, mx.gluon.parameter.Constant)}
+        consts.update(self._constants)
+        return consts
 
     @property
     def var_ties(self):
