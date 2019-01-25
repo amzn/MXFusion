@@ -23,7 +23,7 @@ from mxfusion.inference import GradBasedInference, MAP
 from mxnet.gluon import HybridBlock
 from mxnet.gluon.nn import Dense
 from mxfusion.inference import GradTransferInference
-from mxfusion.inference.pilco_alg import PolicyUpdateGPParametricApprox
+from mxfusion.inference.pilco_alg import PolicyUpdateGPParametricApprox, PILCOAlgorithm
 
 class NNController(HybridBlock):
     def __init__(self, prefix=None, params=None, in_units=100, obs_space_high=3):
@@ -115,7 +115,7 @@ class TestPILCOInference(object):
                  max_iter=max_iter, learning_rate=0.1, verbose=verbose)
         return m, infr, X, Y
 
-    def optimize_policy(self, policy, cost_func, model, infr,
+    def optimize_policy(self, alg, policy, cost_func, model, infr,
                         model_data_X, model_data_Y,
                         initial_state_generator, num_grad_steps,
                         learning_rate=1e-2, num_time_steps=100,
@@ -124,7 +124,7 @@ class TestPILCOInference(object):
         Takes as primary inputs a policy, cost function, and trained model.
         Optimizes the policy for num_grad_steps number of iterations.
         """
-        mb_alg = PolicyUpdateGPParametricApprox(
+        mb_alg = alg(
             model=model, observed=[model.X, model.Y],
             cost_function=cost_func,
             policy=policy, n_time_steps=num_time_steps,
@@ -148,7 +148,11 @@ class TestPILCOInference(object):
         return mx.nd.array(
             [np.random.rand(obs_space_shape) for i in range(num_initial_states)])
 
-    def test_pilco_basic_passthrough(self):
+
+    @pytest.mark.parametrize("pilco_alg", [
+        (PolicyUpdateGPParametricApprox),
+        (PILCOAlgorithm)])
+    def test_pilco_basic_passthrough(self, pilco_alg):
         policy = NNController()
         policy.collect_params().initialize(mx.initializer.Xavier(magnitude=1))
         cost = CostFunction()
@@ -173,7 +177,7 @@ class TestPILCOInference(object):
                 all_states, all_actions, win_in=1, verbose=True, max_iter=5)
 
             # Optimize the policy.
-            policy = self.optimize_policy(
+            policy = self.optimize_policy(pilco_alg,
                 policy, cost, model, infr, model_data_X, model_data_Y,
                 self.initial_state_generator, num_grad_steps=num_grad_steps,
                 num_samples=num_samples, learning_rate=learning_rate,

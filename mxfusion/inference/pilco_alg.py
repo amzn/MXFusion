@@ -81,7 +81,7 @@ class PILCOAlgorithm(SamplingAlgorithm):
         cost = 0
         for t in range(self.n_time_steps):
             variables[self.model.X] = x_t
-            res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)
+            res = self.model.Y.factor.predict(F, variables, targets=[self.model.Y], num_samples=self.num_samples)[0]
             s_t_plus_1 = res[0]
 
             cost = cost + self.cost_function(s_t_plus_1, a_t_plus_1)
