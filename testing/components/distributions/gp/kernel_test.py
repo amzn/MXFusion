@@ -18,7 +18,7 @@ import mxnet as mx
 import numpy as np
 from mxfusion.components.variables import Variable
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
-from mxfusion.components.distributions.gp.kernels import RBF, Linear, Bias, White
+from mxfusion.components.distributions.gp.kernels import RBF, Linear, Bias, White, Matern52, Matern32, Matern12
 from mxfusion.util.testutils import numpy_array_reshape, prepare_mxnet_array
 
 # These test cases depends on GPy. Put them  in try/except.
@@ -298,6 +298,75 @@ try:
             gpy_comb_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
                                  num_samples, dtype, create_rbf_plus_linear,
                                  create_gpy_rbf_plus_linear)
+
+        @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples, lengthscale, lengthscale_isSamples, variance, variance_isSamples, num_samples, input_dim, ARD", [
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 1, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(3,2)+1e-4, True, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(3,1)+1e-4, True, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(1)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, False),
+            ])
+        def test_Matern52_kernel(self, dtype, X, X_isSamples, X2, X2_isSamples,
+                            lengthscale, lengthscale_isSamples, variance,
+                            variance_isSamples, num_samples, input_dim, ARD):
+            def create_kernel():
+                return Matern52(input_dim, ARD, 1., 1., 'rbf', None, dtype)
+
+            def create_gpy_kernel():
+                return GPy.kern.Matern52(input_dim=input_dim, ARD=ARD)
+
+            kernel_params = {'lengthscale': (lengthscale, lengthscale_isSamples),
+                             'variance': (variance, variance_isSamples)}
+
+            gpy_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
+                            num_samples, dtype, create_kernel,
+                            create_gpy_kernel)
+
+        @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples, lengthscale, lengthscale_isSamples, variance, variance_isSamples, num_samples, input_dim, ARD", [
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 1, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(3,2)+1e-4, True, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(3,1)+1e-4, True, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(1)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, False),
+            ])
+        def test_Matern32_kernel(self, dtype, X, X_isSamples, X2, X2_isSamples,
+                            lengthscale, lengthscale_isSamples, variance,
+                            variance_isSamples, num_samples, input_dim, ARD):
+            def create_kernel():
+                return Matern32(input_dim, ARD, 1., 1., 'rbf', None, dtype)
+
+            def create_gpy_kernel():
+                return GPy.kern.Matern32(input_dim=input_dim, ARD=ARD)
+
+            kernel_params = {'lengthscale': (lengthscale, lengthscale_isSamples),
+                             'variance': (variance, variance_isSamples)}
+
+            gpy_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
+                            num_samples, dtype, create_kernel,
+                            create_gpy_kernel)
+
+        @pytest.mark.parametrize("dtype, X, X_isSamples, X2, X2_isSamples, lengthscale, lengthscale_isSamples, variance, variance_isSamples, num_samples, input_dim, ARD", [
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 1, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(3,2)+1e-4, True, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(5,2), False, np.random.rand(4,2), False, np.random.rand(2)+1e-4, False, np.random.rand(3,1)+1e-4, True, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(2)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, True),
+            (np.float64, np.random.rand(3,5,2), True, np.random.rand(3,4,2), True, np.random.rand(1)+1e-4, False, np.random.rand(1)+1e-4, False, 3, 2, False),
+            ])
+        def test_Matern12_kernel(self, dtype, X, X_isSamples, X2, X2_isSamples,
+                            lengthscale, lengthscale_isSamples, variance,
+                            variance_isSamples, num_samples, input_dim, ARD):
+            def create_kernel():
+                return Matern12(input_dim, ARD, 1., 1., 'rbf', None, dtype)
+
+            def create_gpy_kernel():
+                return GPy.kern.OU(input_dim=input_dim, ARD=ARD)
+
+            kernel_params = {'lengthscale': (lengthscale, lengthscale_isSamples),
+                             'variance': (variance, variance_isSamples)}
+
+            gpy_kernel_test(X, X_isSamples, X2, X2_isSamples, kernel_params,
+                            num_samples, dtype, create_kernel,
+                            create_gpy_kernel)
 
 except ImportError:
     pass

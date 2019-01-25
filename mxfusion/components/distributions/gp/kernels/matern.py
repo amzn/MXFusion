@@ -147,4 +147,4 @@ class Matern12(Matern):
         R = F.sqrt(F.clip(self._compute_R2(F, X, lengthscale, variance, X2=X2),
                           1e-14, np.inf))
         return F.broadcast_mul(
-            F.exp(-np.sqrt(3)*R), F.expand_dims(variance, axis=-2))
+            F.exp(-R), F.expand_dims(variance, axis=-2))
