@@ -15,9 +15,7 @@
 
 import numpy as np
 from ....common.config import get_default_MXNet_mode
-from ....common.exceptions import InferenceError
 from ...variables import Variable
-from ....util.customop import broadcast_to_w_samples
 from ..distribution import Distribution
 from ...variables.runtime_variable import get_num_samples
 
@@ -47,13 +45,19 @@ class GaussianProcess(Distribution):
                  ctx=None):
         inputs = [('X', X)] + [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
+        if mean_func is not None:
+            mean = mean_func(X)
+            inputs.append(('mean', mean))
+            input_names.append('mean')
+            self._has_mean_func = True
+        else:
+            self._has_mean_func = False
         output_names = ['random_variable']
         super(GaussianProcess, self).__init__(
             inputs=inputs, outputs=None,
             input_names=input_names, output_names=output_names,
             rand_gen=rand_gen, dtype=dtype,
             ctx=ctx)
-        self.mean_func = mean_func
         self.kernel = kernel
 
     @staticmethod
@@ -97,13 +101,15 @@ class GaussianProcess(Distribution):
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
+        if self._has_mean_func:
+            mean = kernel_params['mean']
+            del kernel_params['mean']
         D = random_variable.shape[-1]
         F = get_default_MXNet_mode() if F is None else F
         K = self.kernel.K(F, X, **kernel_params)
         L = F.linalg.potrf(K)
 
-        if self.mean_func is not None:
-            mean = self.mean_func(F, X)
+        if self._has_mean_func:
             random_variable = random_variable - mean
         LinvY = F.linalg.trsm(L, random_variable)
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
@@ -127,18 +133,22 @@ class GaussianProcess(Distribution):
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
+        if self._has_mean_func:
+            mean = kernel_params['mean']
+            del kernel_params['mean']
         F = get_default_MXNet_mode() if F is None else F
         K = self.kernel.K(F, X, **kernel_params)
         L = F.linalg.potrf(K)
 
         out_shape = (num_samples,) + rv_shape
-        L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
+        if get_num_samples(F, L) != num_samples:
+            L = F.broadcast_axes(L, aixs=0, size=num_samples)
+        # L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
 
         die = self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx)
         rv = F.linalg.trmm(L, die)
-        if self.mean_func is not None:
-            mean = self.mean_func(F, X)
+        if self._has_mean_func:
             rv = rv + mean
         return rv
 
@@ -147,7 +157,6 @@ class GaussianProcess(Distribution):
         The copy constructor for a Gaussian process distribution.
         """
         replicant = super(GaussianProcess, self).replicate_self(attribute_map)
-        replicant.mean_func = self.mean_func.replicate_self(attribute_map) \
-            if self.mean_func is not None else None
+        replicant._has_mean_func = self._has_mean_func
         replicant.kernel = self.kernel.replicate_self(attribute_map)
         return replicant
