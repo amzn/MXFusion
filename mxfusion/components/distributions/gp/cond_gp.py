@@ -15,9 +15,9 @@
 
 import numpy as np
 from ....common.config import get_default_MXNet_mode
+from ....common.exceptions import ModelSpecificationError
 from ...variables.variable import Variable
 from ..distribution import Distribution
-from ...variables.runtime_variable import get_num_samples
 
 
 class ConditionalGaussianProcess(Distribution):
@@ -44,8 +44,10 @@ class ConditionalGaussianProcess(Distribution):
     :type Y_cond: Variable
     :param kernel: the kernel of Gaussian process.
     :type kernel: Kernel
-    :param mean_func: the mean function of Gaussian process.
-    :type mean_func: N/A
+    :param mean: the mean of Gaussian process.
+    :type mean: Variable
+    :param mean_cond: the mean of the conditional output variable under the same mean function.
+    :type mean_cond: Variable
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
     :type rand_gen: RandomGenerator
     :param dtype: the data type for float point numbers.
@@ -53,19 +55,19 @@ class ConditionalGaussianProcess(Distribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, X, X_cond, Y_cond, kernel, mean_func=None,
+    def __init__(self, X, X_cond, Y_cond, kernel, mean=None, mean_cond=None,
                  rand_gen=None, dtype=None, ctx=None):
+        if (mean is None) != (mean_cond is None):
+            raise ModelSpecificationError("The argument mean and mean_cond need to be both specified.")
         inputs = [('X', X), ('X_cond', X_cond), ('Y_cond', Y_cond)] + \
             [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
-        if mean_func is not None:
-            mean = mean_func(X)
-            mean_cond = mean_func(X_cond)
+        if mean is not None:
             inputs.extend([('mean', mean), ('mean_cond', mean_cond)])
             input_names.extend(['mean', 'mean_cond'])
-            self._has_mean_func = True
+            self._has_mean = True
         else:
-            self._has_mean_func = False
+            self._has_mean = False
         output_names = ['random_variable']
         super(ConditionalGaussianProcess, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
@@ -74,9 +76,9 @@ class ConditionalGaussianProcess(Distribution):
         self.kernel = kernel
 
     @staticmethod
-    def define_variable(X, X_cond, Y_cond, kernel, shape=None, mean_func=None,
-                        rand_gen=None, minibatch_ratio=1., dtype=None,
-                        ctx=None):
+    def define_variable(X, X_cond, Y_cond, kernel, shape=None, mean=None,
+                        mean_cond=None, rand_gen=None, minibatch_ratio=1.,
+                        dtype=None, ctx=None):
         """
         Creates and returns a set of random variable drawn from a Gaussian process.
 
@@ -90,8 +92,10 @@ class ConditionalGaussianProcess(Distribution):
         :type kernel: Kernel
         :param shape: the shape of the random variable(s) (the default shape is the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
-        :param mean_func: the mean function of Gaussian process.
-        :type mean_func: N/A
+        :param mean: the mean of Gaussian process.
+        :type mean: Variable
+        :param mean_cond: the mean of the conditional output variable under the same mean function.
+        :type mean_cond: Variable
         :param rand_gen: the random generator (default: MXNetRandomGenerator).
         :type rand_gen: RandomGenerator
         :param dtype: the data type for float point numbers.
@@ -99,9 +103,11 @@ class ConditionalGaussianProcess(Distribution):
         :param ctx: the mxnet context (default: None/current context).
         :type ctx: None or mxnet.cpu or mxnet.gpu
         """
+        if (mean is None) != (mean_cond is None):
+            raise ModelSpecificationError("The argument mean and mean_cond need to be both specified.")
         gp = ConditionalGaussianProcess(
-            X=X, X_cond=X_cond, Y_cond=Y_cond, kernel=kernel,
-            mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+            X=X, X_cond=X_cond, Y_cond=Y_cond, kernel=kernel, mean=mean,
+            mean_cond=mean_cond, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp.outputs = [('random_variable',
                       Variable(value=gp, shape=X.shape[:-1] + (1,) if
                                shape is None else shape))]
@@ -132,7 +138,7 @@ class ConditionalGaussianProcess(Distribution):
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
-        if self._has_mean_func:
+        if self._has_mean:
             mean = kernel_params['mean']
             mean_cond = kernel_params['mean_cond']
             del kernel_params['mean']
@@ -146,7 +152,7 @@ class ConditionalGaussianProcess(Distribution):
         LccInvKc = F.linalg.trsm(Lcc, Kc)
         cov = K - F.linalg.syrk(LccInvKc, transpose=True)
         L = F.linalg.potrf(cov)
-        if self._has_mean_func:
+        if self._has_mean:
             random_variable = random_variable - mean
             Y_cond = Y_cond - mean_cond
         LccInvY = F.linalg.trsm(Lcc, Y_cond)
@@ -178,7 +184,7 @@ class ConditionalGaussianProcess(Distribution):
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
-        if self._has_mean_func:
+        if self._has_mean:
             mean = kernel_params['mean']
             mean_cond = kernel_params['mean_cond']
             del kernel_params['mean']
@@ -191,20 +197,17 @@ class ConditionalGaussianProcess(Distribution):
         LccInvKc = F.linalg.trsm(Lcc, Kc)
         cov = K - F.linalg.syrk(LccInvKc, transpose=True)
         L = F.linalg.potrf(cov)
-        if self._has_mean_func:
+        if self._has_mean:
             Y_cond = Y_cond - mean_cond
         LccInvY = F.linalg.trsm(Lcc, Y_cond)
         rv_mean = F.linalg.gemm2(LccInvKc, LccInvY, True, False)
 
         out_shape = (num_samples,) + rv_shape
-        if get_num_samples(F, L) != num_samples:
-            L = F.broadcast_axes(L, aixs=0, size=num_samples)
-        # L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
 
         die = self._rand_gen.sample_normal(
             shape=out_shape, dtype=self.dtype, ctx=self.ctx)
         rv = F.linalg.trmm(L, die) + rv_mean
-        if self._has_mean_func:
+        if self._has_mean:
             rv = rv + mean
         return rv
 
@@ -214,6 +217,6 @@ class ConditionalGaussianProcess(Distribution):
         """
         replicant = super(ConditionalGaussianProcess,
                           self).replicate_self(attribute_map)
-        replicant._has_mean_func = self._has_mean_func
+        replicant._has_mean = self._has_mean
         replicant.kernel = self.kernel.replicate_self(attribute_map)
         return replicant
