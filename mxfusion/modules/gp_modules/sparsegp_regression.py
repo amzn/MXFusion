@@ -290,11 +290,11 @@ class SparseGPRegression(Module):
         graph.U = GaussianProcess.define_variable(
             X=graph.inducing_inputs, kernel=self.kernel,
             shape=(graph.inducing_inputs.shape[0], Y.shape[-1]),
-            mean_func=self.mean_func, rand_gen=self._rand_gen, dtype=self.dtype,
+            mean=self.mean_func, rand_gen=self._rand_gen, dtype=self.dtype,
             ctx=self.ctx)
         graph.F = ConditionalGaussianProcess.define_variable(
             X=graph.X, X_cond=graph.inducing_inputs, Y_cond=graph.U,
-            kernel=self.kernel, shape=Y.shape, mean_func=self.mean_func,
+            kernel=self.kernel, shape=Y.shape, mean=self.mean_func,
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(

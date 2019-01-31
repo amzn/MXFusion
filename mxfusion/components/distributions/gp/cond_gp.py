@@ -75,6 +75,10 @@ class ConditionalGaussianProcess(Distribution):
             ctx=ctx)
         self.kernel = kernel
 
+    @property
+    def has_mean(self):
+        return self._has_mean
+
     @staticmethod
     def define_variable(X, X_cond, Y_cond, kernel, shape=None, mean=None,
                         mean_cond=None, rand_gen=None, minibatch_ratio=1.,

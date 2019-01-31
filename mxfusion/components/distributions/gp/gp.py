@@ -58,6 +58,10 @@ class GaussianProcess(Distribution):
             ctx=ctx)
         self.kernel = kernel
 
+    @property
+    def has_mean(self):
+        return self._has_mean
+
     @staticmethod
     def define_variable(X, kernel, shape=None, mean=None, rand_gen=None,
                         dtype=None, ctx=None):
