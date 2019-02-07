@@ -184,19 +184,18 @@ class Inference(object):
         :param graphs_file: The file containing the graphs to load back for this inference algorithm. The first of these is the primary graph.
         :type graphs_file: str of filename
         :param inference_configuration_file: The file containing any inference specific configuration needed to
-        reload this inference algorithm.
-            e.g. observation patterns used to train it.
+            reload this inference algorithm. e.g. observation patterns used to train it.
         :type inference_configuration_file: str of filename
         :param parameters_file: These are the parameters of the previous inference algorithm.
-        These are in a {uuid: mx.nd.array} mapping.
+            These are in a {uuid: mx.nd.array} mapping.
         :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
-        in a binary format.
+            in a binary format.
         :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm.
-        These are in a {uuid: mx.nd.array} mapping.
+            These are in a {uuid: mx.nd.array} mapping.
         :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
-        in a binary format.
+            in a binary format.
         :param variable_constants_file: These are the constants in primitive format from the previous
-        inference algorithm.
+            inference algorithm.
         :type variable_constants_file: json dict of {uuid: constant_primitive}
         """
         graphs = FactorGraph.load_graphs(graphs_file)
