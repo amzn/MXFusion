@@ -13,7 +13,6 @@
 # ==============================================================================
 
 
-import pytest
 import warnings
 import mxnet as mx
 import mxnet.gluon.nn as nn
@@ -24,9 +23,8 @@ from mxfusion.components.distributions.gp.kernels import RBF, White
 from mxfusion.components.distributions import GaussianProcess, Normal
 from mxfusion.components import Variable
 from mxfusion.components.functions import MXFusionGluonFunction
-from mxfusion.inference import Inference, MAP, ModulePredictionAlgorithm, TransferInference, create_Gaussian_meanfield, StochasticVariationalInference, GradBasedInference, ForwardSamplingAlgorithm, ModulePredictionAlgorithm
+from mxfusion.inference import Inference, MAP, TransferInference, create_Gaussian_meanfield, StochasticVariationalInference, GradBasedInference, ForwardSamplingAlgorithm, ModulePredictionAlgorithm
 from mxfusion.components.variables.var_trans import PositiveTransformation
-from mxfusion.inference.forward_sampling import ForwardSamplingAlgorithm
 from mxfusion.util.testutils import MockMXNetRandomGenerator
 from mxfusion.modules.gp_modules.gp_regression import GPRegressionSamplingPrediction
 
@@ -223,7 +221,6 @@ class TestGPRegressionModule(object):
         infr2.inference_algorithm.model.Y.factor.gp_predict.noise_free = False
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
-        print((var_gpy, var_mf))
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
         assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
@@ -253,8 +250,8 @@ class TestGPRegressionModule(object):
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
-        assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
-        assert np.allclose(var_gpy[:,0], var_mf), (var_gpy[:,0], var_mf)
+        assert np.allclose(mu_gpy, mu_mf, rtol=1e-04, atol=1e-05), (mu_gpy, mu_mf)
+        assert np.allclose(var_gpy[:,0], var_mf, rtol=1e-04, atol=1e-05), (var_gpy[:,0], var_mf)
 
     def test_sampling_prediction(self):
         D, X, Y, noise_var, lengthscale, variance = self.gen_data()

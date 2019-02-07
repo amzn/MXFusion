@@ -303,15 +303,14 @@ class GPRegression(Module):
         graph.X = self.X.replicate_self()
         graph.noise_var = self.noise_var.replicate_self()
         if self._has_mean:
-            graph.mean = self.mean.replicate_self()
-            graph.F = GaussianProcess.define_variable(
-                X=graph.X, kernel=self.kernel, shape=Y.shape,
-                mean=graph.mean, rand_gen=self._rand_gen,
-                dtype=self.dtype, ctx=self.ctx)
+            mean = self.mean.replicate_self()
+            graph.mean = mean
         else:
-            graph.F = GaussianProcess.define_variable(
-                X=graph.X, kernel=self.kernel, shape=Y.shape,
-                rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
+            mean = None
+        graph.F = GaussianProcess.define_variable(
+            X=graph.X, kernel=self.kernel, shape=Y.shape,
+            mean=mean, rand_gen=self._rand_gen,
+            dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
             mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,

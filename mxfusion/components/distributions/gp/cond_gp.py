@@ -57,17 +57,23 @@ class ConditionalGaussianProcess(Distribution):
     """
     def __init__(self, X, X_cond, Y_cond, kernel, mean=None, mean_cond=None,
                  rand_gen=None, dtype=None, ctx=None):
-        if (mean is None) != (mean_cond is None):
+        if (mean is None) and (mean_cond is not None):
             raise ModelSpecificationError("The argument mean and mean_cond need to be both specified.")
         inputs = [('X', X), ('X_cond', X_cond), ('Y_cond', Y_cond)] + \
             [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
         if mean is not None:
-            inputs.extend([('mean', mean), ('mean_cond', mean_cond)])
-            input_names.extend(['mean', 'mean_cond'])
+            inputs.append(('mean', mean))
+            input_names.append('mean')
             self._has_mean = True
         else:
             self._has_mean = False
+        if mean_cond is not None:
+            inputs.append(('mean_cond', mean_cond))
+            input_names.append('mean_cond')
+            self._has_mean_cond = True
+        else:
+            self._has_mean_cond = False
         output_names = ['random_variable']
         super(ConditionalGaussianProcess, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
@@ -107,8 +113,6 @@ class ConditionalGaussianProcess(Distribution):
         :param ctx: the mxnet context (default: None/current context).
         :type ctx: None or mxnet.cpu or mxnet.gpu
         """
-        if (mean is None) != (mean_cond is None):
-            raise ModelSpecificationError("The argument mean and mean_cond need to be both specified.")
         gp = ConditionalGaussianProcess(
             X=X, X_cond=X_cond, Y_cond=Y_cond, kernel=kernel, mean=mean,
             mean_cond=mean_cond, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
@@ -144,8 +148,9 @@ class ConditionalGaussianProcess(Distribution):
         """
         if self._has_mean:
             mean = kernel_params['mean']
-            mean_cond = kernel_params['mean_cond']
             del kernel_params['mean']
+        if self._has_mean_cond:
+            mean_cond = kernel_params['mean_cond']
             del kernel_params['mean_cond']
         D = random_variable.shape[-1]
         F = get_default_MXNet_mode() if F is None else F
@@ -158,6 +163,7 @@ class ConditionalGaussianProcess(Distribution):
         L = F.linalg.potrf(cov)
         if self._has_mean:
             random_variable = random_variable - mean
+        if self._has_mean_cond:
             Y_cond = Y_cond - mean_cond
         LccInvY = F.linalg.trsm(Lcc, Y_cond)
         rv_mean = F.linalg.gemm2(LccInvKc, LccInvY, True, False)
@@ -190,8 +196,9 @@ class ConditionalGaussianProcess(Distribution):
         """
         if self._has_mean:
             mean = kernel_params['mean']
-            mean_cond = kernel_params['mean_cond']
             del kernel_params['mean']
+        if self._has_mean_cond:
+            mean_cond = kernel_params['mean_cond']
             del kernel_params['mean_cond']
         F = get_default_MXNet_mode() if F is None else F
         K = self.kernel.K(F, X, **kernel_params)
@@ -201,7 +208,7 @@ class ConditionalGaussianProcess(Distribution):
         LccInvKc = F.linalg.trsm(Lcc, Kc)
         cov = K - F.linalg.syrk(LccInvKc, transpose=True)
         L = F.linalg.potrf(cov)
-        if self._has_mean:
+        if self._has_mean_cond:
             Y_cond = Y_cond - mean_cond
         LccInvY = F.linalg.trsm(Lcc, Y_cond)
         rv_mean = F.linalg.gemm2(LccInvKc, LccInvY, True, False)
@@ -222,5 +229,6 @@ class ConditionalGaussianProcess(Distribution):
         replicant = super(ConditionalGaussianProcess,
                           self).replicate_self(attribute_map)
         replicant._has_mean = self._has_mean
+        replicant._has_mean_cond = self._has_mean_cond
         replicant.kernel = self.kernel.replicate_self(attribute_map)
         return replicant

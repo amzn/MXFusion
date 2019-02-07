@@ -40,6 +40,7 @@ class SparseGPRegressionLogPdf(VariationalInference):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         Y = variables[self.model.Y]
         Z = variables[self.model.inducing_inputs]
@@ -69,8 +70,8 @@ class SparseGPRegressionLogPdf(VariationalInference):
             F.broadcast_div(F.linalg.syrk(LinvKuf), noise_var_m)
         LA = F.linalg.potrf(A)
 
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             Y = Y - mean
         LAInvLinvKufY = F.linalg.trsm(LA, F.linalg.gemm2(LinvKuf, Y))
 
@@ -105,6 +106,7 @@ class SparseGPRegressionMeanVariancePrediction(SamplingAlgorithm):
         self.diagonal_variance = diagonal_variance
 
     def compute(self, F, variables):
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
@@ -121,8 +123,8 @@ class SparseGPRegressionMeanVariancePrediction(SamplingAlgorithm):
         Kxt = kern.K(F, Z, X, **kern_params)
 
         mu = F.linalg.gemm2(Kxt, wv, True, False)
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             mu = mu + mean
 
         LinvKxt = F.linalg.trsm(L, Kxt)
@@ -162,6 +164,7 @@ class SparseGPRegressionSamplingPrediction(SamplingAlgorithm):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
@@ -178,8 +181,8 @@ class SparseGPRegressionSamplingPrediction(SamplingAlgorithm):
         Kxt = kern.K(F, Z, X, **kern_params)
 
         mu = F.linalg.gemm2(Kxt, wv, True, False)
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             mu = mu + mean
 
         LinvKxt = F.linalg.trsm(L, Kxt)
@@ -246,7 +249,7 @@ class SparseGPRegression(Module):
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
-                 num_inducing=10, mean_func=None,
+                 num_inducing=10, mean=None,
                  rand_gen=None, dtype=None, ctx=None):
         if not isinstance(X, Variable):
             X = Variable(value=X)
@@ -257,11 +260,16 @@ class SparseGPRegression(Module):
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
+        if mean is not None:
+            inputs.append(('mean', mean))
+            input_names.append('mean')
+            self._has_mean = True
+        else:
+            self._has_mean = False
         output_names = ['random_variable']
         super(SparseGPRegression, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
             output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
-        self.mean_func = mean_func
         self.kernel = kernel
 
     def _generate_outputs(self, output_shapes=None):
@@ -290,25 +298,24 @@ class SparseGPRegression(Module):
         graph.U = GaussianProcess.define_variable(
             X=graph.inducing_inputs, kernel=self.kernel,
             shape=(graph.inducing_inputs.shape[0], Y.shape[-1]),
-            mean=self.mean_func, rand_gen=self._rand_gen, dtype=self.dtype,
-            ctx=self.ctx)
+            rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
+        if self._has_mean:
+            mean = self.mean.replicate_self()
+            graph.mean = mean
+        else:
+            mean = None
         graph.F = ConditionalGaussianProcess.define_variable(
             X=graph.X, X_cond=graph.inducing_inputs, Y_cond=graph.U,
-            kernel=self.kernel, shape=Y.shape, mean=self.mean_func,
+            kernel=self.kernel, shape=Y.shape, mean=mean,
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
             mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
-        graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
         post = Posterior(graph)
-        # TODO: allow cloning kernel to be in both model and posterior.
-        # post.F.assign_factor(ConditionalGaussianProcess(
-        #     X=post.X, X_cond=post.inducing_inputs, Y_cond=post.U,
-        #     kernel=self.kernel, mean_func=self.mean_func,
-        #     rand_gen=self.rand_gen, dtype=self.dtype, ctx=self.ctx))
-        # post.U.assign_factor(MultivariateNormal())
+        # The posterior graph here is used as the place holder
+        # intermediate inference results, which will be used for prediction.
         post.L = Variable(shape=(M, M))
         post.LA = Variable(shape=(M, M))
         post.wv = Variable(shape=(M, Y.shape[-1]))
@@ -342,7 +349,7 @@ class SparseGPRegression(Module):
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
-                        num_inducing=10, mean_func=None, rand_gen=None,
+                        num_inducing=10, mean=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
         Creates and returns a variable drawn from a sparse Gaussian process regression.
@@ -372,7 +379,7 @@ class SparseGPRegression(Module):
         gp = SparseGPRegression(
             X=X, kernel=kernel, noise_var=noise_var,
             inducing_inputs=inducing_inputs, num_inducing=num_inducing,
-            mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+            mean=mean, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
 
@@ -383,5 +390,5 @@ class SparseGPRegression(Module):
         rep = super(SparseGPRegression, self).replicate_self(attribute_map)
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
-        rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
+        rep._has_mean = self._has_mean
         return rep
