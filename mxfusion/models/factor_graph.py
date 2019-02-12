@@ -239,6 +239,7 @@ class FactorGraph(object):
         """
         Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples from all the variables
         that are *not* in the conditional variables. If the ``targets`` argument is given, this method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict of samples where the keys are the UUIDs of variables and the values are the samples.
+        Adds drawn samples directly into the variables argument.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
@@ -454,6 +455,17 @@ class FactorGraph(object):
         :rtype: [Variable]
         """
         return [v for v in self.variables.values() if v.type == VariableType.CONSTANT]
+
+    def get_latent_variables(self, observed):
+        """
+        Get the latent variables of the model.
+
+        :param observed: a list of observed variables.
+        :type observed: [UUID]
+        :returns: the list of latent variables.
+        :rtype: [Variable]
+        """
+        return [v for v in self.variables.values() if v.type == VariableType.RANDVAR and v.uuid not in observed]
 
 
     @staticmethod
