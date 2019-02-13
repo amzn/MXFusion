@@ -251,8 +251,8 @@ class GPRegression(Module):
     :type kernel: Kernel
     :param noise_var: the variance of the Gaussian likelihood
     :type noise_var: Variable
-    :param mean_func: the mean function of Gaussian process.
-    :type mean_func: MXFusionFunction
+    :param mean: the mean of Gaussian process.
+    :type mean: Variable
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
     :type rand_gen: RandomGenerator
     :param dtype: the data type for float point numbers.
@@ -366,8 +366,8 @@ class GPRegression(Module):
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
-        :param mean_func: the mean function of Gaussian process
-        :type mean_func: MXFusionFunction
+        :param mean: the mean of Gaussian process.
+        :type mean: Variable
         :param rand_gen: the random generator (default: MXNetRandomGenerator)
         :type rand_gen: RandomGenerator
         :param dtype: the data type for float point numbers

@@ -257,8 +257,8 @@ class SVGPRegression(Module):
     :type inducing_inputs: Variable
     :param inducing_num: the number of inducing points of sparse GP (default: 10)
     :type inducing_num: int
-    :param mean_func: the mean function of Gaussian process.
-    :type mean_func: MXFusionFunction
+    :param mean: the mean of Gaussian process.
+    :type mean: Variable
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
     :type rand_gen: RandomGenerator
     :param dtype: the data type for float point numbers.
@@ -386,8 +386,8 @@ class SVGPRegression(Module):
         :type inducing_inputs: Variable
         :param inducing_num: the number of inducing points of sparse GP (default: 10)
         :type inducing_num: int
-        :param mean_func: the mean function of Gaussian process.
-        :type mean_func: MXFusionFunction
+        :param mean: the mean of Gaussian process.
+        :type mean: Variable
         :param rand_gen: the random generator (default: MXNetRandomGenerator).
         :type rand_gen: RandomGenerator
         :param dtype: the data type for float point numbers.
