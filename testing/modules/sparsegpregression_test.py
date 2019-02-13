@@ -284,7 +284,6 @@ class TestSparseGPRegressionModule(object):
 
         y_samples = infr_pred.run(X=mx.nd.array(Xt, dtype=dtype))[0].asnumpy()
 
-
     def test_with_samples(self):
         from mxfusion.common import config
         config.DEFAULT_DTYPE = 'float64'

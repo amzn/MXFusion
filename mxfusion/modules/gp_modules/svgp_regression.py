@@ -298,7 +298,7 @@ class SVGPRegression(Module):
         :param output_shape: the shapes of all the output variables
         :type output_shape: {str: tuple}
         """
-        if output_shapes is None:
+        if output_shapes['random_variable'] is None:
             Y_shape = self.X.shape[:-1] + (1,)
         else:
             Y_shape = output_shapes['random_variable']
