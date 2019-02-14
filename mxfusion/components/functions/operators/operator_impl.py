@@ -55,6 +55,18 @@ def exp(F, data):
 def log(F, data):
     return F.log(data)
 
+@MXNetOperatorDecorator(name='logistic', args=['data'], inputs=['data'])
+def logistic(F, data):
+    return F.divide(1, F.add(1, F.exp(-data)))
+
+
+@MXNetOperatorDecorator(name='logistic', args=['data'], inputs=['data'])
+def logistic(F, data):
+    return F.divide(1, F.add(1, F.exp(-data)))
+
+
+
+
 """ Aggregation """
 @MXNetOperatorDecorator(name='sum', args=['data', 'axis'], inputs=['data'])
 def sum(F, data, axis=None):
