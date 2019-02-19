@@ -13,6 +13,7 @@
 # ==============================================================================
 
 
+import io
 import json
 import mxfusion as mf
 import mxnet as mx
@@ -88,7 +89,8 @@ def load_json_from_zip(zip_filename, target_file, decoder=None):
     """
     with zipfile.ZipFile(zip_filename, 'r') as zip_file:
         json_file = zip_file.open(target_file)
-        loaded = json.load(json_file, cls=decoder)
+        # json.load only takes str in 3.4/3.5 so we read, decode to UTF-8, and convert to a StringIO
+        loaded = json.load(io.StringIO(json_file.read().decode()), cls=decoder)
     return loaded
 
 def make_numpy(obj):
