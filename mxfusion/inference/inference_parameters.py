@@ -184,25 +184,25 @@ class InferenceParameters(object):
 
     @staticmethod
     def load_parameters(uuid_map=None,
-                        old_mxnet_parameters=None,
-                        old_variable_constants=None,
-                        old_mxnet_constants=None,
+                        mxnet_parameters=None,
+                        variable_constants=None,
+                        mxnet_constants=None,
                         context=None, dtype=None,
                         current_params=None):
         """
         Loads back a set of InferenceParameters from files.
-        :param old_mxnet_parameters: These are the parameters of
+        :param mxnet_parameters: These are the parameters of
                                      the previous inference algorithm.
         These are in a {uuid: mx.nd.array} mapping.
-        :type old_mxnet_parameters: Dict of {uuid: mx.nd.array}
-        :param old_mxnet_constants: These are the constants in mxnet format
+        :type mxnet_parameters: Dict of {uuid: mx.nd.array}
+        :param mxnet_constants: These are the constants in mxnet format
                                     from the previous inference algorithm.
         These are in a {uuid: mx.nd.array} mapping.
-        :type old_mxnet_constants:  Dict of {uuid: mx.nd.array}
-        :param old_variable_constants: These are the constants in
+        :type mxnet_constants:  Dict of {uuid: mx.nd.array}
+        :param variable_constants: These are the constants in
                                        primitive format from the previous
         inference algorithm.
-        :type old_variable_constants: dict of {uuid: constant primitive}
+        :type variable_constants: dict of {uuid: constant primitive}
         """
         def with_uuid_map(item, uuid_map):
             if uuid_map is not None:
@@ -211,9 +211,8 @@ class InferenceParameters(object):
                 return item
         ip = InferenceParameters(context=context, dtype=dtype)
 
-        old_mxnet_parameters
         mapped_params = {with_uuid_map(k, uuid_map): v
-                         for k, v in old_mxnet_parameters.items()}
+                         for k, v in mxnet_parameters.items()}
 
         new_paramdict = ParameterDict()
         if current_params is not None:
@@ -228,9 +227,9 @@ class InferenceParameters(object):
         new_mxnet_constants = {}
         new_variable_constants = {}
         new_variable_constants = {with_uuid_map(k, uuid_map): v
-                                  for k, v in old_variable_constants.items()}
+                                  for k, v in variable_constants.items()}
         new_mxnet_constants = {with_uuid_map(k, uuid_map): v
-                               for k, v in old_mxnet_constants.items()}
+                               for k, v in mxnet_constants.items()}
 
         ip._constants = {}
         ip._constants.update(new_variable_constants)
@@ -239,10 +238,12 @@ class InferenceParameters(object):
 
     def get_serializable(self):
         """
-        Returns three dicts.
+        Returns three dicts:
          1. MXNet parameters {uuid: mxnet parameters, mx.nd.array}.
          2. MXNet constants {uuid: mxnet parameter (only constant types), mx.nd.array}
          3. Other constants {uuid: primitive numeric types (int, float)}
+         :returns: Three dictionaries: MXNet parameters, MXNet constants, and other constants (in that order)
+         :rtypes: {uuid: mx.nd.array}, {uuid: mx.nd.array}, {uuid: primitive (int/float)}
         """
 
         mxnet_parameters = {key: value._reduce() for key, value in self._params.items()}

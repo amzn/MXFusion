@@ -20,6 +20,7 @@ import mxnet as mx
 import numpy as np
 import zipfile
 from ..common.exceptions import SerializationError
+from ..common.config import get_default_device
 
 
 __GRAPH_JSON_VERSION__ = '1.0'
@@ -31,7 +32,7 @@ FILENAMES = {
     'mxnet_constants' : 'mxnet_constants.npz',
     'variable_constants' : 'variable_constants.json',
     'configuration' : 'configuration.json',
-    'version' : 'version.json'
+    'version_file' : 'version.json'
 }
 ENCODINGS = {
     'json' : 'json',
@@ -112,3 +113,23 @@ def make_numpy(obj):
         else:
             raise SerializationError(ERR_MSG)
     return np_obj
+
+def load_parameters(npz_filename, zip_file, context=None):
+    """
+    Helper function to load the parameters from a npz file directly into a dictionary as mxnet arrays.
+    """
+    context = context if context is not None else get_default_device()
+    params_file = zip_file.read(npz_filename)
+    try:
+        loaded = np.load(io.BytesIO(params_file))
+    except OSError as e:
+        """
+        Numpy load doesn't handle reloading an empty .npz directory after savez so just continue with an empty
+        dict if it throws an OSError here when loading back.
+        See https://github.com/chainer/chainer/issues/4542
+        """
+        return {}
+    parameters = {}
+    for k,v in loaded.items():
+        parameters[k] = mx.nd.array(v, dtype=v.dtype, ctx=context)
+    return parameters
