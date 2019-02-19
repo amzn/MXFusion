@@ -322,7 +322,8 @@ class FactorGraphTests(unittest.TestCase):
         m1, _ = self.make_bnn_model(self.make_net())
         FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
+        from mxfusion.util.serialization import ModelComponentDecoder, load_json_file
+        FactorGraph.load_graphs(load_json_file(self.TESTFILE, ModelComponentDecoder), [m1_loaded])
         m1_loaded_edges = set(m1_loaded.components_graph.edges())
         m1_edges = set(m1.components_graph.edges())
 
@@ -336,7 +337,8 @@ class FactorGraphTests(unittest.TestCase):
         m1 = self.make_simple_model()
         FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
+        from mxfusion.util.serialization import ModelComponentDecoder, load_json_file
+        FactorGraph.load_graphs(load_json_file(self.TESTFILE, ModelComponentDecoder), [m1_loaded])
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
 
         m2 = self.make_simple_model()
@@ -366,7 +368,8 @@ class FactorGraphTests(unittest.TestCase):
         m1 = self.make_gpregr_model()
         FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
+        from mxfusion.util.serialization import ModelComponentDecoder, load_json_file
+        FactorGraph.load_graphs(load_json_file(self.TESTFILE, ModelComponentDecoder), [m1_loaded])
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
         self.assertTrue(len(set(m1.Y.factor._module_graph.components)) == len(set(m1_loaded[m1.Y.factor.uuid]._module_graph.components)))
         self.assertTrue(len(set(m1.Y.factor._extra_graphs[0].components)) == len(set(m1_loaded[m1.Y.factor.uuid]._extra_graphs[0].components)))
@@ -397,7 +400,8 @@ class FactorGraphTests(unittest.TestCase):
         m1, _ = self.make_bnn_model(self.make_net())
         FactorGraph.save(self.TESTFILE, m1.as_json())
         m1_loaded = Model()
-        FactorGraph.load_graphs(self.TESTFILE, [m1_loaded])
+        from mxfusion.util.serialization import ModelComponentDecoder, load_json_file
+        FactorGraph.load_graphs(load_json_file(self.TESTFILE, ModelComponentDecoder), [m1_loaded])
         self.assertTrue(set(m1.components) == set(m1_loaded.components))
 
         m2, _ = self.make_bnn_model(self.make_net())

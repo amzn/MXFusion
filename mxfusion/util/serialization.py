@@ -76,6 +76,10 @@ class ModelComponentDecoder(json.JSONDecoder):
         v.type = obj['type']
         return v
 
+def load_json_file(target_file, decoder=None):
+    with open(target_file) as f:
+        return json.load(f, cls=decoder)
+
 def load_json_from_zip(zip_filename, target_file, decoder=None):
     """
     Utility function that loads a json file from inside a zip file without unzipping the zip file
