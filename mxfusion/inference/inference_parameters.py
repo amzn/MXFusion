@@ -184,24 +184,25 @@ class InferenceParameters(object):
 
     @staticmethod
     def load_parameters(uuid_map=None,
-                        parameters_file=None,
-                        variable_constants_file=None,
-                        mxnet_constants_file=None,
+                        old_mxnet_parameters=None,
+                        old_variable_constants=None,
+                        old_mxnet_constants=None,
                         context=None, dtype=None,
                         current_params=None):
         """
-        Loads back a sest of InferenceParameters from files.
-        :param parameters_file: These are the parameters of the previous inference algorithm.
+        Loads back a set of InferenceParameters from files.
+        :param old_mxnet_parameters: These are the parameters of
+                                     the previous inference algorithm.
         These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
-        in a binary format.
-        :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm.
+        :type old_mxnet_parameters: Dict of {uuid: mx.nd.array}
+        :param old_mxnet_constants: These are the constants in mxnet format
+                                    from the previous inference algorithm.
         These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
-        in a binary format.
-        :param variable_constants_file: These are the constants in primitive format from the previous
+        :type old_mxnet_constants:  Dict of {uuid: mx.nd.array}
+        :param old_variable_constants: These are the constants in
+                                       primitive format from the previous
         inference algorithm.
-        :type variable_constants_file: json dict of {uuid: constant_primitive}
+        :type old_variable_constants: dict of {uuid: constant primitive}
         """
         def with_uuid_map(item, uuid_map):
             if uuid_map is not None:
@@ -210,62 +211,48 @@ class InferenceParameters(object):
                 return item
         ip = InferenceParameters(context=context, dtype=dtype)
 
-        if parameters_file is not None:
-            old_params = ndarray.load(parameters_file)
-            mapped_params = {with_uuid_map(k, uuid_map): v
-                             for k, v in old_params.items()}
+        old_mxnet_parameters
+        mapped_params = {with_uuid_map(k, uuid_map): v
+                         for k, v in old_mxnet_parameters.items()}
 
-            new_paramdict = ParameterDict()
-            if current_params is not None:
-                new_paramdict.update(current_params)
+        new_paramdict = ParameterDict()
+        if current_params is not None:
+            new_paramdict.update(current_params)
 
-            # Do this because we need to map the uuids to the new Model
-            # before loading them into the ParamDict
-            for name, mapped_param in mapped_params.items():
-                new_paramdict[name]._load_init(mapped_param, ip.mxnet_context)
-            ip._params = new_paramdict
+        # Do this because we need to map the uuids to the new Model
+        # before loading them into the ParamDict
+        for name, mapped_param in mapped_params.items():
+            new_paramdict[name]._load_init(mapped_param, ip.mxnet_context)
+        ip._params = new_paramdict
 
         new_mxnet_constants = {}
         new_variable_constants = {}
-        if variable_constants_file is not None:
-            import json
-            with open(variable_constants_file) as f:
-                old_constants = json.load(f)
-                new_variable_constants = {with_uuid_map(k, uuid_map): v for k, v in old_constants.items()}
-        if mxnet_constants_file is not None:
-            mxnet_constants = ndarray.load(mxnet_constants_file)
-            if isinstance(mxnet_constants, dict):
-                new_mxnet_constants = {with_uuid_map(k, uuid_map): v for k, v in mxnet_constants.items()}
-            else:
-                new_mxnet_constants = {}
+        new_variable_constants = {with_uuid_map(k, uuid_map): v
+                                  for k, v in old_variable_constants.items()}
+        new_mxnet_constants = {with_uuid_map(k, uuid_map): v
+                               for k, v in old_mxnet_constants.items()}
+
         ip._constants = {}
         ip._constants.update(new_variable_constants)
         ip._constants.update(new_mxnet_constants)
         return ip
 
-    def save(self, prefix):
+    def get_serializable(self):
         """
-        Saves the parameters and constants down to json files as maps from {uuid : value},
-        where value is an mx.ndarray for parameters and either primitive number types or mx.ndarray for constants.
-        Saves up to 3 files: prefix+["_params.json", "_variable_constants.json", "_mxnet_constants.json"]
+        Returns three dicts.
+         1. MXNet parameters {uuid: mxnet parameters, mx.nd.array}.
+         2. MXNet constants {uuid: mxnet parameter (only constant types), mx.nd.array}
+         3. Other constants {uuid: primitive numeric types (int, float)}
+        """
 
-        :param prefix: The directory and any appending tag for the files to save this Inference as.
-        :type prefix: str , ex. "../saved_inferences/experiment_1"
-        """
-        param_file = prefix + "_params.json"
-        variable_constants_file = prefix + "_variable_constants.json"
-        mxnet_constants_file = prefix + "_mxnet_constants.json"
-        to_save = {key: value._reduce() for key, value in self._params.items()}
-        ndarray.save(param_file, to_save)
+        mxnet_parameters = {key: value._reduce() for key, value in self._params.items()}
 
         mxnet_constants = {uuid: value
                            for uuid, value in self._constants.items()
                            if isinstance(value, mx.ndarray.ndarray.NDArray)}
-        ndarray.save(mxnet_constants_file, mxnet_constants)
 
         variable_constants = {uuid: value
                               for uuid, value in self._constants.items()
                               if uuid not in mxnet_constants}
-        import json
-        with open(variable_constants_file, 'w') as f:
-            json.dump(variable_constants, f, ensure_ascii=False)
+
+        return mxnet_parameters, mxnet_constants, variable_constants

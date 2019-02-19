@@ -15,11 +15,27 @@
 
 import json
 import mxfusion as mf
+import mxnet as mx
+import numpy as np
+import zipfile
 from ..common.exceptions import SerializationError
 
 
 __GRAPH_JSON_VERSION__ = '1.0'
-
+SERIALIZATION_VERSION = '2.0'
+DEFAULT_ZIP = 'inference.zip'
+FILENAMES = {
+    'graphs' : 'graphs.json',
+    'mxnet_params' : 'mxnet_parameters.npz',
+    'mxnet_constants' : 'mxnet_constants.npz',
+    'variable_constants' : 'variable_constants.json',
+    'configuration' : 'configuration.json',
+    'version' : 'version.json'
+}
+ENCODINGS = {
+    'json' : 'json',
+    'numpy' : 'numpy'
+}
 
 class ModelComponentEncoder(json.JSONEncoder):
 
@@ -59,3 +75,34 @@ class ModelComponentDecoder(json.JSONDecoder):
         v.attributes = obj['attributes']
         v.type = obj['type']
         return v
+
+def load_json_from_zip(zip_filename, target_file, decoder=None):
+    """
+    Utility function that loads a json file from inside a zip file without unzipping the zip file
+    and returns the loaded json as a dictionary.
+    :param encoder: optional. a JSONDecoder class to pass to the json.load function for loading back in the dict.
+    """
+    with zipfile.ZipFile(zip_filename, 'r') as zip_file:
+        json_file = zip_file.open(target_file)
+        loaded = json.load(json_file, cls=decoder)
+    return loaded
+
+def make_numpy(obj):
+    """
+    Utility function that takes a dictionary of numpy or MXNet arrays and
+    returns a dictionary of numpy arrays. Used to standardize serialization.
+    """
+    ERR_MSG = "This function shouldn't be called on anything except " + \
+             " dictionaries of numpy and MXNet arrays."
+    if not isinstance(obj, type({})):
+        raise SerializationError(ERR_MSG)
+
+    np_obj = {}
+    for k,v in obj.items():
+        if isinstance(v, np.ndarray):
+            np_obj[k] = v
+        elif isinstance(v, mx.ndarray.ndarray.NDArray):
+            np_obj[k] = v.asnumpy()
+        else:
+            raise SerializationError(ERR_MSG)
+    return np_obj
