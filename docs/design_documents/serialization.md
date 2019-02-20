@@ -27,7 +27,7 @@ infr2.load(graphs_file=PREFIX+'_graphs.json',
            parameters_file=PREFIX+'_params.json')
 ```
 
-The loading process has 3 major steps. The first is to reload the graphs and parameters from files into memory. The second is to reconcile those loaded graphs and parameters with the current model and inference method. The third is to load the rest of the configuration.
+Internally, the loading process has 3 major steps. The first is to reload the graphs and parameters from files into memory. The second is to reconcile those loaded graphs and parameters with the current model and inference method. The third is to load the rest of the configuration.
 
 The first step uses NetworkX to load back in the graphs, which it loads into skeleton FactorGraphs (not full Models or Posteriors, and only basic ModelComponents with connections not Variables and Factors with information like what type of distribution the Factor is) because only minimal topology and naming information is saved during serialization. It uses MXNet to load the parameters back into Gluon Parameters.
 
