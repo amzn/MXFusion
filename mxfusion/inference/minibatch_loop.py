@@ -79,11 +79,11 @@ class MinibatchInferenceLoop(GradLoop):
                     loss_for_gradient.backward()
                 if verbose:
                     print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
-                          e + 1, i + 1, loss.asscalar() / self.batch_size),
+                          e + 1, i + 1, loss.asscalar()),
                           end='')
                 trainer.step(batch_size=self.batch_size,
                              ignore_stale_grad=True)
-                L_e += loss.asscalar() / self.batch_size
+                L_e += loss.asscalar()
                 n_batches += 1
             if verbose:
                 print('epoch-loss: {} '.format(L_e / n_batches))

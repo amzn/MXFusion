@@ -24,14 +24,17 @@ Submodules
     add_kernel
     kernel
     linear
+    matern
     rbf
     static
     stationary
 """
 
-__all__ = ['add_kernel', 'kernel', 'linear', 'rbf', 'static', 'stationary']
+__all__ = ['add_kernel', 'kernel', 'linear',  'matern', 'rbf', 'static',
+           'stationary']
 
 from .add_kernel import AddKernel
 from .rbf import RBF
 from .linear import Linear
 from .static import Bias, White
+from .matern import Matern52, Matern32, Matern12

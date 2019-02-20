@@ -19,6 +19,7 @@ import numpy as np
 import mxnet as mx
 import mxnet.gluon.nn as nn
 import mxfusion as mf
+import os
 from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.components.functions import MXFusionGluonFunction
 from mxfusion.common.config import get_default_dtype
@@ -31,13 +32,9 @@ class InferenceSerializationTests(unittest.TestCase):
     Test class that tests the MXFusion.utils methods.
     """
 
-    def remove_saved_files(self, prefix):
-        import os, glob
-        for filename in glob.glob(prefix+"*"):
-            os.remove(filename)
-
     def setUp(self):
         self.PREFIX = 'test_' + str(uuid.uuid4())
+        self.ZIPNAME = self.PREFIX + '_inference.zip'
 
     def make_model(self, net):
         dtype = get_default_dtype()
@@ -105,8 +102,8 @@ class InferenceSerializationTests(unittest.TestCase):
         infr.initialize(y=y_nd, x=x_nd)
         infr.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
 
-        infr.save(prefix=self.PREFIX)
-        self.remove_saved_files(self.PREFIX)
+        infr.save(self.ZIPNAME)
+        os.remove(self.ZIPNAME)
 
     def test_meanfield_save_and_load(self):
         dtype = get_default_dtype()
@@ -131,7 +128,7 @@ class InferenceSerializationTests(unittest.TestCase):
         infr.initialize(y=y_nd, x=x_nd)
         infr.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
 
-        infr.save(prefix=self.PREFIX)
+        infr.save(self.ZIPNAME)
 
         net2 = self.make_net()
         net2(x_nd)
@@ -145,11 +142,7 @@ class InferenceSerializationTests(unittest.TestCase):
         infr2.initialize(y=y_nd, x=x_nd)
 
         # Load previous parameters
-        infr2.load(graphs_file=self.PREFIX+'_graphs.json',
-                   parameters_file=self.PREFIX+'_params.json',
-                   inference_configuration_file=self.PREFIX+'_configuration.json',
-                   mxnet_constants_file=self.PREFIX+'_mxnet_constants.json',
-                   variable_constants_file=self.PREFIX+'_variable_constants.json')
+        infr2.load(self.ZIPNAME)
 
         for original_uuid, original_param in infr.params.param_dict.items():
             original_data = original_param.data().asnumpy()
@@ -167,7 +160,7 @@ class InferenceSerializationTests(unittest.TestCase):
             assert np.all(np.isclose(original_data, reloaded_data))
 
         infr2.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)
-        self.remove_saved_files(self.PREFIX)
+        os.remove(self.ZIPNAME)
 
 
     def test_gp_module_save_and_load(self):
@@ -187,7 +180,7 @@ class InferenceSerializationTests(unittest.TestCase):
 
         loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
 
-        infr.save(prefix=self.PREFIX)
+        infr.save(self.ZIPNAME)
 
 
         m2 = self.make_gpregr_model(lengthscale, variance, noise_var)
@@ -197,11 +190,7 @@ class InferenceSerializationTests(unittest.TestCase):
         infr2.initialize(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
 
         # Load previous parameters
-        infr2.load(graphs_file=self.PREFIX+'_graphs.json',
-                   parameters_file=self.PREFIX+'_params.json',
-                   inference_configuration_file=self.PREFIX+'_configuration.json',
-                   mxnet_constants_file=self.PREFIX+'_mxnet_constants.json',
-                   variable_constants_file=self.PREFIX+'_variable_constants.json')
+        infr2.load(self.ZIPNAME)
 
         for original_uuid, original_param in infr.params.param_dict.items():
             original_data = original_param.data().asnumpy()
@@ -220,4 +209,4 @@ class InferenceSerializationTests(unittest.TestCase):
 
         loss2, _ = infr2.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
 
-        self.remove_saved_files(self.PREFIX)
+        os.remove(self.ZIPNAME)

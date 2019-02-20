@@ -16,7 +16,6 @@
 from .kernel import NativeKernel
 from ....variables import Variable
 from ....variables import PositiveTransformation
-from .....util.customop import broadcast_to_w_samples
 
 
 class Linear(NativeKernel):
@@ -74,20 +73,20 @@ class Linear(NativeKernel):
         :rtype: MXNet NDArray or MXNet Symbol
         """
         if self.ARD:
-            var_sqrt = F.sqrt(variances)
+            var_sqrt = F.expand_dims(F.sqrt(variances), axis=-2)
             if X2 is None:
-                xsc = X * broadcast_to_w_samples(F, var_sqrt, X.shape)
+                xsc = X * var_sqrt
                 return F.linalg.syrk(xsc)
             else:
-                xsc = X * broadcast_to_w_samples(F, var_sqrt, X.shape)
-                x2sc = X2 * broadcast_to_w_samples(F, var_sqrt, X2.shape)
+                xsc = X * var_sqrt
+                x2sc = X2 * var_sqrt
                 return F.linalg.gemm2(xsc, x2sc, False, True)
         else:
             if X2 is None:
                 A = F.linalg.syrk(X)
             else:
                 A = F.linalg.gemm2(X, X2, False, True)
-            return A * broadcast_to_w_samples(F, variances, A.shape)
+            return A * F.expand_dims(variances, axis=-1)
 
     def _compute_Kdiag(self, F, X, variances):
         """
@@ -102,7 +101,7 @@ class Linear(NativeKernel):
         :rtype: MXNet NDArray or MXNet Symbol
         """
         X2 = F.square(X)
-        return F.sum(X2 * broadcast_to_w_samples(F, variances, X2.shape),
+        return F.sum(X2 * F.expand_dims(variances, axis=-2),
                      axis=-1)
 
     def replicate_self(self, attribute_map=None):
