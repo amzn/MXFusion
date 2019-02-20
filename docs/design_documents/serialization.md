@@ -10,7 +10,7 @@ infr.save(prefix=PREFIX)
 ```
 
 
-The model and other graphs are all saved into a single JSON file using NetworkX's [JSON graph format](https://networkx.github.io/documentation/latest/reference/readwrite/json_graph.html). MXFusion ModelComponents are serialized into JSON objects (see ```mxfusion.util.graph_serialization```) and Modules are stored recursively as sub-graphs inside the same JSON structure. The most important information attached to a ModelComponent when it is saved is its place in the graph topology, its UUID, and its 'name' attribute, as these are how we reload the graph and parameters in successfully later. It is important to note that only a skeleton of the graphs are actually saved and that the model creation code must be re-run at load time.
+The model and other graphs are all saved into a single JSON file using NetworkX's [JSON graph format](https://networkx.github.io/documentation/latest/reference/readwrite/json_graph.html). MXFusion ModelComponents are serialized into JSON objects (see ```mxfusion.util.graph_serialization```) and Modules are stored recursively as sub-graphs inside the same JSON structure. The most important information attached to a ModelComponent when it is saved is its place in the graph topology, its UUID, and its 'name' attribute (the model class attribute name used to refer this model component), as these are how we reload the graph and parameters in successfully later. It is important to note that only a skeleton of the graphs are actually saved and that the model creation code must be re-run at load time.
 
 
 > *If you're curious why we can't save all of it, this is because we can't save things with arbitrary code like MXNet Block's that users can use within MXFusion as Functions in their FactorGraphs.)*
