@@ -64,6 +64,7 @@ class Module(Factor):
         self._log_pdf_algorithms = {}
         self._draw_samples_algorithms = {}
         self._prediction_algorithms = {}
+        self.log_pdf_scaling = 1
 
     def __contains__(self, key):
         return any([key in g for g in [self._module_graph] + self._extra_graphs])
@@ -307,6 +308,7 @@ class Module(Factor):
         :rtype: mxnet NDArray or mxnet Symbol
         """
         alg = self._get_algorithm_for_target_conditional_pair(self._log_pdf_algorithms, targets, variables, exact_match=True)
+        alg.log_pdf_scaling = self.log_pdf_scaling
         result = alg.compute(F, variables)
         return result
 
@@ -428,6 +430,7 @@ class Module(Factor):
         replicant.dtype = self.dtype
         replicant.ctx = self.ctx
         replicant._module_graph = self._module_graph.clone()
+        replicant.log_pdf_scaling = 1
 
         # Note this assumes the extra graphs are A) posteriors and B) derived from self._module_graph.
         replicant._extra_graphs = [m.clone(self._module_graph) for m in

@@ -93,7 +93,7 @@ class TestOperators(object):
         elif case == "pow":
             m2.r = v12 ** v22
         elif case == "transpose":
-            m2.r = v12.T
+            m2.r = transpose(v12)
         vs2 = [v for v in m2.r.factor.inputs]
         variables_rt2 = {v[1].uuid: inputs[i] for i,v in enumerate(vs2)}
         p_eval = m2.r.factor.eval(mx.nd, variables=variables_rt2)

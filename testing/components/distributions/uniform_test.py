@@ -13,12 +13,12 @@ class TestUniformDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, low, low_is_samples, high, high_is_samples, rv, rv_is_samples, num_samples", [
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 1, False, np.random.rand(5, 3, 2) + 0.5, True, 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 2, False, np.random.rand(3, 2) + 1, False, 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(2) + 2, False, np.random.rand(3, 2) + 1, False, 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(5, 3, 2) + 2, True, np.random.rand(5, 3, 2) + 1, True,
+            (np.float64, np.random.rand(5,3, 2), True, np.random.rand(3,2) + 1, False, np.random.rand(5, 3, 2) + 0.5, True, 5),
+            (np.float64, np.random.rand(5,3, 2), True, np.random.rand(3,2) + 2, False, np.random.rand(3, 2) + 1, False, 5),
+            (np.float64, np.random.rand(3,2), False, np.random.rand(3,2) + 2, False, np.random.rand(3, 2) + 1, False, 5),
+            (np.float64, np.random.rand(5,3, 2), True, np.random.rand(5, 3, 2) + 2, True, np.random.rand(5, 3, 2) + 1, True,
              5),
-            (np.float32, np.random.rand(5, 2), True, np.random.rand(2) + 2, False, np.random.rand(5, 3, 2) + 1, True, 5),
+            (np.float32, np.random.rand(5,3, 2), True, np.random.rand(3,2) + 2, False, np.random.rand(5, 3, 2) + 1, True, 5),
         ])
     def test_log_pdf(self, dtype, low, low_is_samples, high, high_is_samples, rv, rv_is_samples,
                      num_samples):
@@ -58,11 +58,11 @@ class TestUniformDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, low, low_is_samples, high, high_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, (3, 2), 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(5, 2) + 0.1, True, (3, 2), 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(2) + 0.1, False, (3, 2), 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(5, 3, 2) + 0.1, True, (3, 2), 5),
-            (np.float32, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, (3, 2), 5),
+            (np.float64, np.random.rand(5, 2), True, np.random.rand(3,2) + 0.1, False, (3, 2), 5),
+            (np.float64, np.random.rand(3,2), False, np.random.rand(5, 3,2) + 0.1, True, (3, 2), 5),
+            (np.float64, np.random.rand(3,2), False, np.random.rand(3,2) + 0.1, False, (3, 2), 5),
+            (np.float64, np.random.rand(5, 3,2), True, np.random.rand(5, 3, 2) + 0.1, True, (3, 2), 5),
+            (np.float32, np.random.rand(5,3, 2), True, np.random.rand(3,2) + 0.1, False, (3, 2), 5),
         ])
     def test_draw_samples(self, dtype, low, low_is_samples, high,
                           high_is_samples, rv_shape, num_samples):
@@ -98,7 +98,7 @@ class TestUniformDistribution(object):
     def test_draw_samples_non_mock(self, plot=False):
         # Also make sure the non-mock sampler works
         dtype = np.float32
-        num_samples = 10000
+        num_samples = 1000
 
         low = np.array([0.5])
         high = np.array([2])

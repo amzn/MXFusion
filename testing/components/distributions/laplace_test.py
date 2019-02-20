@@ -13,12 +13,11 @@ class TestLaplaceDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, location, location_is_samples, scale, scale_is_samples, rv, rv_is_samples, num_samples", [
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, np.random.rand(5, 3, 2), True, 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, np.random.rand(3, 2), False, 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(2) + 0.1, False, np.random.rand(3, 2), False, 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(5, 3, 2) + 0.1, True, np.random.rand(5, 3, 2), True,
-             5),
-            (np.float32, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, np.random.rand(5, 3, 2), True, 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(3,2), False, 1),
+        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
         ])
     def test_log_pdf(self, dtype, location, location_is_samples, scale, scale_is_samples, rv, rv_is_samples,
                      num_samples):
@@ -56,12 +55,11 @@ class TestLaplaceDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, location, location_is_samples, scale, scale_is_samples, rv_shape, num_samples", [
-            # (np.float64, np.random.rand(1), False, np.random.rand(1) + 0.1, False, (3, 1), 10000),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, (3, 2), 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(5, 2) + 0.1, True, (3, 2), 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(2) + 0.1, False, (3, 2), 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(5, 3, 2) + 0.1, True, (3, 2), 5),
-            (np.float32, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, (3, 2), 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, (3,2), 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
+        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
         ])
     def test_draw_samples(self, dtype, location, location_is_samples, scale,
                           scale_is_samples, rv_shape, num_samples):

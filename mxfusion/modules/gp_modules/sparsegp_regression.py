@@ -26,6 +26,7 @@ from ...inference.inference_alg import SamplingAlgorithm
 from ...util.customop import broadcast_to_w_samples
 from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.functions.operators import broadcast_to
 
 
 class SparseGPRegressionLogPdf(VariationalInference):
@@ -35,6 +36,7 @@ class SparseGPRegressionLogPdf(VariationalInference):
     def __init__(self, model, posterior, observed, jitter=0.):
         super(SparseGPRegressionLogPdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
+        self.log_pdf_scaling = 1
         self.jitter = jitter
 
     def compute(self, F, variables):
@@ -244,14 +246,14 @@ class SparseGPRegression(Module):
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
-                 inducing_num=10, mean_func=None,
+                 num_inducing=10, mean_func=None,
                  rand_gen=None, dtype=None, ctx=None):
         if not isinstance(X, Variable):
             X = Variable(value=X)
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         if inducing_inputs is None:
-            inducing_inputs = Variable(shape=(inducing_num, kernel.input_dim))
+            inducing_inputs = Variable(shape=(num_inducing, kernel.input_dim))
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
@@ -296,7 +298,7 @@ class SparseGPRegression(Module):
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
@@ -340,7 +342,7 @@ class SparseGPRegression(Module):
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
-                        inducing_num=10, mean_func=None, rand_gen=None,
+                        num_inducing=10, mean_func=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
         Creates and returns a variable drawn from a sparse Gaussian process regression.
@@ -369,7 +371,7 @@ class SparseGPRegression(Module):
         """
         gp = SparseGPRegression(
             X=X, kernel=kernel, noise_var=noise_var,
-            inducing_inputs=inducing_inputs, inducing_num=inducing_num,
+            inducing_inputs=inducing_inputs, num_inducing=num_inducing,
             mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable

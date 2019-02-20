@@ -29,12 +29,11 @@ class TestNormalPrecisionDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_is_samples, precision, precision_is_samples, rv, rv_is_samples, num_samples", [
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, np.random.rand(5, 3, 2), True, 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, np.random.rand(3, 2), False, 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(2) + 0.1, False, np.random.rand(3, 2), False, 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(5, 3, 2) + 0.1, True, np.random.rand(5, 3, 2),
-             True, 5),
-            (np.float32, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, np.random.rand(5, 3, 2), True, 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(3,2), False, 1),
+        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
         ])
     def test_log_pdf(self, dtype, mean, mean_is_samples, precision, precision_is_samples,
                      rv, rv_is_samples, num_samples):
@@ -71,11 +70,11 @@ class TestNormalPrecisionDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_is_samples, precision, precision_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, (3, 2), 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(5, 2) + 0.1, True, (3, 2), 5),
-            (np.float64, np.random.rand(2), False, np.random.rand(2) + 0.1, False, (3, 2), 5),
-            (np.float64, np.random.rand(5, 2), True, np.random.rand(5, 3, 2) + 0.1, True, (3, 2), 5),
-            (np.float32, np.random.rand(5, 2), True, np.random.rand(2) + 0.1, False, (3, 2), 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, (3,2), 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
+        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
         ])
     def test_draw_samples(self, dtype, mean, mean_is_samples, precision,
                           precision_is_samples, rv_shape, num_samples):
@@ -123,8 +122,9 @@ class TestMultivariateNormalMeanPrecisionDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_is_samples, precision, precision_is_samples, rv, rv_is_samples, num_samples", [
-            (np.float32, np.random.rand(2), False, make_symmetric(np.random.rand(2, 2) + 0.1), False,
-             np.random.rand(5, 3, 2), True, 5),
+        (np.float32, np.random.rand(3,2), False, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, np.random.rand(5,3,2), True, 5),
+        (np.float32, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(3,2,2)+0.1), False, np.random.rand(5,3,2), True, 5),
+        (np.float32, np.random.rand(3,2), False, make_symmetric(np.random.rand(3,2,2)+0.1), False, np.random.rand(5,3,2), True, 5),
         ])
     def test_log_pdf_with_broadcast(self, dtype, mean, mean_is_samples, precision, precision_is_samples,
                         rv, rv_is_samples, num_samples):
@@ -228,7 +228,7 @@ class TestMultivariateNormalMeanPrecisionDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_is_samples, precision, precision_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2, 2) + 0.1), False, (5, 3, 2), 5),
+        (np.float64, np.random.rand(3,2), False, make_symmetric(np.random.rand(3,2,2)+0.1), False, (3,2), 5),
         ])
     def test_draw_samples_with_broadcast(self, dtype, mean, mean_is_samples, precision,
                                          precision_is_samples, rv_shape, num_samples):
@@ -258,37 +258,10 @@ class TestMultivariateNormalMeanPrecisionDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_is_samples, precision, precision_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2, 2) + 0.1), False, (5, 3, 2), 5),
-            (np.float64, np.random.rand(5, 2), True, make_symmetric(np.random.rand(2, 2) + 0.1), False, (5, 3, 2), 5),
-            (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(5, 2, 2) + 0.1), True, (5, 3, 2), 5),
-            (np.float64, np.random.rand(5, 2), True, make_symmetric(np.random.rand(5, 2, 2) + 0.1), True, (5, 3, 2), 5),
-        ])
-    def test_draw_samples_with_broadcast_no_numpy_verification(self, dtype, mean, mean_is_samples, precision,
-                                                               precision_is_samples, rv_shape, num_samples):
-
-        mean_mx = mx.nd.array(mean, dtype=dtype)
-        if not mean_is_samples:
-            mean_mx = add_sample_dimension(mx.nd, mean_mx)
-        precision_mx = mx.nd.array(precision, dtype=dtype)
-        if not precision_is_samples:
-            precision_mx = add_sample_dimension(mx.nd, precision_mx)
-        # precision = precision_mx.asnumpy()
-
-        rand = np.random.rand(num_samples, *rv_shape)
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        normal = MultivariateNormalMeanPrecision.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {normal.mean.uuid: mean_mx, normal.precision.uuid: precision_mx}
-        draw_samples_rt = normal.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, draw_samples_rt)
-
-    @pytest.mark.parametrize(
-        "dtype, mean, mean_is_samples, precision, precision_is_samples, rv_shape, num_samples", [
-            (np.float64, np.random.rand(2), False, make_symmetric(np.random.rand(2, 2) + 0.1), False, (3, 2), 5),
-            (np.float64, np.random.rand(5, 3, 2), True, make_symmetric(np.random.rand(5, 3, 2, 2) + 0.1),
-             True, (5, 3, 2), 5),
+        (np.float64, np.random.rand(3,2), False, make_symmetric(np.random.rand(3,2,2)+0.1), False, (3,2), 5),
+        (np.float64, np.random.rand(3,2), False, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, (3,2), 5),
+        (np.float64, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(3,2,2)+0.1), False, (3,2), 5),
+        (np.float64, np.random.rand(5,3,2), True, make_symmetric(np.random.rand(5,3,2,2)+0.1), True, (3,2), 5),
         ])
     def test_draw_samples_no_broadcast(self, dtype, mean, mean_is_samples, precision,
                                        precision_is_samples, rv_shape, num_samples):

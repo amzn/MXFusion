@@ -25,6 +25,7 @@ from ...util.inference import realize_shape
 from ...inference.variational import VariationalInference
 from ...util.customop import broadcast_to_w_samples
 from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.functions.operators import broadcast_to
 
 
 class GPRegressionLogPdf(VariationalInference):
@@ -32,6 +33,12 @@ class GPRegressionLogPdf(VariationalInference):
     The method to compute the logarithm of the probability density function of
     a Gaussian process model with Gaussian likelihood.
     """
+    def __init__(self, model, posterior, observed, jitter=0.):
+        super(GPRegressionLogPdf, self).__init__(
+            model=model, posterior=posterior, observed=observed)
+        self.log_pdf_scaling = 1
+        self.jitter = jitter
+
     def compute(self, F, variables):
         X = variables[self.model.X]
         Y = variables[self.model.Y]
@@ -47,6 +54,9 @@ class GPRegressionLogPdf(VariationalInference):
         K = kern.K(F, X, **kern_params) + \
             F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
             F.expand_dims(noise_var, axis=-2)
+        if self.jitter > 0.:
+            K = K + F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+                self.jitter
         L = F.linalg.potrf(K)
 
         if self.model.mean_func is not None:
@@ -289,7 +299,7 @@ class GPRegression(Module):
             dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.F.factor.kernel

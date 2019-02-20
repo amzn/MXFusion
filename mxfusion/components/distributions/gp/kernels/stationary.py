@@ -16,7 +16,6 @@
 from .kernel import NativeKernel
 from ....variables import Variable
 from ....variables import PositiveTransformation
-from .....util.customop import broadcast_to_w_samples
 
 
 class StationaryKernel(NativeKernel):
@@ -90,14 +89,14 @@ class StationaryKernel(NativeKernel):
         """
         lengthscale = F.expand_dims(lengthscale, axis=-2)
         if X2 is None:
-            xsc = X / broadcast_to_w_samples(F, lengthscale, X.shape)
+            xsc = X / lengthscale
             amat = F.linalg.syrk(xsc) * -2
             dg_a = F.sum(F.square(xsc), axis=-1)
             amat = F.broadcast_add(amat, F.expand_dims(dg_a, axis=-1))
             amat = F.broadcast_add(amat, F.expand_dims(dg_a, axis=-2))
         else:
-            x1sc = X / broadcast_to_w_samples(F, lengthscale, X.shape)
-            x2sc = X2 / broadcast_to_w_samples(F, lengthscale, X2.shape)
+            x1sc = X / lengthscale
+            x2sc = X2 / lengthscale
             amat = F.linalg.gemm2(x1sc, x2sc, False, True) * -2
             dg1 = F.sum(F.square(x1sc), axis=-1, keepdims=True)
             amat = F.broadcast_add(amat, dg1)
@@ -119,7 +118,8 @@ class StationaryKernel(NativeKernel):
         :return: The covariance matrix.
         :rtype: MXNet NDArray or MXNet Symbol
         """
-        return broadcast_to_w_samples(F, variance, X.shape[:-1])
+        return F.zeros(shape=X.shape[:-1], dtype=self.dtype,
+                       ctx=self.ctx) + variance
 
     def replicate_self(self, attribute_map=None):
         """

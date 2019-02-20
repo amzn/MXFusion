@@ -14,8 +14,7 @@
 
 
 from ..variables.variable import VariableType
-from .function_evaluation import FunctionEvaluationWithParameters, \
-    FunctionEvaluationDecorator
+from .function_evaluation import FunctionEvaluationWithParameters
 
 
 class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
@@ -43,8 +42,7 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
         return [k for k, v in self.inputs if (not v.isInherited) or
                 v.type != VariableType.PARAMETER]
 
-    @FunctionEvaluationDecorator()
-    def eval(self, F, **input_kws):
+    def eval_impl(self, F, **input_kws):
         """
         Invokes the MXNet Gluon block with the arguments passed in.
 

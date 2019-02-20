@@ -26,6 +26,7 @@ from ...util.customop import make_diagonal
 from ...util.customop import broadcast_to_w_samples
 from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.functions.operators import broadcast_to
 
 
 class SVGPRegressionLogPdf(VariationalInference):
@@ -94,7 +95,7 @@ class SVGPRegressionLogPdf(VariationalInference):
         logL = logL + F.sum(F.sum(F.square(LinvKuf)/noise_var_m, axis=-1),
                             axis=-1)*D/2.
         logL = logL + F.sum(F.sum(Linvmu*LinvKufY, axis=-1), axis=-1)
-        logL = logL + self.model.U.factor.log_pdf_scaling*KL_u
+        logL = self.log_pdf_scaling*logL + KL_u
         return logL
 
 
@@ -264,14 +265,14 @@ class SVGPRegression(Module):
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
-                 inducing_num=10, mean_func=None,
+                 num_inducing=10, mean_func=None,
                  rand_gen=None, dtype=None, ctx=None):
         if not isinstance(X, Variable):
             X = Variable(value=X)
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         if inducing_inputs is None:
-            inducing_inputs = Variable(shape=(inducing_num, kernel.input_dim))
+            inducing_inputs = Variable(shape=(num_inducing, kernel.input_dim))
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
@@ -316,7 +317,7 @@ class SVGPRegression(Module):
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=graph.noise_var, rand_gen=self._rand_gen,
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
         graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
@@ -356,7 +357,7 @@ class SVGPRegression(Module):
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
-                        inducing_num=10, mean_func=None, rand_gen=None,
+                        num_inducing=10, mean_func=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
         Creates and returns a variable drawn from a Stochastic variational sparse Gaussian process regression with Gaussian likelihood.
@@ -385,7 +386,7 @@ class SVGPRegression(Module):
         """
         gp = SVGPRegression(
             X=X, kernel=kernel, noise_var=noise_var,
-            inducing_inputs=inducing_inputs, inducing_num=inducing_num,
+            inducing_inputs=inducing_inputs, num_inducing=num_inducing,
             mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
