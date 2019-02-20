@@ -131,7 +131,7 @@ infr2.load(primary_model_file=PREFIX+'_graph_0.json',
 
 This section goes into more details about the steps that happen under the hood when an inference method is actually run.
 
-Pseudocode for this process to reference:
+The example code for this process to reference:
 ```
 
 m = make_model()
