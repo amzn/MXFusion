@@ -424,7 +424,7 @@ class FactorGraph(object):
                            replication_function=lambda x: ('recursive', 'recursive'))
                 setattr(new_model, v.name, new_leaf)
             else:
-                v.graph = new_model.graph
+                v.components_graph = new_model.components_graph
         for v in self.variables.values():
             if v.name is not None:
                 setattr(new_model, v.name, new_model[v.uuid])
