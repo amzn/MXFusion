@@ -103,8 +103,8 @@ class BaseNN(ABC):
 
     @staticmethod
     def print_status(epoch, loss, train_accuracy=float("nan"), validation_accuracy=float("nan")):
-        print(f"Epoch {epoch:4d}. Loss: {loss:8.2f}, "
-              f"Train accuracy {train_accuracy:.3f}, Validation accuracy {validation_accuracy:.3f}")
+        print("Epoch {:4d}. Loss: {:8.2f}, Train accuracy {:.3f}, Validation accuracy {:.3f}"
+              .format(epoch, loss, train_accuracy, validation_accuracy))
 
 
 class VanillaNN(BaseNN):
@@ -195,7 +195,7 @@ class BayesianNN(BaseNN):
             labels = mx.nd.expand_dims(batch.label[0], axis=-1).as_in_context(self.ctx)
 
             if self.verbose:
-                print(f"Data shape {data.shape}")
+                print("Data shape {}".format(data.shape))
 
             # pass some data to initialise the net
             self.net(data[:1])
@@ -254,9 +254,9 @@ class BayesianNN(BaseNN):
                 self.inference.params.param_dict[variance_prior]._grad_req = 'null'
 
             if self.single_head:
-                print(f"Running single-headed inference")
+                print("Running single-headed inference")
             else:
-                print(f"Running multi-headed inference for head {head}")
+                print("Running multi-headed inference for head {}".format(head))
             self.inference.run(max_iter=self.max_iter, learning_rate=self.learning_rate,
                                verbose=False, callback=self.print_status, **kwargs)
 
@@ -277,8 +277,8 @@ class BayesianNN(BaseNN):
                     posteriors[v.inherited_name + "_mean"] = self.inference.params[q[v.uuid].factor.mean].asnumpy()
                     posteriors[v.inherited_name + "_variance"] = \
                         self.inference.params[q[v.uuid].factor.variance].asnumpy()
-                    print(f"Head {head}, variable {v.inherited_name}, "
-                          f"shape {posteriors[v.inherited_name + '_mean'].shape}")
+                    # print("Head {}, variable {}, shape {}"
+                    #       .format(head, v.inherited_name, posteriors[v.inherited_name + '_mean'].shape))
         return posteriors
 
     # noinspection PyUnresolvedReferences

@@ -117,7 +117,7 @@ class Experiment:
                     batch_size=batch_size)
 
                 priors = self.vanilla_model.net.collect_params()
-                print(f"Number of variables in priors: {len(priors.items())}")
+                # print("Number of variables in priors: {}".format(len(priors.items())))
                 train_iterator.reset()
 
             self.new_task(task)
@@ -134,7 +134,7 @@ class Experiment:
 
             # Set the priors for the next round of inference to be the current posteriors
             priors = self.bayesian_model.posteriors
-            print(f"Number of variables in priors: {len(priors)}")
+            # print("Number of variables in priors: {}".format(len(priors.items())))
 
             # Incorporate coreset data and make prediction
             acc = self.get_scores()
@@ -166,7 +166,7 @@ class Experiment:
         coreset_iterator = self.get_coreset(task_id)
 
         if coreset_iterator is None:
-            print(f"Empty coreset: Using main model as prediction model for task {task_id}")
+            print("Empty coreset: Using main model as prediction model for task {}".format(task_id))
             return self.bayesian_model
 
         coreset_iterator.reset()
@@ -175,9 +175,9 @@ class Experiment:
         prediction_model = BayesianNN(**self.model_params)
 
         priors = self.bayesian_model.posteriors
-        print(f"Number of variables in priors: {len(priors)}")
+        print("Number of variables in priors: {}".format(len(priors)))
 
-        print(f"Fine tuning prediction model for task {task_id}")
+        print("Fine tuning prediction model for task {}".format(task_id))
         prediction_model.train(
             train_iterator=coreset_iterator,
             validation_iterator=None,
@@ -198,7 +198,7 @@ class Experiment:
             head = 0 if self.single_head else task_id
             prediction_model = self.fine_tune(task_id)
 
-            print(f"Generating predictions for task {task_id}")
+            print("Generating predictions for task {}".format(task_id))
             predictions = prediction_model.prediction_prob(test_iterator, head)
             predicted_means = np.mean(predictions, axis=0)
             predicted_labels = np.argmax(predicted_means, axis=1)
