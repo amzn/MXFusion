@@ -50,23 +50,28 @@ def plot(title, experiments, num_tasks):
     ax.legend()
     ax.set_title(title)
 
-    filename = f"vcl_{title}_{datetime.now().isoformat()[:-7]}.pdf"
+    filename = "vcl_{}_{}.pdf".format(title, datetime.now().isoformat()[:-7])
     fig.savefig(filename, bbox_inches='tight')
     plt.show()
     plt.close()
 
 
 if __name__ == "__main__":
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning)
+
     # Load data
     data = mx.test_utils.get_mnist()
     input_dim = int(np.prod(data['train_data'][0].shape))  # Note the data will get flattened later
-    verbose = True
+    verbose = False
 
     # noinspection PyUnreachableCode
     if True:
         title = "Split MNIST"
-        tasks = ((0, 1), (2, 3))  # , (4, 5), (6, 7), (8, 9))
-        num_epochs = 1  # 120
+        tasks = ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
+        num_epochs = 120
+        # tasks = ((0, 1), (2, 3))
+        # num_epochs = 1  # 120
         batch_size = None
         gen = SplitTaskGenerator
         label_shape = 2
@@ -75,8 +80,10 @@ if __name__ == "__main__":
         coreset_size = 40
     else:
         title = "Permuted MNIST"
-        tasks = range(2)  # range(10)
-        num_epochs = 1  # 100
+        tasks = range(10)
+        num_epochs = 100
+        # tasks = range(2)
+        # num_epochs = 1
         batch_size = 256
         gen = PermutedTaskGenerator
         label_shape = 10
@@ -91,13 +98,13 @@ if __name__ == "__main__":
     optimizer = 'adam'
 
     experiment_parameters = (
-        # dict(
-        #     coreset=Vanilla(),
-        #     learning_rate=learning_rate,
-        #     optimizer=optimizer,
-        #     network_shape=network_shape,
-        #     num_epochs=num_epochs,
-        #     single_head=single_head),
+        dict(
+            coreset=Vanilla(),
+            learning_rate=learning_rate,
+            optimizer=optimizer,
+            network_shape=network_shape,
+            num_epochs=num_epochs,
+            single_head=single_head),
         dict(
             coreset=Random(coreset_size=coreset_size),
             learning_rate=learning_rate,
@@ -105,13 +112,13 @@ if __name__ == "__main__":
             network_shape=network_shape,
             num_epochs=num_epochs,
             single_head=single_head),
-        # dict(
-        #     coreset=KCenter(coreset_size=coreset_size),
-        #     learning_rate=learning_rate,
-        #     optimizer=optimizer,
-        #     network_shape=network_shape,
-        #     num_epochs=num_epochs,
-        #     single_head=single_head)
+        dict(
+            coreset=KCenter(coreset_size=coreset_size),
+            learning_rate=learning_rate,
+            optimizer=optimizer,
+            network_shape=network_shape,
+            num_epochs=num_epochs,
+            single_head=single_head)
     )
 
     experiments = []
