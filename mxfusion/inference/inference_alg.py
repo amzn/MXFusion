@@ -102,6 +102,9 @@ class InferenceAlgorithm(ABC):
     :param extra_graphs: a list of extra FactorGraph used in the inference
                          algorithm.
     :type extra_graphs: [FactorGraph]
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
 
     def replicate_self(self, model, extra_graphs=None):
@@ -115,8 +118,7 @@ class InferenceAlgorithm(ABC):
         replicant._observed_names = [v.name for v in observed]
         return replicant
 
-
-    def __init__(self, model, observed, extra_graphs=None):
+    def __init__(self, model, observed, extra_graphs=None, ignored=None):
         self._model_graph = model
         self._extra_graphs = extra_graphs if extra_graphs is not None else []
         self._graphs = [model] if extra_graphs is None else \
@@ -124,6 +126,10 @@ class InferenceAlgorithm(ABC):
         self._observed = set(observed)
         self._observed_uuid = variables_to_UUID(observed)
         self._observed_names = [v.name for v in observed]
+        ignored = ignored or []
+        self._ignored = set(ignored)
+        self._ignored_uuid = variables_to_UUID(ignored)
+        self._ignored_names = [v.name for v in ignored]
 
     @property
     def observed_variables(self):
@@ -145,6 +151,28 @@ class InferenceAlgorithm(ABC):
         The names (if exist) of the observed variables in this inference algorithm.
         """
         return self._observed_names
+
+    @property
+    def ignored_variables(self):
+        """
+        The ignored variables in this inference algorithm.
+        """
+        return self._ignored
+
+    @property
+    def ignored_variable_UUIDs(self):
+        """
+        The UUIDs of the ignored variables in this inference algorithm.
+        """
+        return self._ignored_uuid
+
+    @property
+    def ignored_variable_names(self):
+        """
+        The names (if exist) of the ignored variables in this inference algorithm.
+        """
+        return self._ignored_names
+
 
     @property
     def model(self):
@@ -260,12 +288,15 @@ class SamplingAlgorithm(InferenceAlgorithm):
     :param extra_graphs: a list of extra FactorGraph used in the inference
                          algorithm.
     :type extra_graphs: [FactorGraph]
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
 
     def __init__(self, model, observed, num_samples=1, target_variables=None,
-                 extra_graphs=None):
+                 extra_graphs=None, ignored=None):
         super(SamplingAlgorithm, self).__init__(
-            model=model, observed=observed, extra_graphs=extra_graphs)
+            model=model, observed=observed, extra_graphs=extra_graphs, ignored=ignored)
         self.num_samples = num_samples
         self.target_variables = target_variables
 

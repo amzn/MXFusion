@@ -28,11 +28,14 @@ class VariationalInference(InferenceAlgorithm):
     :param posterior: Posterior
     :param observed: A list of observed variables
     :type observed: [Variable]
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
 
-    def __init__(self, model, posterior, observed):
+    def __init__(self, model, posterior, observed, ignored=None):
         super(VariationalInference, self).__init__(
-            model=model, observed=observed, extra_graphs=[posterior])
+            model=model, observed=observed, extra_graphs=[posterior], ignored=ignored)
 
     @property
     def posterior(self):
@@ -84,10 +87,13 @@ class StochasticVariationalInference(VariationalInference):
     :param posterior: Posterior
     :param observed: A list of observed variables
     :type observed: [Variable]
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
-    def __init__(self, num_samples, model, posterior, observed):
+    def __init__(self, num_samples, model, posterior, observed, ignored=None):
         super(StochasticVariationalInference, self).__init__(
-            model=model, posterior=posterior, observed=observed)
+            model=model, posterior=posterior, observed=observed, ignored=ignored)
         self.num_samples = num_samples
 
     def compute(self, F, variables):
@@ -105,6 +111,12 @@ class StochasticVariationalInference(VariationalInference):
         samples = self.posterior.draw_samples(
             F=F, variables=variables, num_samples=self.num_samples)
         variables.update(samples)
-        logL = self.model.log_pdf(F=F, variables=variables)
+
+        if self.ignored_variables:
+            targets = self.posterior.variables
+        else:
+            targets = None
+
+        logL = self.model.log_pdf(F=F, variables=variables, targets=targets)
         logL = logL - self.posterior.log_pdf(F=F, variables=variables)
         return -logL, -logL

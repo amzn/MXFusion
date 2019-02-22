@@ -235,7 +235,7 @@ class FactorGraph(object):
                 raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
         return logL
 
-    def draw_samples(self, F, variables, num_samples=1, targets=None):
+    def draw_samples(self, F, variables, num_samples=1, targets=None, ignored=None):
         """
         Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples from all the variables
         that are *not* in the conditional variables. If the ``targets`` argument is given, this method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict of samples where the keys are the UUIDs of variables and the values are the samples.
@@ -247,9 +247,13 @@ class FactorGraph(object):
         :type num_samples: int
         :param targets: a list of Variables to draw samples from.
         :type targets: [UUID]
+        :param ignored: A list of ignored variables.
+        These are variables that are not observed, but also will not be inferred
+        :type ignored: [Variable]
         :returns: the samples of the target variables.
         :rtype: (MXNet NDArray or MXNet Symbol,) or {str(UUID): MXNet NDArray or MXNet Symbol}
         """
+        ignored = ignored or ()
         samples = {}
         for f in self.ordered_factors:
             if isinstance(f, FunctionEvaluation):
@@ -267,6 +271,8 @@ class FactorGraph(object):
                     continue
                 elif any(known):
                     raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ + " has been observed!")
+                if any(v in ignored for (_, v) in f.outputs):
+                    continue
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.draw_samples(
                     F=F, num_samples=num_samples, variables=variables, always_return_tuple=True)

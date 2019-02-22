@@ -38,12 +38,18 @@ def create_Gaussian_meanfield(model, observed, ignored=None, dtype=None):
     """
     dtype = get_default_dtype() if dtype is None else dtype
     observed = variables_to_UUID(observed)
-    ignored = variables_to_UUID(ignored) if ignored is not None else []
+    ignored = variables_to_UUID(ignored or [])
     q = Posterior(model)
     for v in model.variables.values():
         if v.type == VariableType.RANDVAR and v not in observed and v not in ignored:
             mean = Variable(shape=v.shape)
             variance = Variable(shape=v.shape,
                                 transformation=PositiveTransformation())
-            q[v].set_prior(Normal(mean=mean, variance=variance, dtype=dtype))
+            prior = Normal(mean=mean, variance=variance, dtype=dtype)
+            q[v].set_prior(prior)
+
+            # setting a name for the priors so that cloning posteriors works
+            if not v.name and v.inherited_name:
+                setattr(q, "{}_prior".format(v.inherited_name), prior)
+                setattr(q, v.inherited_name, q[v])
     return q

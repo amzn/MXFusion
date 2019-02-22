@@ -50,8 +50,11 @@ class ForwardSamplingAlgorithm(SamplingAlgorithm):
         :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
         """
         samples = self.model.draw_samples(
-            F=F, variables=variables, targets=self.target_variables,
-            num_samples=self.num_samples)
+            F=F,
+            variables=variables,  # dict((k, v) for k, v in variables.items() if k not in self.ignored_variables),
+            targets=self.target_variables,
+            num_samples=self.num_samples,
+            ignored=self.ignored_variables)
 
         return samples
 
@@ -80,24 +83,27 @@ class ForwardSampling(TransferInference):
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
     def __init__(self, num_samples, model, observed, var_tie, infr_params,
                  target_variables=None, hybridize=False, constants=None,
-                 dtype=None, context=None):
+                 dtype=None, context=None, ignored=None):
         if target_variables is not None:
             target_variables = [v.uuid for v in target_variables if
                                 isinstance(v, Variable)]
 
         infr = ForwardSamplingAlgorithm(
             num_samples=num_samples, model=model, observed=observed,
-            target_variables=target_variables)
+            target_variables=target_variables, ignored=ignored)
         super(ForwardSampling, self).__init__(
             inference_algorithm=infr, var_tie=var_tie, infr_params=infr_params,
             constants=constants, hybridize=hybridize, dtype=dtype,
             context=context)
 
 
-def merge_posterior_into_model(model, posterior, observed):
+def merge_posterior_into_model(model, posterior, observed, ignored=None):
     """
     Replace the prior distributions of a model with its variational posterior distributions.
 
@@ -107,9 +113,15 @@ def merge_posterior_into_model(model, posterior, observed):
     :param posterior: Posterior
     :param observed: A list of observed variables
     :type observed: [Variable]
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
     new_model = model.clone()
     for lv in model.get_latent_variables(observed):
+        # Test if lv is in ignored
+        if lv in ignored:
+            continue
         v = posterior.extract_distribution_of(posterior[lv])
         new_model.replace_subgraph(new_model[v], v)
     return new_model
@@ -135,10 +147,13 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
     """
     def __init__(self, num_samples, observed,
                  inherited_inference, target_variables=None,
-                 hybridize=False, constants=None, dtype=None, context=None):
+                 hybridize=False, constants=None, dtype=None, context=None, ignored=None):
         if not isinstance(inherited_inference.inference_algorithm,
                           (StochasticVariationalInference, MAP)):
             raise InferenceError('inherited_inference needs to be a subclass of SVIInference or SVIMiniBatchInference.')
@@ -147,11 +162,52 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
         q = inherited_inference.inference_algorithm.posterior
 
         model_graph = merge_posterior_into_model(
-            m, q, observed=inherited_inference.observed_variables)
+            m, q, observed=inherited_inference.observed_variables, ignored=ignored)
 
         super(VariationalPosteriorForwardSampling, self).__init__(
             num_samples=num_samples, model=model_graph,
             observed=observed,
             var_tie={}, infr_params=inherited_inference.params,
             target_variables=target_variables, hybridize=hybridize,
-            constants=constants, dtype=dtype, context=context)
+            constants=constants, dtype=dtype, context=context, ignored=ignored)
+
+
+class VariationalPosteriorForwardSampling2(ForwardSampling):
+    """
+    The forward sampling method for variational inference.
+
+    :param num_samples: the number of samples used in estimating the variational lower bound
+    :type num_samples: int
+    :param observed: A list of observed variables
+    :type observed: [Variable]
+    :param inherited_inference: the inference method of which the model and inference results are taken
+    :type inherited_inference: SVIInference or SVIMiniBatchInference
+    :param target_variables: (optional) the target variables to sample
+    :type target_variables: [Variable]
+    :param constants: Specify a list of model variables as constants
+    :type constants: {Variable: mxnet.ndarray}
+    :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
+    :type hybridize: boolean
+    :param dtype: data type for internal numerical representation
+    :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
+    :param context: The MXNet context
+    :type context: {mxnet.cpu or mxnet.gpu}
+    :param ignored: A list of ignored variables.
+    These are variables that are not observed, but also will not be inferred
+    :type ignored: [Variable]
+    """
+    def __init__(self, num_samples, observed,
+                 inherited_algorithm, inherited_params, inherited_model, inherited_posterior, target_variables=None,
+                 hybridize=False, constants=None, dtype=None, context=None, ignored=None):
+        if not isinstance(inherited_algorithm, (StochasticVariationalInference, MAP)):
+            raise InferenceError('inherited_inference needs to be a subclass of SVIInference or SVIMiniBatchInference.')
+
+        model_graph = merge_posterior_into_model(
+            inherited_model, inherited_posterior, observed=observed, ignored=ignored)
+
+        super().__init__(
+            num_samples=num_samples, model=model_graph,
+            observed=observed,
+            var_tie={}, infr_params=inherited_params,
+            target_variables=target_variables, hybridize=hybridize,
+            constants=constants, dtype=dtype, context=context, ignored=ignored)
