@@ -22,6 +22,7 @@ from mxfusion.components import MXFusionGluonFunction
 from mxfusion.components.distributions import Normal, Categorical
 from mxfusion.inference import BatchInferenceLoop, create_Gaussian_meanfield, GradBasedInference, \
     StochasticVariationalInference, VariationalPosteriorForwardSampling
+from mxfusion.components.variables import add_sample_dimension
 from abc import ABC, abstractmethod
 
 from .mlp import MLP
@@ -155,9 +156,9 @@ class BayesianNN(BaseNN):
             r = self.model.f(self.model.x)
             for head, label_shape in enumerate(self.network_shape[-1]):
                 rh = r[head] if self.num_heads > 1 else r
-                setattr(self.model, f'r{head}', rh)
+                setattr(self.model, 'r{}'.format(head), rh)
                 y = Categorical.define_variable(log_prob=rh, shape=(self.model.N, 1), num_classes=label_shape)
-                setattr(self.model, f'y{head}', y)
+                setattr(self.model, 'y{}'.format(head), y)
                 # TODO the statement below could probably be done only for the first head, since they all share the same
                 # factor parameters
                 self.create_prior_variables(rh)
@@ -181,7 +182,7 @@ class BayesianNN(BaseNN):
         if self.single_head:
             r = self.model.r
         else:
-            r = getattr(self.model, f'r{head}')
+            r = getattr(self.model, 'r{}'.format(head))
         return r.factor.parameters
 
     # noinspection PyUnresolvedReferences
@@ -200,27 +201,20 @@ class BayesianNN(BaseNN):
             # pass some data to initialise the net
             self.net(data[:1])
 
-            # TODO: Would rather have done this before!
-            # self.create_model()
-
             if self.single_head:
                 observed = [self.model.x, self.model.y]
                 ignored = None
                 kwargs = dict(y=labels, x=data)
             else:
-                observed = [self.model.x, getattr(self.model, f"y{head}")]
-                y_other = [getattr(self.model, f"y{h}") for h in range(self.num_heads) if h != head]
-                r_other = [getattr(self.model, f"r{h}") for h in range(self.num_heads) if h != head]
-                ignored = y_other
-                kwargs = {'x': data, f'y{head}': labels, 'ignored': y_other + r_other}
-                # observed = [self.model.x] + [getattr(self.model, f"y{h}") for h in range(self.num_heads)]
-                # kwargs = {'x': data, f'y{head}': labels}
-                # for h in range(self.num_heads):
-                #     if h != head:
-                #         kwargs[f"y{h}"] = None
+                observed = [self.model.x, getattr(self.model, "y{}".format(head))]
+                y_other = [getattr(self.model, "y{}".format(h)) for h in range(self.num_heads) if h != head]
+                r_other = [getattr(self.model, "r{}".format(h)) for h in range(self.num_heads) if h != head]
+                ignored = y_other + r_other
+                kwargs = {'x': data, 'y{}'.format(head): labels, 'ignored': dict((v.name, v) for v in ignored)}
 
             q = create_Gaussian_meanfield(model=self.model, ignored=ignored, observed=observed)
-            alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
+            alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed,
+                                                 ignored=ignored)
             self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
             self.inference.initialize(**kwargs)
 
@@ -296,13 +290,46 @@ class BayesianNN(BaseNN):
             # pass some data to initialise the net
             self.net(data[:1])
 
-            r = self.model.r if self.single_head else getattr(self.model, f'r{head}')
+            r = self.model.r if self.single_head else getattr(self.model, 'r{}'.format(head))
+            y = self.model.y if self.single_head else getattr(self.model, 'y{}'.format(head))
+            y_other = [getattr(self.model, "y{}".format(h)) for h in range(self.num_heads) if h != head]
+            r_other = [getattr(self.model, "r{}".format(h)) for h in range(self.num_heads) if h != head]
+            ignored = y_other + r_other
 
             if self.verbose:
-                print(f"Data shape {data.shape}")
+                print("Data shape {}".format(data.shape))
 
-            prediction_inference = VariationalPosteriorForwardSampling(10, [self.model.x], self.inference, [r])
+            if len(ignored) > 0:
+                # Here we need to re-instantiate the ignored variables into the posterior if they don't exist
+                model = self.inference.inference_algorithm.model  # .clone()
+                old_posterior = self.inference.inference_algorithm.posterior
+                new_posterior = old_posterior.clone(model=model)
+
+                # Reattach the missing parts of the graph
+                new_posterior[r].set_prior(new_posterior[r.factor])
+                new_posterior[r].factor.predecessors = [(k, new_posterior[v]) for k, v in r.factor.predecessors]
+                new_posterior[r].factor.successors = [(k, new_posterior[v]) for k, v in r.factor.successors]
+                new_posterior[y].set_prior(new_posterior[y.factor])
+                new_posterior[y].factor.predecessors = [(k, new_posterior[v]) for k, v in y.factor.predecessors]
+
+                # Set the posterior to be the new posterior
+                self.inference.inference_algorithm._extra_graphs[0] = new_posterior
+            else:
+                old_posterior = None
+
+            prediction_inference = VariationalPosteriorForwardSampling(
+                num_samples=10, observed=[self.model.x],
+                inherited_inference=self.inference,
+                target_variables=[r],
+                ignored=ignored  # dict((v.name, v) for v in ignored)
+            )
+
             res = prediction_inference.run(x=mx.nd.array(data))
+
+            if old_posterior is not None:
+                # Set the posterior back to the old posterior
+                self.inference.inference_algorithm._extra_graphs[0] = old_posterior
+
             return res[0].asnumpy()
 
     @staticmethod
