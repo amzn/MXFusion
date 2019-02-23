@@ -48,14 +48,14 @@ def timing(f):
         ts = time()
         result = f(*args, **kw)
         te = time()
-        print(f'func:{f.__name__!r} took: {te-ts:2.4f} sec')
+        print('func:{!r} took: {:2.4f} sec'.format(f.__name__, te-ts))
         return result
 
     return wrap
 
 
 # Monkey patch data loader printing
-DataLoader.__repr__ = lambda self: f"{self.__class__.__name__}()"
+DataLoader.__repr__ = lambda self: "{}()".format(self.__class__.__name__)
 
 
 class VanillaNN:
@@ -67,7 +67,7 @@ class VanillaNN:
         self.ctx = ctx
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.num_dims}, {self.num_classes}, {self.ctx})"
+        return "{}({}, {}, {}".format(self.__class__.__name__, self.net.network_shape, self.metrics, self.ctx)
 
     @timing
     def train(self, train_loader, val_loader, batch_size, epochs, optimizer, optimizer_params, **kwargs):
@@ -93,7 +93,7 @@ class VanillaNN:
 
         # TODO: this depends on accuracy being the first metric in the list
         validation_accuracy = self.metrics[0].get()[1]
-        print(f"epoch {e + 1}. Loss: {cumulative_loss}, Validation accuracy {validation_accuracy}")
+        print("epoch {}. Loss: {}, Validation accuracy {}".format(e + 1, cumulative_loss, validation_accuracy))
 
         # Update validation scores
         for metric in self.metrics:
@@ -188,7 +188,7 @@ class MeanFieldNN(VanillaNN):
 def get_data(data_class, batch_size, ctx):
     from multiprocessing import cpu_count
     cpu_count = 1 if ctx == mx.context.gpu() else cpu_count()
-    print(f"CPU count {cpu_count}")
+    print("CPU count {}".format(cpu_count))
 
     # Load MNIST Data
     def transform(data, label):
@@ -216,7 +216,7 @@ if __name__ == "__main__":
 
     # Set the compute context, GPU is available otherwise CPU
     ctx = mx.gpu() if mx.test_utils.list_gpus() else mx.cpu()
-    print(f"Context: {ctx}")
+    print("Context: {}".format(ctx))
 
     batch_size = 100
 
@@ -254,10 +254,10 @@ if __name__ == "__main__":
                 # for model_class in VanillaNN, MeanFieldNN:
                 for model_class, run_args in models.items():
                     print("--------------------------------------")
-                    print(f"{model_class.__name__} on {data_class.__name__}")
-                    print(f"Data shape: {data_shape}")
-                    print(f"Architecture: {architecture}")
-                    print(f"Arguments: {run_args}")
+                    print("{} on {}".format(model_class.__name__, data_class.__name__))
+                    print("Data shape: {}".format(data_shape))
+                    print("Architecture: {}".format(architecture))
+                    print("Arguments: {}".format(run_args))
 
                     nn_wrapper = model_class(architecture, metrics=metrics, ctx=ctx)
                     nn_wrapper.train(train_data_loader, valid_data_loader, batch_size, **run_args)
@@ -266,7 +266,7 @@ if __name__ == "__main__":
                     evaluations = dict()
                     for metric in nn_wrapper.metrics:
                         evaluations[metric.name] = metric.get()[1]
-                        print(f"Final test {metric.name}: {evaluations[metric.name]}")
+                        print("Final test {}: {}".format(metric.name, evaluations[metric.name]))
                     print()
 
                     results = dict(data=data_class.__name__,
