@@ -47,9 +47,9 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
         Invokes the MXNet Gluon block with the arguments passed in.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
-            of FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :param input_kws: the dict of inputs to the functions. The key in the dict should match with the name of
+        inputs specified in the inputs of FunctionEvaluation.
+        :type input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """

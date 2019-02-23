@@ -31,13 +31,14 @@ class StationaryKernel(NativeKernel):
     In this implementation, r is scaled by the lengthscales parameter(s):
     .. math::
         r2(x, x') = \\sum_{q=1}^Q \\frac{(x_q - x'_q)^2}{\\ell_q^2}.
-    By default, there's only one lengthscale: separate lengthscales for each dimension can be enables by setting ARD=True.
+    By default, there's only one lengthscale: separate lengthscales for each dimension can be enables by setting
+    ARD=True.
 
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).
     :type input_dim: int
-    :param ARD: a binary switch for Automatic Relevance Determination (ARD). If true, the squared distance is divided by a lengthscale for individual
-        dimensions.
+    :param ARD: a binary switch for Automatic Relevance Determination (ARD). If true, the squared distance is divided
+    by a lengthscale for individual dimensions.
     :type ARD: boolean
     :param variance: the initial value for the variance parameter (scalar), which scales the whole covariance matrix.
     :type variance: float or MXNet NDArray
@@ -45,7 +46,8 @@ class StationaryKernel(NativeKernel):
     :type lengthscale: float or MXNet NDArray
     :param name: the name of the kernel. The name is used to access kernel parameters.
     :type name: str
-    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation. (default: None, taking all the dimensions).
+    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation.
+    (default: None, taking all the dimensions).
     :type active_dims: [int] or None
     :param dtype: the data type for float point numbers.
     :type dtype: numpy.float32 or numpy.float64
@@ -81,8 +83,8 @@ class StationaryKernel(NativeKernel):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
-            X2 is internally treated as X.
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square
+        covariance matrix of X. In other words, X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
         :return: The squared distance.
         :rtype: MXNet NDArray or MXNet Symbol
