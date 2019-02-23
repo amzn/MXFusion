@@ -200,7 +200,8 @@ class MXFusionGluonFunction(MXFusionFunction):
                     ctx = val.context
                     ctx_list = param._ctx_map[ctx.device_typeid&1]
                     if ctx.device_id >= len(ctx_list) or ctx_list[ctx.device_id] is None:
-                        raise Exception
+                        raise ValueError("Context device id {} outside range of list {} or None".format(
+                            ctx.device_id, ctx_list))
                     dev_id = ctx_list[ctx.device_id]
                     param._data[dev_id] = val
                 else:
