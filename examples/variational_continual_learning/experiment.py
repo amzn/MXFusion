@@ -39,7 +39,6 @@ class Experiment:
         self.vanilla_model = None
         self.bayesian_model = None
 
-        # self.prediction_models = dict()
         self.task_ids = []
 
     @property
@@ -63,15 +62,8 @@ class Experiment:
         print("Creating Vanilla Model")
         self.vanilla_model = VanillaNN(**self.model_params)
 
-        # print("Creating Bayesian Model")
-        # self.bayesian_model = BayesianNN(**self.model_params)
-
-        # if self.single_head:
-        #     print("Creating Prediction Model")
-        #     self.prediction_models[0] = BayesianNN(**self.model_params)
-
     def new_task(self, task):
-        if self.single_head:
+        if self.single_head and self.bayesian_model is not None:
             return
 
         if len(self.task_ids) > 0:
@@ -81,10 +73,6 @@ class Experiment:
 
         # TODO: Would be nice if we could use the same object here
         self.bayesian_model = BayesianNN(**self.model_params)
-
-        # if len(self.coreset.iterator) > 0:
-        #     # We'll keep the prediction model for each task since they'll get reused
-        #     self.prediction_models[task.task_id] = BayesianNN(**self.model_params)
 
     def run(self):
         self.reset()
@@ -117,7 +105,6 @@ class Experiment:
                     batch_size=batch_size)
 
                 priors = self.vanilla_model.net.collect_params()
-                # print("Number of variables in priors: {}".format(len(priors.items())))
                 train_iterator.reset()
 
             self.new_task(task)
@@ -171,7 +158,6 @@ class Experiment:
 
         coreset_iterator.reset()
         batch_size = coreset_iterator.provide_label[0].shape[0]
-        # prediction_model = self.prediction_models[task_id]
         prediction_model = BayesianNN(**self.model_params)
 
         priors = self.bayesian_model.posteriors

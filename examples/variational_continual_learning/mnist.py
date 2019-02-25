@@ -90,5 +90,8 @@ class PermutedTaskGenerator(TaskGenerator):
             batch_size = self.batch_size or x_test.shape[0]
             test_iter = NDArrayIter(x_test, y_test, batch_size)
 
-            yield Task(i, task, train_iter, test_iter, number_of_classes=y_train.shape[1])
+            # number_of_classes = y_train.shape[1]
+            number_of_classes = len(np.unique(y_train))
+
+            yield Task(i, task, train_iter, test_iter, number_of_classes)
         return

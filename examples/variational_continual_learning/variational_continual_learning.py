@@ -17,6 +17,7 @@ import mxnet as mx
 
 import matplotlib.pyplot as plt
 from datetime import datetime
+import fire
 
 from examples.variational_continual_learning.experiment import Experiment
 from examples.variational_continual_learning.mnist import SplitTaskGenerator, PermutedTaskGenerator
@@ -57,87 +58,95 @@ def plot(title, experiments, num_tasks):
     plt.close()
 
 
+class VCLRunner:
+    """
+    Entry point for variational continual learning examples
+    """
+    @staticmethod
+    def run(task='split', learning_rate=0.01, optimizer='adam', num_epochs=120, num_tasks=None):
+        # Load data
+        data = mx.test_utils.get_mnist()
+        input_dim = int(np.prod(data['train_data'][0].shape))  # Note the data will get flattened later
+        verbose = False
+
+        # noinspection PyUnreachableCode
+        if task.lower() == 'split':
+            title = "Split MNIST"
+            tasks = ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
+            tasks = tasks[:num_tasks]
+            # num_epochs = 120
+            # num_epochs = 1  # 120
+            batch_size = None
+            gen = SplitTaskGenerator
+            label_shape = 2
+            network_shape = (input_dim, 256, 256, (label_shape,))
+            single_head = False
+            coreset_size = 40
+        elif task.lower() == 'permuted':
+            title = "Permuted MNIST"
+            tasks = range(10)
+            tasks = tasks[:num_tasks]
+            # num_epochs = 100
+            # num_epochs = 1
+            batch_size = 256
+            gen = PermutedTaskGenerator
+            label_shape = 10
+            network_shape = (input_dim, 100, 100, label_shape)
+            single_head = True
+            coreset_size = 200
+        else:
+            raise ValueError("Unknown task type {}, possibilities are 'split' or 'permuted'".format(task))
+
+        experiment_parameters = (
+            dict(
+                coreset=Vanilla(),
+                learning_rate=learning_rate,
+                optimizer=optimizer,
+                network_shape=network_shape,
+                num_epochs=num_epochs,
+                single_head=single_head),
+            dict(
+                coreset=Random(coreset_size=coreset_size),
+                learning_rate=learning_rate,
+                optimizer=optimizer,
+                network_shape=network_shape,
+                num_epochs=num_epochs,
+                single_head=single_head),
+            dict(
+                coreset=KCenter(coreset_size=coreset_size),
+                learning_rate=learning_rate,
+                optimizer=optimizer,
+                network_shape=network_shape,
+                num_epochs=num_epochs,
+                single_head=single_head)
+        )
+
+        experiments = []
+
+        print("Task {}\nLearning rate {}\nOptimizer {}\nnumber of epochs {}\nnumber of tasks {}".format(
+            title, learning_rate, optimizer, num_epochs, num_tasks
+        ))
+
+        # Run experiments
+        for params in experiment_parameters:
+            print("-" * 50)
+            print("Running experiment", params['coreset'].__class__.__name__)
+            print("-" * 50)
+            set_seeds()
+            experiment = Experiment(batch_size=batch_size,
+                                    data_generator=gen(data, batch_size=batch_size, tasks=tasks),
+                                    ctx=CTX, verbose=verbose,
+                                    **params)
+            experiment.run()
+            print(experiment.overall_accuracy)
+            experiments.append(experiment)
+            print("-" * 50)
+            print()
+
+        plot(title, experiments, len(tasks))
+
+
 if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning)
-
-    # Load data
-    data = mx.test_utils.get_mnist()
-    input_dim = int(np.prod(data['train_data'][0].shape))  # Note the data will get flattened later
-    verbose = False
-
-    # noinspection PyUnreachableCode
-    if True:
-        title = "Split MNIST"
-        tasks = ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
-        num_epochs = 120
-        # tasks = ((0, 1), (2, 3))
-        # num_epochs = 1  # 120
-        batch_size = None
-        gen = SplitTaskGenerator
-        label_shape = 2
-        network_shape = (input_dim, 256, 256, (label_shape, ))
-        single_head = False
-        coreset_size = 40
-    else:
-        title = "Permuted MNIST"
-        tasks = range(10)
-        num_epochs = 100
-        # tasks = range(2)
-        # num_epochs = 1
-        batch_size = 256
-        gen = PermutedTaskGenerator
-        label_shape = 10
-        network_shape = (input_dim, 100, 100, label_shape)
-        single_head = True
-        coreset_size = 200
-
-    data_dtype = data['train_data'].dtype
-    label_dtype = data['train_label'].dtype
-
-    learning_rate = 0.01
-    optimizer = 'adam'
-
-    experiment_parameters = (
-        dict(
-            coreset=Vanilla(),
-            learning_rate=learning_rate,
-            optimizer=optimizer,
-            network_shape=network_shape,
-            num_epochs=num_epochs,
-            single_head=single_head),
-        dict(
-            coreset=Random(coreset_size=coreset_size),
-            learning_rate=learning_rate,
-            optimizer=optimizer,
-            network_shape=network_shape,
-            num_epochs=num_epochs,
-            single_head=single_head),
-        dict(
-            coreset=KCenter(coreset_size=coreset_size),
-            learning_rate=learning_rate,
-            optimizer=optimizer,
-            network_shape=network_shape,
-            num_epochs=num_epochs,
-            single_head=single_head)
-    )
-
-    experiments = []
-
-    # Run experiments
-    for params in experiment_parameters:
-        print("-" * 50)
-        print("Running experiment", params['coreset'].__class__.__name__)
-        print("-" * 50)
-        set_seeds()
-        experiment = Experiment(batch_size=batch_size,
-                                data_generator=gen(data, batch_size=batch_size, tasks=tasks),
-                                ctx=CTX, verbose=verbose,
-                                **params)
-        experiment.run()
-        print(experiment.overall_accuracy)
-        experiments.append(experiment)
-        print("-" * 50)
-        print()
-
-    plot(title, experiments, len(tasks))
+    fire.Fire(VCLRunner.run)

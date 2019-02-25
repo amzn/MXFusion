@@ -119,7 +119,10 @@ class VanillaNN(BaseNN):
             cumulative_loss = 0
             for i, batch in enumerate(train_iterator):
                 with mx.autograd.record():
-                    output = self.forward(batch.data[0].as_in_context(self.ctx))[head]
+                    if self.single_head:
+                        output = self.forward(batch.data[0].as_in_context(self.ctx))
+                    else:
+                        output = self.forward(batch.data[0].as_in_context(self.ctx))[head]
                     labels = batch.label[0].as_in_context(self.ctx)
                     loss = self.loss(output, labels)
                 loss.backward()
