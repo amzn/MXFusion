@@ -27,6 +27,7 @@ logging.getLogger().setLevel(logging.DEBUG)  # logging to stdout
 
 # Set the compute context, GPU is available otherwise CPU
 CTX = mx.gpu() if mx.test_utils.list_gpus() else mx.cpu()
+mx.context.Context.default_ctx = CTX
 
 
 def set_seeds(seed=42):
