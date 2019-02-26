@@ -36,28 +36,6 @@ def set_seeds(seed=42):
     np.random.seed(seed)
 
 
-def plot(title, experiments, num_tasks):
-    fig = plt.figure(figsize=(num_tasks, 3))
-    ax = plt.gca()
-
-    x = range(1, len(tasks) + 1)
-
-    for experiment in experiments:
-        acc = np.nanmean(experiment.overall_accuracy, axis=1)
-        label = experiment.coreset.__class__.__name__
-        plt.plot(x, acc, label=label, marker='o')
-    ax.set_xticks(x)
-    ax.set_ylabel('Average accuracy')
-    ax.set_xlabel('# tasks')
-    ax.legend()
-    ax.set_title(title)
-
-    filename = "vcl_{}_{}.pdf".format(title, datetime.now().isoformat()[:-7])
-    fig.savefig(filename, bbox_inches='tight')
-    plt.show()
-    plt.close()
-
-
 class VCLRunner:
     """
     Entry point for variational continual learning examples
@@ -143,7 +121,29 @@ class VCLRunner:
             print("-" * 50)
             print()
 
-        plot(title, experiments, len(tasks))
+        VCLRunner.plot(title, experiments, len(tasks))
+
+    @staticmethod
+    def plot(title, experiments, num_tasks):
+        fig = plt.figure(figsize=(num_tasks, 3))
+        ax = plt.gca()
+
+        x = range(1, num_tasks + 1)
+
+        for experiment in experiments:
+            acc = np.nanmean(experiment.overall_accuracy, axis=1)
+            label = experiment.coreset.__class__.__name__
+            plt.plot(x, acc, label=label, marker='o')
+        ax.set_xticks(x)
+        ax.set_ylabel('Average accuracy')
+        ax.set_xlabel('# tasks')
+        ax.legend()
+        ax.set_title(title)
+
+        filename = "vcl_{}_{}.pdf".format(title, datetime.now().isoformat()[:-7])
+        fig.savefig(filename, bbox_inches='tight')
+        plt.show()
+        plt.close()
 
 
 if __name__ == "__main__":
