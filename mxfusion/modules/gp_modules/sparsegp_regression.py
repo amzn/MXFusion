@@ -36,9 +36,21 @@ class SparseGPRegressionLogPdf(VariationalInference):
     def __init__(self, model, posterior, observed, jitter=0.):
         super(SparseGPRegressionLogPdf, self).__init__(
             model=model, posterior=posterior, observed=observed)
+        self.log_pdf_scaling = 1
         self.jitter = jitter
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
         X = variables[self.model.X]
         Y = variables[self.model.Y]
         Z = variables[self.model.inducing_inputs]
@@ -104,6 +116,17 @@ class SparseGPRegressionMeanVariancePrediction(SamplingAlgorithm):
         self.diagonal_variance = diagonal_variance
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
         X = variables[self.model.X]
         N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
@@ -161,6 +184,17 @@ class SparseGPRegressionSamplingPrediction(SamplingAlgorithm):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
         X = variables[self.model.X]
         N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
@@ -230,10 +264,11 @@ class SparseGPRegression(Module):
     :type kernel: Kernel
     :param noise_var: the variance of the Gaussian likelihood
     :type noise_var: Variable
-    :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated if not specified.
+    :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated
+    if not specified.
     :type inducing_inputs: Variable
-    :param inducing_num: the number of inducing points of sparse GP (default: 10)
-    :type inducing_num: int
+    :param num_inducing: the number of inducing points of sparse GP (default: 10)
+    :type num_inducing: int
     :param mean_func: the mean function of Gaussian process.
     :type mean_func: MXFusionFunction
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
@@ -245,14 +280,14 @@ class SparseGPRegression(Module):
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
-                 inducing_num=10, mean_func=None,
+                 num_inducing=10, mean_func=None,
                  rand_gen=None, dtype=None, ctx=None):
         if not isinstance(X, Variable):
             X = Variable(value=X)
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         if inducing_inputs is None:
-            inducing_inputs = Variable(shape=(inducing_num, kernel.input_dim))
+            inducing_inputs = Variable(shape=(num_inducing, kernel.input_dim))
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
@@ -267,8 +302,8 @@ class SparseGPRegression(Module):
         """
         Generate the output of the module with given output_shapes.
 
-        :param output_shape: the shapes of all the output variables
-        :type output_shape: {str: tuple}
+        :param output_shapes: the shapes of all the output variables
+        :type output_shapes: {str: tuple}
         """
         if output_shapes is None:
             Y_shape = self.X.shape[:-1] + (1,)
@@ -324,7 +359,8 @@ class SparseGPRegression(Module):
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=SparseGPRegressionLogPdf(self._module_graph, self._extra_graphs[0], observed), alg_name='sgp_log_pdf')
+            algorithm=SparseGPRegressionLogPdf(self._module_graph, self._extra_graphs[0], observed),
+            alg_name='sgp_log_pdf')
 
         observed = [v for k, v in self.inputs]
         self.attach_draw_samples_algorithms(
@@ -341,7 +377,7 @@ class SparseGPRegression(Module):
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
-                        inducing_num=10, mean_func=None, rand_gen=None,
+                        num_inducing=10, mean_func=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
         Creates and returns a variable drawn from a sparse Gaussian process regression.
@@ -355,10 +391,11 @@ class SparseGPRegression(Module):
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
-        :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated if not specified.
+        :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated
+        if not specified.
         :type inducing_inputs: Variable
-        :param inducing_num: the number of inducing points of sparse GP (default: 10)
-        :type inducing_num: int
+        :param num_inducing: the number of inducing points of sparse GP (default: 10)
+        :type num_inducing: int
         :param mean_func: the mean function of Gaussian process.
         :type mean_func: MXFusionFunction
         :param rand_gen: the random generator (default: MXNetRandomGenerator).
@@ -370,7 +407,7 @@ class SparseGPRegression(Module):
         """
         gp = SparseGPRegression(
             X=X, kernel=kernel, noise_var=noise_var,
-            inducing_inputs=inducing_inputs, inducing_num=inducing_num,
+            inducing_inputs=inducing_inputs, num_inducing=num_inducing,
             mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable

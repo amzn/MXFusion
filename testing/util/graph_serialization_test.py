@@ -16,12 +16,12 @@
 import unittest
 import json
 from mxfusion.components import Variable
-from mxfusion.util.graph_serialization import ModelComponentDecoder, ModelComponentEncoder
+from mxfusion.util.serialization import ModelComponentDecoder, ModelComponentEncoder
 
 
 class GraphSerializationTests(unittest.TestCase):
     """
-    Tests the mxfusion.util.graph_serialization classes for ModelComponent encoding and decoding.
+    Tests the mxfusion.util.serialization classes for ModelComponent encoding and decoding.
     """
 
     def test_encode_component(self):

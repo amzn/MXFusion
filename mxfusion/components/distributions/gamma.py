@@ -63,8 +63,8 @@ class Gamma(UnivariateDistribution):
         Draw samples from the Gamma distribution.
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
-        :param nSamples: the number of drawn samples (default: one).
-        :int nSamples: int
+        :param num_samples: the number of drawn samples (default: one).
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the Gamma distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -79,6 +79,10 @@ class Gamma(UnivariateDistribution):
         """
         Creates and returns a random variable drawn from a Gamma distribution parameterized with a and b parameters.
 
+        :param alpha: beta parameter of the Gamma random variable (also known as rate)
+        :type alpha: float
+        :param beta: alpha parameter of the Gamma random variable (also known as shape)
+        :type beta: float
         :param shape: the shape of the random variable(s).
         :type shape: tuple or [tuple]
         :param rand_gen: the random generator (default: MXNetRandomGenerator).
@@ -137,6 +141,10 @@ class GammaMeanVariance(UnivariateDistribution):
         """
         Computes the logarithm of the probability density function (PDF) of the Gamma distribution.
 
+        :param mean: mean of the Gamma random variable (alpha / beta)
+        :type mean: float
+        :param variance: variance of the Gamma random variable (alpha / beta**2)
+        :type variance: float
         :param random_variable: the random variable of the Gamma distribution.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
@@ -150,14 +158,13 @@ class GammaMeanVariance(UnivariateDistribution):
         p1 = (alpha - 1.) * F.log(random_variable)
         return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
 
-    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1,
-                          F=None):
+    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the Gamma distribution.
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
-        :param nSamples: the number of drawn samples (default: one).
-        :int nSamples: int
+        :param num_samples: the number of drawn samples (default: one).
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the Gamma distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -168,8 +175,7 @@ class GammaMeanVariance(UnivariateDistribution):
                               ctx=self.ctx)
 
     @staticmethod
-    def define_variable(mean=0., variance=1., shape=None, rand_gen=None,
-                        dtype=None, ctx=None):
+    def define_variable(mean=0., variance=1., shape=None, rand_gen=None, dtype=None, ctx=None):
         """
         Creates and returns a random variable drawn from a Gamma distribution parameterized with mean and variance.
 

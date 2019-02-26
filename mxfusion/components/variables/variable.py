@@ -263,7 +263,3 @@ class Variable(ModelComponent):
     def __pow__(self, y):
         from ..functions.operators import power
         return power(self, y)
-
-    def transpose(self):
-        from ..functions.operators import transpose
-        return transpose(self)

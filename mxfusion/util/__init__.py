@@ -22,7 +22,7 @@ Submodules
     :toctree: _autosummary
 
     customop
-    graph_serialization
+    serialization
     inference
     testutils
     util

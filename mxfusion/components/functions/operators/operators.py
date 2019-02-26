@@ -21,7 +21,8 @@ from ...variables import Variable
 class Operator(FunctionEvaluation):
     """
     Abstract Operator object for using MXNet operators in MXFusion space.
-    Child classes implement the eval method with their operator and access necessary state through the properties dictionary.
+    Child classes implement the eval method with their operator and access necessary state through the
+    properties dictionary.
     """
     def __init__(self, inputs, outputs, operator_name, properties=None,
                  broadcastable=False):
@@ -57,7 +58,8 @@ class MXNetOperatorDecorator(object):
         :type name: string
         :param args: The names of the arguments for the mxnet operator in order.
         :type args: list of strings
-        :param inputs: The inputs to the MXNet operator that could have gradient's chained through them. I.E. the mx.nd.array or mx.sym.array parameters. This will be a subset of args (possibly the same set).
+        :param inputs: The inputs to the MXNet operator that could have gradient's chained through them.
+        I.E. the mx.nd.array or mx.sym.array parameters. This will be a subset of args (possibly the same set).
         :type inputs: list of strings
         :param num_outputs: How many output variables the operator produces. Defaults to 1.
         :type num_outputs: int
@@ -87,7 +89,8 @@ class MXNetOperatorDecorator(object):
                     return func(F, **input_kws)
 
             if not len(all_args) >= len(self.input_names):
-                raise ModelSpecificationError("Must pass in arguments matching the input names {} but received {}.".format(self.input_names, all_args))
+                raise ModelSpecificationError("Must pass in arguments matching the input names {} but received {}."
+                                              .format(self.input_names, all_args))
 
             op = CustomOperator(
                 inputs=[(n, all_args[n]) for n in self.input_names],

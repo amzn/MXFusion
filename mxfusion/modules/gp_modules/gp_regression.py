@@ -33,6 +33,12 @@ class GPRegressionLogPdf(VariationalInference):
     The method to compute the logarithm of the probability density function of
     a Gaussian process model with Gaussian likelihood.
     """
+    def __init__(self, model, posterior, observed, jitter=0.):
+        super(GPRegressionLogPdf, self).__init__(
+            model=model, posterior=posterior, observed=observed)
+        self.log_pdf_scaling = 1
+        self.jitter = jitter
+
     def compute(self, F, variables):
         X = variables[self.model.X]
         Y = variables[self.model.Y]
@@ -48,6 +54,9 @@ class GPRegressionLogPdf(VariationalInference):
         K = kern.K(F, X, **kern_params) + \
             F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
             F.expand_dims(noise_var, axis=-2)
+        if self.jitter > 0.:
+            K = K + F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+                self.jitter
         L = F.linalg.potrf(K)
 
         if self.model.mean_func is not None:
@@ -80,6 +89,17 @@ class GPRegressionSampling(SamplingAlgorithm):
             rand_gen
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
         X = variables[self.model.X]
         noise_var = variables[self.model.noise_var]
         N = X.shape[-2]
@@ -122,6 +142,17 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
         self.diagonal_variance = diagonal_variance
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
         X = variables[self.model.X]
         N = X.shape[-2]
         noise_var = variables[self.model.noise_var]
@@ -174,6 +205,17 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
         X = variables[self.model.X]
         N = X.shape[-2]
         noise_var = variables[self.model.noise_var]
@@ -267,8 +309,8 @@ class GPRegression(Module):
         """
         Generate the output of the module with given output_shapes.
 
-        :param output_shape: the shapes of all the output variables
-        :type output_shape: {str: tuple}
+        :param output_shapes: the shapes of all the output variables
+        :type output_shapes: {str: tuple}
         """
         if output_shapes is None:
             Y_shape = self.X.shape[:-1] + (1,)

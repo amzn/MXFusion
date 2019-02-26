@@ -21,7 +21,8 @@ from ..common.exceptions import InferenceError
 
 class ModulePredictionAlgorithm(SamplingAlgorithm):
     """
-    A prediction algorithm for modules. The algorithm evaluates all the functions, draws samples from distributions and runs the predict method on all the modules.
+    A prediction algorithm for modules. The algorithm evaluates all the functions, draws samples from distributions and
+    runs the predict method on all the modules.
 
     :param model: the definition of the probabilistic model
     :type model: Model
@@ -61,7 +62,8 @@ class ModulePredictionAlgorithm(SamplingAlgorithm):
                 if all(known):
                     continue
                 elif any(known):
-                    raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ + " has been observed!")
+                    raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ +
+                                         " has been observed!")
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.draw_samples(
                     F=F, num_samples=self.num_samples, variables=variables,
