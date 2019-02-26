@@ -117,6 +117,7 @@ def merge_posterior_into_model(model, posterior, observed, ignored=None):
     These are variables that are not observed, but also will not be inferred
     :type ignored: [Variable]
     """
+    ignored = ignored or set()
     new_model = model.clone()
     for lv in model.get_latent_variables(observed):
         # Test if lv is in ignored
