@@ -81,7 +81,7 @@ class Beta(UnivariateDistribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the beta distribution.
         :rtypes: MXNet NDArray or MXNet Symbol

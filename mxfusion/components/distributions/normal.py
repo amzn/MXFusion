@@ -25,8 +25,9 @@ from .univariate import UnivariateDistribution
 
 class Normal(UnivariateDistribution):
     """
-    The one-dimensional normal distribution. The normal distribution can be defined over a scalar random variable or an array of random variables. In case
-    of an array of random variables, the mean and variance are broadcasted to the shape of the output random variable (array).
+    The one-dimensional normal distribution. The normal distribution can be defined over a scalar random variable or an
+    array of random variables. In case of an array of random variables, the mean and variance are broadcasted to the
+    shape of the output random variable (array).
 
     :param mean: Mean of the normal distribution.
     :type mean: Variable
@@ -68,8 +69,7 @@ class Normal(UnivariateDistribution):
             F.broadcast_minus(random_variable, mean)), -2 * variance)) * self.log_pdf_scaling
         return logL
 
-    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1,
-                          F=None):
+    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the normal distribution.
 
@@ -80,7 +80,7 @@ class Normal(UnivariateDistribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the normal distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -177,8 +177,7 @@ class MultivariateNormal(Distribution):
         sqnorm_z = - F.sum(F.square(zvec), axis=-1)
         return (0.5 * (sqnorm_z - (N * np.log(2 * np.pi))) + logdetl)* self.log_pdf_scaling
 
-    def draw_samples_impl(self, mean, covariance, rv_shape, num_samples=1,
-                          F=None):
+    def draw_samples_impl(self, mean, covariance, rv_shape, num_samples=1, F=None):
         """
         Draw a number of samples from the normal distribution.
 
@@ -189,7 +188,7 @@ class MultivariateNormal(Distribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the normal distribution
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -203,8 +202,7 @@ class MultivariateNormal(Distribution):
         return F.broadcast_add(lmat_eps.sum(-1), mean)
 
     @staticmethod
-    def define_variable(shape, mean=0., covariance=None, rand_gen=None,
-                        minibatch_ratio=1., dtype=None, ctx=None):
+    def define_variable(shape, mean=0., covariance=None, rand_gen=None, minibatch_ratio=1., dtype=None, ctx=None):
         """
         Creates and returns a random variable drawn from a normal distribution.
 
@@ -285,8 +283,7 @@ class NormalMeanPrecision(UnivariateDistribution):
             F.broadcast_minus(random_variable, mean)), -precision / 2)) * self.log_pdf_scaling
         return logL
 
-    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1,
-                          F=None):
+    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the normal distribution.
 
@@ -297,7 +294,7 @@ class NormalMeanPrecision(UnivariateDistribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the normal distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -396,8 +393,7 @@ class MultivariateNormalMeanPrecision(Distribution):
 
         return -0.5 * (sqnorm_z + c + logdetl) * self.log_pdf_scaling
 
-    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1,
-                          F=None):
+    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1, F=None):
         """
         Draw a number of samples from the normal distribution.
 
@@ -408,7 +404,7 @@ class MultivariateNormalMeanPrecision(Distribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the normal distribution
         :rtypes: MXNet NDArray or MXNet Symbol
