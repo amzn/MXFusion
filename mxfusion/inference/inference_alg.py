@@ -108,7 +108,7 @@ class InferenceAlgorithm(ABC):
         replicant._observed_names = [v.name for v in observed]
         return replicant
 
-    def __init__(self, model, observed, extra_graphs=None):
+    def __init__(self, model, observed, extra_graphs=None, ignored=None):
         """
         Initialize the algorithm
 
@@ -118,6 +118,9 @@ class InferenceAlgorithm(ABC):
         :type observed: [Variable]
         :param extra_graphs: a list of extra FactorGraph used in the inference algorithm.
         :type extra_graphs: [FactorGraph]
+        :param ignored: A list of ignored variables.
+        These are variables that are not observed, but also will not be inferred
+        :type ignored: [Variable]
         """
         self._model_graph = model
         self._extra_graphs = extra_graphs if extra_graphs is not None else []

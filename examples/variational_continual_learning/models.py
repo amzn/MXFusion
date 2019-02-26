@@ -314,6 +314,7 @@ class BayesianNN(BaseNN):
                 new_posterior[r].factor.successors = [(k, new_posterior[v]) for k, v in r.factor.successors]
                 new_posterior[y].set_prior(new_posterior[y.factor])
                 new_posterior[y].factor.predecessors = [(k, new_posterior[v]) for k, v in y.factor.predecessors]
+                new_posterior[y].factor.successors = [(k, new_posterior[v]) for k, v in y.factor.successors]
 
                 # Set the posterior to be the new posterior
                 self.inference.inference_algorithm._extra_graphs[0] = new_posterior

@@ -278,6 +278,8 @@ class FactorGraph(object):
                 elif any(known):
                     raise InferenceError("Part of the outputs of the distribution " +
                                          f.__class__.__name__ + " has been observed!")
+                if any(v in ignored for (_, v) in f.outputs):
+                    continue
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.draw_samples(
                     F=F, num_samples=num_samples, variables=variables, always_return_tuple=True)

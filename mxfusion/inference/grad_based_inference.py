@@ -82,8 +82,6 @@ class GradBasedInference(Inference):
         the corresponding variable in model definition and the value of the argument is the data in numpy array format.
         """
         data = [kwargs[v] for v in self.observed_variable_names]
-        ignored = [kwargs['ignored'][v] for v in self.observed_variable_names
-                   if 'ignored' in kwargs and v in kwargs['ignored']]
         self.initialize(**kwargs)
 
         infr = self.create_executor()
