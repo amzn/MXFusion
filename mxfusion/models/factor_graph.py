@@ -162,8 +162,7 @@ class FactorGraph(object):
 
         :rtype: A topologically sorted list of Factors in the graph.
         """
-        return [node for node in nx.topological_sort(self.components_graph)
-                                 if isinstance(node, Factor)]
+        return [node for node in nx.topological_sort(self.components_graph) if isinstance(node, Factor)]
 
     @property
     def roots(self):
@@ -192,9 +191,9 @@ class FactorGraph(object):
 
     def log_pdf(self, F, variables, targets=None):
         """
-        Compute the logarithm of the probability/probability density of a set of random variables in the factor graph. The set of random
-        variables are specified in the "target" argument and any necessary conditional variables are specified in the "conditionals" argument.
-        Any relevant constants are specified in the "constants" argument.
+        Compute the logarithm of the probability/probability density of a set of random variables in the factor graph.
+        The set of random variables are specified in the "target" argument and any necessary conditional variables are
+        specified in the "conditionals" argument. Any relevant constants are specified in the "constants" argument.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
@@ -215,7 +214,9 @@ class FactorGraph(object):
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 for v, uuid in zip(outcome, outcome_uuid):
                     if uuid in variables:
-                        warnings.warn('Function evaluation in FactorGraph.compute_log_prob_RT: the outcome variable '+str(uuid)+' of the function evaluation '+str(f)+' has already existed in the variable set.')
+                        warnings.warn('Function evaluation in FactorGraph.compute_log_prob_RT: the outcome variable '
+                                      + str(uuid) + ' of the function evaluation ' + str(f) +
+                                      ' has already existed in the variable set.')
                     variables[uuid] = v
             elif isinstance(f, Distribution):
                 if targets is None or f.random_variable.uuid in targets:
@@ -232,13 +233,16 @@ class FactorGraph(object):
                     logL = logL + F.sum(expectation(F, f.log_pdf(
                         F=F, variables=variables, targets=module_targets)))
             else:
-                raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
+                raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." +
+                                              "That shouldn't happen.")
         return logL
 
     def draw_samples(self, F, variables, num_samples=1, targets=None, ignored=None):
         """
-        Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples from all the variables
-        that are *not* in the conditional variables. If the ``targets`` argument is given, this method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict of samples where the keys are the UUIDs of variables and the values are the samples.
+        Draw samples from the target variables of the Factor Graph. If the ``targets`` argument is None, draw samples
+        from all the variables that are *not* in the conditional variables. If the ``targets`` argument is given,
+        this method returns a list of samples of variables in the order of the target argument, otherwise it returns a
+        dict of samples where the keys are the UUIDs of variables and the values are the samples.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
@@ -262,7 +266,9 @@ class FactorGraph(object):
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 for v, uuid in zip(outcome, outcome_uuid):
                     if uuid in variables:
-                        warnings.warn('Function evaluation in FactorGraph.draw_samples_RT: the outcome of the function evaluation '+str(f)+' has already existed in the variable set.')
+                        warnings.warn('Function evaluation in FactorGraph.draw_samples_RT: '
+                                      'the outcome of the function evaluation ' + str(f) +
+                                      ' has already existed in the variable set.')
                     variables[uuid] = v
                     samples[uuid] = v
             elif isinstance(f, Distribution):
@@ -270,9 +276,8 @@ class FactorGraph(object):
                 if all(known):
                     continue
                 elif any(known):
-                    raise InferenceError("Part of the outputs of the distribution " + f.__class__.__name__ + " has been observed!")
-                if any(v in ignored for (_, v) in f.outputs):
-                    continue
+                    raise InferenceError("Part of the outputs of the distribution " +
+                                         f.__class__.__name__ + " has been observed!")
                 outcome_uuid = [v.uuid for _, v in f.outputs]
                 outcome = f.draw_samples(
                     F=F, num_samples=num_samples, variables=variables, always_return_tuple=True)
@@ -288,7 +293,8 @@ class FactorGraph(object):
                     variables[uuid] = v
                     samples[uuid] = v
             else:
-                raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." + "That shouldn't happen.")
+                raise ModelSpecificationError("There is an object in the factor graph that isn't a factor." +
+                                              "That shouldn't happen.")
         if targets:
             return tuple(samples[uuid] for uuid in targets)
         else:
@@ -308,7 +314,7 @@ class FactorGraph(object):
         try:
             self.components_graph.remove_node(component)  # implicitly removes edges
         except NetworkXError as e:
-            raise ModelSpecificationError("Attempted to remove a node "+str(component)+" that isn't in the graph.")
+            raise ModelSpecificationError("Attempted to remove a node " + str(component) + " that isn't in the graph.")
 
         if component.name is not None:
 
@@ -328,14 +334,18 @@ class FactorGraph(object):
 
     def get_markov_blanket(self, node):
         """
-        Gets the Markov Blanket for a node, which is the node's predecessors, the nodes successors, and those successors' other predecessors.
+        Gets the Markov Blanket for a node, which is the node's predecessors, the nodes successors, and those
+        successors' other predecessors.
         """
         def get_variable_predecessors(node):
             return [v2 for k1,v1 in node.predecessors for k2,v2 in v1.predecessors if isinstance(v2, Variable)]
+
         def get_variable_successors(node):
             return [v2 for k1,v1 in node.successors for k2,v2 in v1.successors if isinstance(v2, Variable)]
+
         def flatten(node_list):
             return set([p for varset in node_list for p in varset])
+
         successors = set(get_variable_successors(node))
         n = set([node])
         pred = set(get_variable_predecessors(node))
@@ -387,8 +397,8 @@ class FactorGraph(object):
 
     def extract_distribution_of(self, variable):
         """
-        Extracts the distribution of the variable passed in, returning a replicated copy of the passed in variable with only its parent
-        subgraph attached (also replicated).
+        Extracts the distribution of the variable passed in, returning a replicated copy of the passed in variable with
+        only its parent subgraph attached (also replicated).
 
         :param variable: The variable to extract the distribution from.
         :type variable: Variable
@@ -406,14 +416,23 @@ class FactorGraph(object):
                 return predecessor_direction, successor_direction
         return variable.replicate(replication_function=extract_distribution_function)
 
-
     def clone(self, leaves=None):
+        """
+        Clones a model, maintaining the same functionality and topology. Replicates all of its ModelComponents,
+        while maintaining the same UUIDs.
+
+        Starts upward from the leaves and copies everything in the graph recursively.
+
+        :param leaves: If None, use the leaves in this model, otherwise use the provided leaves.
+        :return: the cloned model
+        """
         new_model = self._replicate_class(name=self.name, verbose=self._verbose)
         return self._clone(new_model, leaves)
 
     def _clone(self, new_model, leaves=None):
         """
-        Clones a model, maintaining the same functionality and topology. Replicates all of its ModelComponents, while maintaining the same UUIDs.
+        Clones a model, maintaining the same functionality and topology. Replicates all of its ModelComponents,
+        while maintaining the same UUIDs.
 
         Starts upward from the leaves and copies everything in the graph recursively.
 
@@ -421,13 +440,12 @@ class FactorGraph(object):
         :returns: the cloned model
         """
 
-        var_map = {} # from old model to new model
+        var_map = {}  # from old model to new model
 
         leaves = self.leaves if leaves is None else leaves
         for v in leaves:
             if v.name is not None:
-                new_leaf = v.replicate(var_map=var_map,
-                           replication_function=lambda x: ('recursive', 'recursive'))
+                new_leaf = v.replicate(var_map=var_map, replication_function=lambda x: ('recursive', 'recursive'))
                 setattr(new_model, v.name, new_leaf)
             else:
                 v.components_graph = new_model.components_graph
@@ -450,7 +468,8 @@ class FactorGraph(object):
         if include_inherited:
             return [v for v in self.variables.values() if (v.type == VariableType.PARAMETER and v.uuid not in excluded)]
         else:
-            return [v for v in self.variables.values() if (v.type == VariableType.PARAMETER and v.uuid not in excluded and not v.isInherited)]
+            return [v for v in self.variables.values() if (v.type == VariableType.PARAMETER and v.uuid not in excluded
+                                                           and not v.isInherited)]
 
     def get_constants(self):
         """
@@ -461,44 +480,45 @@ class FactorGraph(object):
         """
         return [v for v in self.variables.values() if v.type == VariableType.CONSTANT]
 
-
     @staticmethod
-    def reconcile_graphs(current_graphs, primary_previous_graph, secondary_previous_graphs=None, primary_current_graph=None):
+    def reconcile_graphs(current_graphs, primary_previous_graph, secondary_previous_graphs=None,
+                         primary_current_graph=None):
         """
         Reconciles two sets of graphs, matching the model components in the previous graph to the current graph.
-        This is primarily used when loading back a graph from a file and matching it to an existing in-memory graph in order to load the previous
-        graph's parameters correctly.
+        This is primarily used when loading back a graph from a file and matching it to an existing in-memory graph in
+        order to load the previous graph's parameters correctly.
 
-        :param current_graphs: A list of the graphs we are reconciling a loaded factor graph against. This must be a fully built set of graphs
-            generated through the model definition process.
-        :param primary_previous_graph: A graph which may have been loaded in from a file and be partially specified, or could be a full graph
-            built through model definition.
-        :param secondary_previous_graphs: A list of secondary graphs (e.g. posteriors) that share components with the primary_previous_graph.
-        :param primary_current_graph: Optional parameter to specify the primary_current_graph, otherwise it is taken to be the model in the
-            current_graphs (which should be unique).
+        :param current_graphs: A list of the graphs we are reconciling a loaded factor graph against. This must be a
+        fully built set of graphs generated through the model definition process.
+        :param primary_previous_graph: A graph which may have been loaded in from a file and be partially specified, or
+        could be a full graph  built through model definition.
+        :param secondary_previous_graphs: A list of secondary graphs (e.g. posteriors) that share components with the
+        primary_previous_graph.
+        :param primary_current_graph: Optional parameter to specify the primary_current_graph, otherwise it is taken to
+        be the model in the current_graphs (which should be unique).
 
         :rtype: {previous ModelComponent : current ModelComponent}
         """
 
         def update_with_named_components(previous_components, current_components, component_map, nodes_to_traverse_from):
-            name_pre  = {c.name: c for c in previous_components if c.name}
-            name_cur  = {c.name: c for c in current_components if c.name}
+            name_pre = {c.name: c for c in previous_components if c.name}
+            name_cur = {c.name: c for c in current_components if c.name}
             for name, previous_c in name_pre.items():
                 current_c = name_cur[name]
                 component_map[previous_c.uuid] = current_c.uuid
                 nodes_to_traverse_from[previous_c.uuid] = current_c.uuid
 
-
-        from .model import Model
         component_map = {}
         nodes_to_traverse_from = {}
         current_graph = primary_current_graph if primary_current_graph is not None else current_graphs[0]
         secondary_current_graphs = current_graphs[1:]
         secondary_previous_graphs = secondary_previous_graphs if secondary_previous_graphs is not None else []
         if len(secondary_current_graphs) != len(secondary_previous_graphs):
-            raise ModelSpecificationError("Different number of secondary graphs passed in {} {}".format(secondary_current_graphs, secondary_previous_graphs))
+            raise ModelSpecificationError("Different number of secondary graphs passed in {} {}".format(
+                secondary_current_graphs, secondary_previous_graphs))
 
-        update_with_named_components(primary_previous_graph.components.values(), current_graph.components.values(), component_map, nodes_to_traverse_from)
+        update_with_named_components(primary_previous_graph.components.values(), current_graph.components.values(),
+                                     component_map, nodes_to_traverse_from)
 
         # Reconcile the primary graph
         FactorGraph._reconcile_graph(nodes_to_traverse_from, component_map,
@@ -509,7 +529,8 @@ class FactorGraph(object):
                               secondary_previous_graphs):
                 nodes_to_traverse_from = {pc: cc for pc, cc in component_map.items()
                                  if pc in pg.components.keys()}
-                update_with_named_components(pg.components.values(), cg.components.values(), component_map, nodes_to_traverse_from)
+                update_with_named_components(pg.components.values(), cg.components.values(), component_map,
+                                             nodes_to_traverse_from)
                 FactorGraph._reconcile_graph(
                     nodes_to_traverse_from, component_map, cg, pg)
 
@@ -519,14 +540,16 @@ class FactorGraph(object):
     @staticmethod
     def _reconcile_graph(nodes_to_traverse_from, component_map, current_graph, previous_graph):
         """
-        Traverses the components (breadth first) in nodes_to_traverse_from of the current_graph/previous_graph, matching components where possible and generating
-        new calls to _reconcile_graph where the graph is still incompletely traversed. This method makes no attempt to resolve ambiguities
-        in naming between the graphs and request the user to more completely specify names in their graph if such an ambiguity exists. Such
+        Traverses the components (breadth first) in nodes_to_traverse_from of the current_graph/previous_graph,
+        matching components where possible and generating new calls to _reconcile_graph where the graph is still
+        incompletely traversed. This method makes no attempt to resolve ambiguities in naming between the graphs and
+        request the user to more completely specify names in their graph if such an ambiguity exists. Such
         naming can be more completely specified by attaching names to each leaf node in the original graph.
 
         :param nodes_to_traverse_from: A list of items to traverse the graph upwards from.
         :type nodes_to_traverse_from: [previous ModelComponents]
-        :param component_map: The current mapping from the previous graph's MCs to the current_graph's MCs. This is used and modified during reconciliation.
+        :param component_map: The current mapping from the previous graph's MCs to the current_graph's MCs.
+        This is used and modified during reconciliation.
         :type component_map: {previous_graph ModelComponent : current_graph ModelComponent}
         :param current_graph: The current graph to match components against.
         :type current_graph: FactorGraph
@@ -546,8 +569,10 @@ class FactorGraph(object):
             for edge_name, node in previous_neighbors:
                 if node.uuid not in component_map:
                     if edge_name in duplicate_names:
-                        # TODO if all the other parts of the ambiguity are resolved, we have the answer still. Otherwise throw an exception
-                        raise Exception("Multiple edges connecting unnamed nodes have the same name, this isn't supported currently.") # TODO Support the ambiguities :)
+                        # TODO if all the other parts of the ambiguity are resolved, we have the answer still.
+                        #  Otherwise throw an exception
+                        raise Exception("Multiple edges connecting unnamed nodes have the same name, "
+                                        "this isn't supported currently.")  # TODO Support the ambiguities :)
                     current_node = [item for name, item in current_neighbors if edge_name == name][0]
                     component_map[node.uuid] = current_node.uuid
                     new_level[node.uuid] = current_node.uuid
@@ -556,10 +581,13 @@ class FactorGraph(object):
                         component_map.update(module_component_map)
         new_level = {}
         for previous_c, current_c in nodes_to_traverse_from.items():
-            reconcile_direction('predecessor', previous_graph[previous_c], current_graph[current_c], new_level, component_map)
+            reconcile_direction('predecessor', previous_graph[previous_c], current_graph[current_c], new_level,
+                                component_map)
             """
-            TODO Reconciling in both directions currently breaks the reconciliation process and can cause multiple previous_uuid's to map to the same current_uuid. It's unclear why that happens.
-            This shouldn't be necessary until we implement multi-output Factors though (and even then, only if not all the outputs are in a named chain).
+            TODO Reconciling in both directions currently breaks the reconciliation process and can cause multiple 
+            previous_uuid's to map to the same current_uuid. It's unclear why that happens. This shouldn't be necessary 
+            until we implement multi-output Factors though (and even then, only if not all the outputs are in a 
+            named chain).
             """
             # reconcile_direction('successor', previous_graph[c], current_graph[current_c], new_level, component_map)
         if len(new_level) > 0:
@@ -581,14 +609,15 @@ class FactorGraph(object):
     @staticmethod
     def load_graphs(graphs_list, existing_graphs=None):
         """
-        Method to load back in a graph. The graphs should have been saved down using the save method, and be a JSON representation of the graph
-        generated by the [networkx](https://networkx.github.io) library.
+        Method to load back in a graph. The graphs should have been saved down using the save method, and be a JSON
+        representation of the graph generated by the [networkx](https://networkx.github.io) library.
 
         :param graphs_list: A list of raw json dicts loaded in from memory representing the FactorGraphs to create.
         :type graphs_list: list of dicts loaded in using the ModelComponentDecoder class.
         """
         import json
-        existing_graphs = existing_graphs if existing_graphs is not None else [FactorGraph(graph['name']) for graph in graphs_list]
+        existing_graphs = existing_graphs if existing_graphs is not None else [FactorGraph(graph['name'])
+                                                                               for graph in graphs_list]
         return [existing_graph.load_from_json(graph) for existing_graph, graph in zip(existing_graphs, graphs_list)]
 
     def as_json(self):
@@ -604,8 +633,8 @@ class FactorGraph(object):
     @staticmethod
     def save(graph_file, json_graphs):
         """
-        Method to save this graph down into a file. The graph file will be saved down as a JSON representation of the graph generated by the
-        [networkx](https://networkx.github.io) library.
+        Method to save this graph down into a file. The graph file will be saved down as a JSON representation of the
+        graph generated by the [networkx](https://networkx.github.io) library.
 
         :param graph_file: The file containing the primary model to load back for this inference algorithm.
         :type graph_file: str of filename

@@ -51,7 +51,8 @@ class Categorical(UnivariateDistribution):
             rand_gen=rand_gen, dtype=dtype,
             ctx=ctx)
         if axis != -1:
-            raise NotImplementedError("The Categorical distribution currently only supports the last dimension to be the class label dimension, i.e., axis == -1.")
+            raise NotImplementedError("The Categorical distribution currently only supports the last dimension to be "
+                                      "the class label dimension, i.e., axis == -1.")
         self.axis = axis
         self.normalization = normalization
         self.one_hot_encoding = one_hot_encoding
@@ -61,7 +62,8 @@ class Categorical(UnivariateDistribution):
         """
         This functions as a copy constructor for the object.
         In order to do a copy constructor we first call ``__new__`` on the class which creates a blank object.
-        We then initialize that object using the methods standard init procedures, and do any extra copying of attributes.
+        We then initialize that object using the methods standard init procedures, and do any extra copying of
+        attributes.
 
         Replicates this Factor, using new inputs, outputs, and a new uuid.
         Used during model replication to functionally replicate a factor into a new graph.
@@ -112,7 +114,7 @@ class Categorical(UnivariateDistribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the Categorical distribution
         :rtypes: MXNet NDArray or MXNet Symbol

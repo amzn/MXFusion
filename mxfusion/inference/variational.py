@@ -18,10 +18,8 @@ from .inference_alg import InferenceAlgorithm, SamplingAlgorithm
 
 class VariationalInference(InferenceAlgorithm):
     """
-    The class of the Stochastic Variational Inference (SVI) algorithm.
+    The  base class for Variational Inference (VI) algorithms.
 
-    :param num_samples: the number of samples used in estimating the variational lower bound
-    :type num_samples: int
     :param model: the definition of the probabilistic model
     :type model: Model
     :param posterior: the definition of the variational posterior of the probabilistic model

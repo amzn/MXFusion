@@ -54,8 +54,7 @@ class Laplace(UnivariateDistribution):
             F.abs(F.broadcast_minus(random_variable, location)), scale)) * self.log_pdf_scaling
         return logL
 
-    def draw_samples_impl(self, location, scale, rv_shape, num_samples=1,
-                          F=None):
+    def draw_samples_impl(self, location, scale, rv_shape, num_samples=1, F=None):
         """
         Draw samples from the Laplace distribution.
 
@@ -66,7 +65,7 @@ class Laplace(UnivariateDistribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the Laplace distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -78,8 +77,7 @@ class Laplace(UnivariateDistribution):
             scale), location)
 
     @staticmethod
-    def define_variable(location=0., scale=1., shape=None, rand_gen=None,
-                        dtype=None, ctx=None):
+    def define_variable(location=0., scale=1., shape=None, rand_gen=None, dtype=None, ctx=None):
         """
         Creates and returns a random variable drawn from a Laplace distribution.
 
