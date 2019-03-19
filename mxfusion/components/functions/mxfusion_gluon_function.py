@@ -24,8 +24,9 @@ from ...common.exceptions import ModelSpecificationError
 
 class MXFusionGluonFunction(MXFusionFunction):
     """
-    The wrapper of a MXNet Gluon block in MXFusion. It automatically fetches all the Gluon parameters in its ParameterDict. When this function
-    wrapper is called in Model definition, it returns a factor corresponding to the function evaluation.
+    The wrapper of a MXNet Gluon block in MXFusion. It automatically fetches all the Gluon parameters in its
+    ParameterDict. When this function wrapper is called in Model definition, it returns a factor corresponding to
+    the function evaluation.
 
     :param block: The MXNet Gluon block to be wrapped.
     :type block: mxnet.gluon.Block or mxnet.gluon.HybridBlock
@@ -98,9 +99,10 @@ class MXFusionGluonFunction(MXFusionFunction):
         Invokes the MXNet Gluon block with the arguments passed in.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
+        :param input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs
+        specified in the inputs
             of FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :type input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -127,7 +129,8 @@ class MXFusionGluonFunction(MXFusionFunction):
         broadcastable = self.broadcastable
         for bv in kwargs.values():
             if bv.type != VariableType.PARAMETER and self.broadcastable:
-                # Broadcasting function evaluation can not be applied to the Gluon block with gluon block parameters as random variables.
+                # Broadcasting function evaluation can not be applied to the Gluon block with gluon block
+                # parameters as random variables.
                 broadcastable = False
                 break
 
@@ -169,7 +172,8 @@ class MXFusionGluonFunction(MXFusionFunction):
         """
         params = ParameterDict()
         gluon_params = self._gluon_block.collect_params()
-        params.update({var_name: gluon_params[var_name] for var_name, var in self._gluon_parameters.items() if var.type == VariableType.PARAMETER})
+        params.update({var_name: gluon_params[var_name] for var_name, var in self._gluon_parameters.items()
+                       if var.type == VariableType.PARAMETER})
         return params
 
     def collect_params(self):
@@ -181,13 +185,16 @@ class MXFusionGluonFunction(MXFusionFunction):
 
     def _override_block_parameters(self, input_kws):
         """
-        When a probabilistic distribution is defined for the parameters of a Gluon block (in ParameterDict), a special treatment is necessary
-        because otherwise these parameters will be directly exposed to a gradient optimizer as free parameters.
+        When a probabilistic distribution is defined for the parameters of a Gluon block (in ParameterDict), a special
+        treatment is necessary because otherwise these parameters will be directly exposed to a gradient optimizer as
+        free parameters.
 
-        For each parameters of the Gluon bock with probabilistic distribution, this method dynamically sets its values as the outcome of
-        upstream computation and ensure the correct gradient can be estimated via automatic differentiation.
+        For each parameters of the Gluon bock with probabilistic distribution, this method dynamically sets its values
+        as the outcome of upstream computation and ensure the correct gradient can be estimated via automatic
+        differentiation.
 
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the
+        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of
+        inputs specified in the
             inputs of FunctionEvaluation.
         :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         """

@@ -23,9 +23,10 @@ class GaussianProcess(Distribution):
     """
     The Gaussian process distribution.
 
-    A Gaussian process consists of a kernel function and a mean function (optional). A collection of GP random variables follows a multi-variate
-    normal distribution, where the mean is computed from the mean function (zero, if not given) and the covariance matrix is computed from the kernel
-    function, both of which are computed given a collection of inputs.
+    A Gaussian process consists of a kernel function and a mean function (optional). A collection of GP random
+    variables follows a multi-variate normal distribution, where the mean is computed from the mean function
+    (zero, if not given) and the covariance matrix is computed from the kernel function, both of which are computed
+    given a collection of inputs.
 
     :param X: the input variables on which the random variables are conditioned.
     :type X: Variable
@@ -72,7 +73,8 @@ class GaussianProcess(Distribution):
         :type X: Variable
         :param kernel: the kernel of Gaussian process.
         :type kernel: Kernel
-        :param shape: the shape of the random variable(s) (the default shape is the same shape as *X* but the last dimension is changed to one).
+        :param shape: the shape of the random variable(s) (the default shape is the same shape as *X* but the last
+        dimension is changed to one).
         :type shape: tuple or [tuple]
         :param mean: the mean of Gaussian process.
         :type mean: Variable
@@ -99,8 +101,8 @@ class GaussianProcess(Distribution):
         :param random_variable: the random_variable of which log-PDF is computed.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -119,8 +121,7 @@ class GaussianProcess(Distribution):
 
         return (- logdet_l * D - F.sum(F.sum(F.square(LinvY) + np.log(2. * np.pi), axis=-1), axis=-1) / 2) * self.log_pdf_scaling
 
-    def draw_samples_impl(self, X, rv_shape, num_samples=1, F=None,
-                          **kernel_params):
+    def draw_samples_impl(self, X, rv_shape, num_samples=1, F=None, **kernel_params):
         """
         Draw a number of samples from the Gaussian process.
 
@@ -129,10 +130,10 @@ class GaussianProcess(Distribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
         """

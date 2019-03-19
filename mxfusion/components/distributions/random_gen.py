@@ -39,7 +39,6 @@ class RandomGenerator(ABC):
     def sample_bernoulli(prob_true=0.5, dtype='bool', F=None):
         pass
 
-
     @staticmethod
     def sample_uniform(low=0., high=1., shape=None, dtype=None, out=None, ctx=None, F=None):
         pass
@@ -47,6 +46,7 @@ class RandomGenerator(ABC):
     @staticmethod
     def sample_laplace(location=0., scale=1., shape=None, dtype=None, out=None, ctx=None, F=None):
         pass
+
 
 class MXNetRandomGenerator(RandomGenerator):
     """
@@ -98,8 +98,7 @@ class MXNetRandomGenerator(RandomGenerator):
             shape=shape, dtype=dtype, out=out, ctx=ctx, F=F)
 
     @staticmethod
-    def sample_multinomial(data, shape=None, get_prob=False, dtype='int32',
-                           F=None):
+    def sample_multinomial(data, shape=None, get_prob=False, dtype='int32', F=None):
         """
         Sample Multinomial distributed variables
 
@@ -107,6 +106,7 @@ class MXNetRandomGenerator(RandomGenerator):
         `k` is the number of possible outcomes of each multinomial distribution.
         For example, data with shape `(m, n, k)` specifies `m*n` multinomial
         distributions each with `k` possible outcomes.
+        :param shape: Shape of the random variable
         :param get_prob: If true, a second array containing log likelihood of the drawn
         samples will also be returned.
         This is usually used for reinforcement learning, where you can provide

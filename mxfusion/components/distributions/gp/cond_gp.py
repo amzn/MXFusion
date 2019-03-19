@@ -187,7 +187,7 @@ class ConditionalGaussianProcess(Distribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
         :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}

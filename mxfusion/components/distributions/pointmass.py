@@ -21,7 +21,7 @@ class PointMass(UnivariateDistribution):
     """
     The Point Mass distribution.
 
-    :param value: the location of the point mass.
+    :param location: the location of the point mass.
     """
     def __init__(self, location, rand_gen=None, dtype=None, ctx=None):
         inputs = [('location', location)]
@@ -51,13 +51,18 @@ class PointMass(UnivariateDistribution):
                 location, shape=(num_samples,)+location.shape[1:])
 
     @staticmethod
-    def define_variable(location, shape=None, rand_gen=None, dtype=None,
-                        ctx=None):
+    def define_variable(location, shape=None, rand_gen=None, dtype=None, ctx=None):
         """
         Creates and returns a random variable drawn from a Normal distribution.
 
         :param location: the location of the point mass.
         :param shape: Shape of random variables drawn from the distribution. If non-scalar, each variable is drawn iid.
+        :param rand_gen: the random generator (default: MXNetRandomGenerator).
+        :type rand_gen: RandomGenerator
+        :param dtype: the data type for float point numbers.
+        :type dtype: numpy.float32 or numpy.float64
+        :param ctx: the mxnet context (default: None/current context).
+        :type ctx: None or mxnet.cpu or mxnet.gpu
 
         :returns: RandomVariable drawn from the distribution specified.
         """
