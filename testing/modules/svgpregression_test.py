@@ -140,6 +140,34 @@ class TestSVGPRegressionModule(object):
 
         assert np.allclose(l_mf.asnumpy(), l_gpy)
 
+    def test_log_pdf_w_samples_of_noise_var(self):
+        D, X, Y, Z, noise_var, lengthscale, variance, qU_mean, \
+            qU_cov_W, qU_cov_diag, qU_chol = self.gen_data()
+        dtype = 'float64'
+        D = 2
+        Y = np.random.rand(10, D)
+        qU_mean = np.random.rand(3, D)
+
+        m = Model()
+        m.N = Variable()
+        m.X = Variable(shape=(m.N, 3))
+        m.Z = Variable(shape=(3, 3), initial_value=mx.nd.array(Z, dtype=dtype))
+        m.noise_var = Variable(transformation=PositiveTransformation(), shape=(m.N, D))
+        kernel = RBF(input_dim=3, ARD=True, variance=mx.nd.array(variance, dtype=dtype), lengthscale=mx.nd.array(lengthscale, dtype=dtype), dtype=dtype)
+        m.Y = SVGPRegression.define_variable(X=m.X, kernel=kernel, noise_var=m.noise_var, inducing_inputs=m.Z, shape=(m.N, D), dtype=dtype)
+        gp = m.Y.factor
+        m.Y.factor.svgp_log_pdf.jitter = 1e-8
+
+        observed = [m.X, m.Y]
+        infr = Inference(MAP(model=m, observed=observed), dtype=dtype)
+        infr.initialize(X=X.shape, Y=Y.shape)
+        infr.params[gp._extra_graphs[0].qU_mean] = mx.nd.array(qU_mean, dtype=dtype)
+        infr.params[gp._extra_graphs[0].qU_cov_W] = mx.nd.array(qU_cov_W, dtype=dtype)
+        infr.params[gp._extra_graphs[0].qU_cov_diag] = mx.nd.array(qU_cov_diag, dtype=dtype)
+
+        loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype), max_iter=1)
+
+
     def test_prediction(self):
         D, X, Y, Z, noise_var, lengthscale, variance, qU_mean, \
             qU_cov_W, qU_cov_diag, qU_chol = self.gen_data()
@@ -170,7 +198,8 @@ class TestSVGPRegressionModule(object):
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
-        assert np.allclose(var_gpy[:,0], var_mf), (var_gpy[:,0], var_mf)
+        assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
+        assert var_gpy.shape == var_mf.shape
 
         # noisy, diagonal
         mu_gpy, var_gpy = m_gpy.predict(Xt)
@@ -181,7 +210,8 @@ class TestSVGPRegressionModule(object):
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
-        assert np.allclose(var_gpy[:,0], var_mf), (var_gpy[:,0], var_mf)
+        assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
+        assert var_gpy.shape == var_mf.shape
 
         m.Y.factor.svgp_predict.jitter = 1e-8
 
@@ -194,10 +224,9 @@ class TestSVGPRegressionModule(object):
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
-        print(var_gpy.shape, var_mf.shape)
-
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
-        assert np.allclose(var_gpy[:, :, 0], var_mf), (var_gpy[:, :, 0], var_mf)
+        assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
+        assert var_gpy.shape == var_mf.shape
 
         # noisy, full_cov
         mu_gpy, var_gpy = m_gpy.predict(Xt, full_cov=True)
@@ -209,7 +238,8 @@ class TestSVGPRegressionModule(object):
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
-        assert np.allclose(var_gpy[:, :, 0], var_mf), (var_gpy[:, :, 0], var_mf)
+        assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
+        assert var_gpy.shape == var_mf.shape
 
     def test_draw_samples(self):
         D, X, Y, Z, noise_var, lengthscale, variance, qU_mean, \
@@ -256,7 +286,7 @@ class TestSVGPRegressionModule(object):
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
         assert np.allclose(mu_gpy, mu_mf, rtol=1e-04, atol=1e-05), (mu_gpy, mu_mf)
-        assert np.allclose(var_gpy[:,0], var_mf, rtol=1e-04, atol=1e-05), (var_gpy[:,0], var_mf)
+        assert np.allclose(var_gpy, var_mf, rtol=1e-04, atol=1e-05), (var_gpy, var_mf)
 
     def test_sampling_prediction(self):
         D, X, Y, Z, noise_var, lengthscale, variance, qU_mean, \
