@@ -58,7 +58,13 @@ class SVGPRegressionLogPdf(VariationalInference):
         X, Y, Z, noise_var, mu, S_W, S_diag, kern_params = arrays_as_samples(
             F, [X, Y, Z, noise_var, mu, S_W, S_diag, kern_params])
 
-        noise_var_m = F.expand_dims(noise_var, axis=-2)
+        if noise_var.ndim == 2:  # it is heteroscedastic noise, when ndim == 3
+            noise_var = F.expand_dims(noise_var, axis=-2)
+
+        if noise_var.shape[-1] == 1:
+            beta_sum = D*F.sum(1/noise_var, axis=-1)
+        else:
+            beta_sum = F.sum(1/noise_var, axis=-1)
 
         Kuu = kern.K(F, Z, **kern_params)
         if self.jitter > 0.:
@@ -73,29 +79,31 @@ class SVGPRegressionLogPdf(VariationalInference):
             mean = variables[self.model.mean]
             Y = Y - mean
 
-        psi1Y = F.linalg.gemm2(Kuf, Y, False, False)
+        psi1Y = F.linalg.gemm2(Kuf, Y/noise_var, False, False)
         L = F.linalg.potrf(Kuu)
         Ls = F.linalg.potrf(S)
         LinvLs = F.linalg.trsm(L, Ls)
         Linvmu = F.linalg.trsm(L, mu)
         LinvKuf = F.linalg.trsm(L, Kuf)
 
-        LinvKufY = F.linalg.trsm(L, psi1Y)/noise_var_m
-        LmInvPsi2LmInvT = F.linalg.syrk(LinvKuf)/noise_var_m
-        LinvSLinvT = F.linalg.syrk(LinvLs)
-        LmInvSmuLmInvT = LinvSLinvT*D + F.linalg.syrk(Linvmu)
+        KfuKuuInvmu = F.linalg.gemm2(LinvKuf, Linvmu, True, False)
+        KfuKuuInvLs = F.linalg.gemm2(LinvKuf, LinvLs, True, False)
+
+        LinvKufY = F.linalg.trsm(L, psi1Y)
 
         KL_u = (M/2. + F.linalg.sumlogdiag(Ls))*D - F.linalg.sumlogdiag(L)*D\
             - F.sum(F.sum(F.square(LinvLs), axis=-1), axis=-1)/2.*D \
             - F.sum(F.sum(F.square(Linvmu), axis=-1), axis=-1)/2.
 
         logL = -F.sum(F.sum(F.square(Y)/noise_var + np.log(2. * np.pi) +
-                            F.log(noise_var_m), axis=-1), axis=-1)/2.
-        logL = logL - D/2.*F.sum(Kff_diag/noise_var, axis=-1)
-        logL = logL - F.sum(F.sum(LmInvSmuLmInvT*LmInvPsi2LmInvT, axis=-1),
+                            F.log(noise_var), axis=-1), axis=-1)/2.
+        logL = logL - F.sum(Kff_diag*beta_sum, axis=-1)/2.
+        logL = logL - F.sum(F.sum(F.square(KfuKuuInvmu)/noise_var, axis=-1),
                             axis=-1)/2.
-        logL = logL + F.sum(F.sum(F.square(LinvKuf)/noise_var_m, axis=-1),
-                            axis=-1)*D/2.
+        logL = logL - F.sum(F.sum(F.square(KfuKuuInvLs)*F.expand_dims(beta_sum, axis=-1), axis=-1),
+                            axis=-1)/2.
+        logL = logL + F.sum(F.sum(F.square(LinvKuf)*F.expand_dims(beta_sum, axis=-2), axis=-1),
+                            axis=-1)/2.
         logL = logL + F.sum(F.sum(Linvmu*LinvKufY, axis=-1), axis=-1)
         logL = self.log_pdf_scaling*logL + KL_u
         return logL
@@ -159,15 +167,19 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
             tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
             var = Ktt - F.sum(F.square(LinvKxt), axis=-2) + \
                 F.sum(tmp*LinvKxt, axis=-2)
+            var = F.expand_dims(var, axis=-1)
             if not self.noise_free:
-                var += noise_var
+                var = var + noise_var
         else:
             Ktt = kern.K(F, X, **kern_params)
             tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
             var = Ktt - F.linalg.syrk(LinvKxt, True) + \
                 F.linalg.gemm2(LinvKxt, tmp, True, False)
+            var = F.expand_dims(var, axis=-1)
             if not self.noise_free:
-                var += F.eye(N, dtype=X.dtype) * noise_var
+                var = var + \
+                    F.reshape(F.eye(N, dtype=X.dtype), shape=(1, N, N, 1)) * \
+                    F.expand_dims(noise_var, axis=-2)
 
         outcomes = {self.model.Y.uuid: (mu, var)}
 
@@ -300,7 +312,9 @@ class SVGPRegression(Module):
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         if inducing_inputs is None:
-            inducing_inputs = Variable(shape=(num_inducing, kernel.input_dim))
+            inducing_inputs = Variable(
+                shape=(num_inducing, kernel.input_dim),
+                initial_value=np.random.randn(num_inducing, kernel.input_dim))
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
