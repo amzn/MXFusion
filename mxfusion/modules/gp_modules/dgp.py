@@ -14,8 +14,7 @@ from ...modules.module import Module
 from ...util.customop import make_diagonal
 
 
-# TODO: allow mean function in layers (original paper uses linear mean iirc)
-# TODO: use noise_free flag
+# TODO: allow mean function in layers (original paper uses linear mean)
 
 
 def multivariate_gaussian_kl_divergence(F, mean_1, cov_1, mean_2, cov_2):
@@ -23,26 +22,27 @@ def multivariate_gaussian_kl_divergence(F, mean_1, cov_1, mean_2, cov_2):
     computes KL(p_1 || p_2) where p1 and p2 are multivariate normals
 
     :param mean_1: M x D
-    :param cov_1: M x M
+    :param cov_1: D X M x M
     :param mean_2: M X D
-    :param cov_2: M x M
+    :param cov_2: D X M x M
     """
 
     M = mean_1.shape[-2]
     D = mean_1.shape[-1]
 
-    L_1 = F.linalg.potrf(cov_1)
-    L_2 = F.linalg.potrf(cov_2)
+    L_1 = F.linalg.potrf(cov_1)  # D x M x M
+    L_2 = F.linalg.potrf(cov_2)  # D x M x M
 
-    mean_diff = mean_1 - mean_2
+    mean_diff = mean_1 - mean_2  # M x D
+    mean_diff = F.expand_dims(F.transpose(mean_diff), -1)
 
-    LinvLs = F.linalg.trsm(L_2, L_1)
-    Linvmu = F.linalg.trsm(L_2, mean_diff)
+    LinvLs = F.linalg.trsm(L_2, L_1)  # D x M x M
+    Linvmu = F.linalg.trsm(L_2, mean_diff)  # D x M x M
 
-    return 0.5 * (2 * F.linalg.sumlogdiag(L_2) * D -
-                  2 * F.linalg.sumlogdiag(L_1) * D +
-                  F.sum(F.sum(F.square(LinvLs), axis=-1), axis=-1) * D +
-                  F.sum(F.sum(F.square(Linvmu), axis=-1), axis=-1) -
+    return 0.5 * (2 * F.linalg.sumlogdiag(L_2).sum() -
+                  2 * F.linalg.sumlogdiag(L_1).sum() +
+                  F.sum(F.square(LinvLs)) +
+                  F.sum(F.square(Linvmu)) -
                   M * D)
 
 
@@ -62,7 +62,8 @@ def compute_marginal_f(F, L, Kfu, Kff_diag, mu_u, Ls, mean_prior_u=None, mean_pr
     :return: mean and variance of q(f|u)
     """
     Kmmi = F.linalg.potri(L)
-    mu_u, Kmmi, Kfu = arrays_as_samples(F, [mu_u, Kmmi, Kfu])  # TODO: necessary??
+
+    mu_u, Kmmi, Kfu = arrays_as_samples(F, [mu_u, Kmmi, Kfu])
 
     KfuKmmi = F.linalg.gemm2(Kfu, Kmmi, alpha=1.0)
 
@@ -71,10 +72,18 @@ def compute_marginal_f(F, L, Kfu, Kff_diag, mu_u, Ls, mean_prior_u=None, mean_pr
     else:
         mu_f = F.linalg.gemm2(KfuKmmi, mu_u, alpha=1.0)
 
-    aux = Kff_diag - F.sum(KfuKmmi * Kfu, -1)
+    aux = F.expand_dims(Kff_diag - F.sum(KfuKmmi * Kfu, -1), -1)
 
-    tmp = F.linalg.gemm2(KfuKmmi, Ls, transpose_b=True)
-    v_f = F.expand_dims(aux + F.sum(F.square(tmp), -1), 2)
+    S = Kfu.shape[0]
+    N = Kfu.shape[1]
+    D = Ls.shape[1]
+
+    # TODO: work out how to vectorize this...
+    tmp = F.zeros((S, N, D), dtype='float64')  ## FIXME: dype
+    for i in range(D):
+        tmp[:, :, i] = F.sum(F.square(F.linalg.gemm2(KfuKmmi, Ls[:, i, :, :], transpose_b=True)), -1)
+
+    v_f = aux + tmp
     return mu_f, v_f
 
 
@@ -139,7 +148,7 @@ def dgp_prediction(F, variables, model, posterior, n_layers, random_generator, n
         L_f = F.sqrt(v_f)
         die = random_generator.sample_normal(shape=(n_samples, x.shape[1], D), dtype=dtype)
 
-        samples = F.broadcast_mul(L_f, die) + mu_f
+        samples = F.broadcast_add(F.broadcast_mul(L_f, die), mu_f)
 
     return samples, mu_f, v_f
 
@@ -187,10 +196,17 @@ class DeepGPLogPdf(VariationalInference):
         _, mu_f, v_f = dgp_prediction(F, variables, self.model, self.posterior, self.n_layers,
                                       self._rand_gen, self.n_samples, self.jitter, self.dtype)
         noise_var = variables[self.model.noise_var]
+
+        self.v_f_mean = F.mean(v_f, 0).asnumpy()
+        self.mu_f_mean = F.mean(mu_f, 0).asnumpy()
         lik = gaussian_variational_expectation(F, y, noise_var, mu_f, v_f)
 
         # Compute kl term
         kl = self._compute_kl(F, variables)
+
+        # TODO: remove this, it's for debugging
+        self.kl = kl.asnumpy()
+        self.lik = lik.mean(axis=0).asnumpy()
 
         return self.log_pdf_scaling * lik.mean(axis=0).sum() - kl
 
@@ -213,8 +229,12 @@ class DeepGPLogPdf(VariationalInference):
 
             _, M, D = mu.shape
             k_uu = kern.K(F, z, **kern_params) + F.eye(M, dtype=self.dtype) * self.jitter
+            k_uu = F.tile(k_uu, (1, D, 1, 1))
 
-            kl = kl + multivariate_gaussian_kl_divergence(F, mu, cov, F.zeros((1, M, D), dtype=self.dtype), k_uu)
+            mu = F.reshape(mu, mu.shape[1:])
+            cov = F.reshape(cov, cov.shape[1:])
+            k_uu = F.reshape(k_uu, k_uu.shape[1:])
+            kl = kl + multivariate_gaussian_kl_divergence(F, mu, cov, F.zeros((M, D), dtype=self.dtype), k_uu)
         return kl
 
 
@@ -239,6 +259,11 @@ class DeepGPMeanVariancePrediction(SamplingAlgorithm):
     def compute(self, F, variables):
         _, mu_f, v_f = dgp_prediction(F, variables, self.model, self._extra_graphs[0], self.n_layers, self._rand_gen,
                                       self.n_samples, self.jitter, self.dtype)
+
+        # Add likelihood noise if required
+        noise_var = variables[self.model.noise_var]
+        if not self.noise_free:
+            v_f = v_f + noise_var
 
         mean = mu_f.mean(axis=0)
 
@@ -273,6 +298,11 @@ class DeepGPForwardSampling(SamplingAlgorithm):
     def compute(self, F, variables):
         samples, _, _ = dgp_prediction(F, variables, self.model, self._extra_graphs[0], self.n_layers,
                                        self._rand_gen, self.n_samples, self.jitter, self.dtype)
+
+        # Add likelihood noise if required
+        noise_var = variables[self.model.noise_var]
+        if not self.noise_free:
+            samples = samples + self._rand_gen.sample_normal(0, F.sqrt(noise_var), shape=samples.shape)
 
         outcomes = {self.model.Y.uuid: samples}
 
@@ -376,8 +406,9 @@ class DeepGPRegression(Module):
 
             setattr(graph, 'kern_' + str(i), u.factor.kernel)
 
-            setattr(post, 'qU_cov_diag_' + str(i), Variable(shape=(M,), transformation=PositiveTransformation()))
-            setattr(post, 'qU_cov_W_' + str(i), Variable(shape=(M, M)))
+            setattr(post, 'qU_cov_diag_' + str(i), Variable(shape=(self.layer_output_dims[i], M,),
+                                                            transformation=PositiveTransformation()))
+            setattr(post, 'qU_cov_W_' + str(i), Variable(shape=(self.layer_output_dims[i], M, M)))
             setattr(post, 'qU_mean_' + str(i), Variable(shape=(M, self.layer_output_dims[i])))
 
         graph.Y = Y.replicate_self()
