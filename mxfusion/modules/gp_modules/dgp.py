@@ -1,24 +1,21 @@
 import numpy as np
 
-from mxfusion.common.config import get_default_dtype
-from mxfusion.components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess
-from mxfusion.components.distributions.random_gen import MXNetRandomGenerator
-from mxfusion.components.functions.operators import broadcast_to
-from mxfusion.components.variables.runtime_variable import arrays_as_samples
-from mxfusion.components.variables.var_trans import PositiveTransformation
-from mxfusion.components.variables.variable import Variable
-from mxfusion.inference.inference_alg import SamplingAlgorithm
-from mxfusion.inference.variational import VariationalInference
-from mxfusion.models import Model, Posterior
-from mxfusion.modules.module import Module
-from mxfusion.util.customop import make_diagonal
+from ...common.config import get_default_dtype
+from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess
+from ...components.distributions.random_gen import MXNetRandomGenerator
+from ...components.functions.operators import broadcast_to
+from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.variables.var_trans import PositiveTransformation
+from ...components.variables.variable import Variable
+from ...inference.inference_alg import SamplingAlgorithm
+from ...inference.variational import VariationalInference
+from ...models import Model, Posterior
+from ...modules.module import Module
+from ...util.customop import make_diagonal
 
-# TODO: allow multi-dimensional intermediate layers (check KL calculation for intermediate)
+
 # TODO: allow mean function in layers (original paper uses linear mean iirc)
-# TODO: forward sampling
-# TODO: put general functions elsewhere?
-# TODO: validate against gpflow version
-# TODO: tests...
+# TODO: use noise_free flag
 
 
 def multivariate_gaussian_kl_divergence(F, mean_1, cov_1, mean_2, cov_2):
@@ -34,17 +31,19 @@ def multivariate_gaussian_kl_divergence(F, mean_1, cov_1, mean_2, cov_2):
     M = mean_1.shape[-2]
     D = mean_1.shape[-1]
 
-    assert D == 1  # TODO: remove
-
     L_1 = F.linalg.potrf(cov_1)
     L_2 = F.linalg.potrf(cov_2)
 
     mean_diff = mean_1 - mean_2
-    return 0.5 * (D * F.linalg.sumlogdiag(cov_2) -
-                  D * F.linalg.sumlogdiag(cov_1) +
-                  F.sum(F.square(F.linalg.trsm(L_2, mean_diff))) +
-                  D * F.sum(F.square(F.linalg.trsm(L_2, L_1))) -
-                  D * M)
+
+    LinvLs = F.linalg.trsm(L_2, L_1)
+    Linvmu = F.linalg.trsm(L_2, mean_diff)
+
+    return 0.5 * (2 * F.linalg.sumlogdiag(L_2) * D -
+                  2 * F.linalg.sumlogdiag(L_1) * D +
+                  F.sum(F.sum(F.square(LinvLs), axis=-1), axis=-1) * D +
+                  F.sum(F.sum(F.square(Linvmu), axis=-1), axis=-1) -
+                  M * D)
 
 
 def compute_marginal_f(F, L, Kfu, Kff_diag, mu_u, Ls, mean_prior_u=None, mean_prior_f=None):
@@ -92,18 +91,21 @@ def gaussian_variational_expectation(F, y, variance, f_mean, f_var):
            - 0.5 * (F.square(y - f_mean) + f_var) / variance
 
 
-def dgp_prediction(F, variables, model, n_layers, random_generator, jitter):
+def dgp_prediction(F, variables, model, posterior, n_layers, random_generator, n_samples, jitter, dtype):
     """
     Predict from final layer of DGP. Returns both posterior samples and mean and variance of posterior samples
 
     :param F: mx.nd or mx.sym
     :param variables: variables dictionary
-    :param model: model
+    :param model: model graph
+    :param posterior: posterior graph
     :param n_layers: number of layers
     :param random_generator: random number generator used to draw samples at each layer
+    :param n_samples: number of samples to propagate through layers
+    :param jitter: value of jitter to add to k_uu for numerical stability
+    :param dtype: dtype of samples
     :return: (samples, mean, variance)
     """
-    dtype = get_default_dtype()
     x = variables[model.X]
 
     samples = x
@@ -111,9 +113,9 @@ def dgp_prediction(F, variables, model, n_layers, random_generator, jitter):
     for layer in range(n_layers):
         # Get layer specific variables
         z = variables[getattr(model, 'inducing_inputs_' + str(layer))]
-        S_W = variables[getattr(model, 'qU_cov_W_' + str(layer))]
-        S_diag = variables[getattr(model, 'qU_cov_diag_' + str(layer))]
-        mu = variables[getattr(model, 'qU_mean_' + str(layer))]
+        S_W = variables[getattr(posterior, 'qU_cov_W_' + str(layer))]
+        S_diag = variables[getattr(posterior, 'qU_cov_diag_' + str(layer))]
+        mu = variables[getattr(posterior, 'qU_mean_' + str(layer))]
         kern = getattr(model, 'kern_' + str(layer))
         kern_params = kern.fetch_parameters(variables)
 
@@ -135,7 +137,7 @@ def dgp_prediction(F, variables, model, n_layers, random_generator, jitter):
 
         # sample from q(f)
         L_f = F.sqrt(v_f)
-        die = random_generator.sample_normal(shape=(10, x.shape[1], D), dtype=dtype)
+        die = random_generator.sample_normal(shape=(n_samples, x.shape[1], D), dtype=dtype)
 
         samples = F.broadcast_mul(L_f, die) + mu_f
 
@@ -148,7 +150,7 @@ class DeepGPLogPdf(VariationalInference):
     with Gaussian likelihood.
     """
 
-    def __init__(self, model, posterior, observed, n_layers, jitter=1e-6):
+    def __init__(self, model, posterior, observed, n_layers, jitter=1e-6, n_samples=10, dtype=None):
         """
         :param model: Model graph
         :param posterior: Posterior graph
@@ -157,13 +159,19 @@ class DeepGPLogPdf(VariationalInference):
         """
 
         super().__init__(model=model, posterior=posterior, observed=observed)
+
+        if dtype is None:
+            self.dtype = get_default_dtype()
+        else:
+            self.dtype = dtype
+
         self.log_pdf_scaling = 1.
         self.jitter = jitter
         self.n_layers = n_layers
         if self.n_layers <= 1:
             raise ValueError('Number of layers must be greater than one')
         self._rand_gen = MXNetRandomGenerator
-        self.dtype = get_default_dtype()
+        self.n_samples = n_samples
 
     def compute(self, F, variables):
         """
@@ -176,7 +184,8 @@ class DeepGPLogPdf(VariationalInference):
         y = variables[self.model.Y]
 
         # Compute model fit term
-        _, mu_f, v_f = dgp_prediction(F, variables, self.model, self.n_layers, self._rand_gen, self.jitter)
+        _, mu_f, v_f = dgp_prediction(F, variables, self.model, self.posterior, self.n_layers,
+                                      self._rand_gen, self.n_samples, self.jitter, self.dtype)
         noise_var = variables[self.model.noise_var]
         lik = gaussian_variational_expectation(F, y, noise_var, mu_f, v_f)
 
@@ -193,9 +202,9 @@ class DeepGPLogPdf(VariationalInference):
         for layer in range(self.n_layers):
             # Get layer specific variables
             z = variables[getattr(self.model, 'inducing_inputs_' + str(layer))]
-            S_W = variables[getattr(self.model, 'qU_cov_W_' + str(layer))]
-            S_diag = variables[getattr(self.model, 'qU_cov_diag_' + str(layer))]
-            mu = variables[getattr(self.model, 'qU_mean_' + str(layer))]
+            S_W = variables[getattr(self.posterior, 'qU_cov_W_' + str(layer))]
+            S_diag = variables[getattr(self.posterior, 'qU_cov_diag_' + str(layer))]
+            mu = variables[getattr(self.posterior, 'qU_mean_' + str(layer))]
             kern = getattr(self.model, 'kern_' + str(layer))
             kern_params = kern.fetch_parameters(variables)
 
@@ -213,23 +222,59 @@ class DeepGPMeanVariancePrediction(SamplingAlgorithm):
     """
     Calculates mean and variance of deep GP prediction
     """
-    def __init__(self, model, posterior, observed, n_layers, noise_free=True, jitter=1e-6):
+    def __init__(self, model, posterior, observed, n_layers, noise_free=True, n_samples=10, jitter=1e-6, dtype=None):
 
         super().__init__(model=model, observed=observed, extra_graphs=[posterior])
+        if dtype is None:
+            self.dtype = get_default_dtype()
+        else:
+            self.dtype = dtype
+
         self.jitter = jitter
         self.noise_free = noise_free
         self.n_layers = n_layers
         self._rand_gen = MXNetRandomGenerator
+        self.n_samples = n_samples
 
     def compute(self, F, variables):
-        _, mu_f, v_f = dgp_prediction(F, variables, self.model, self.n_layers, self._rand_gen, self.jitter)
+        _, mu_f, v_f = dgp_prediction(F, variables, self.model, self._extra_graphs[0], self.n_layers, self._rand_gen,
+                                      self.n_samples, self.jitter, self.dtype)
 
         mean = mu_f.mean(axis=0)
 
-        mean_var = F.sum(F.square(mu_f - mean), axis=0)
-        var = mean_var + v_f.mean(axis=0)
+        variance_of_mean = F.mean(F.square(mu_f - mean), axis=0)
+        var = variance_of_mean + v_f.mean(axis=0)
 
         outcomes = {self.model.Y.uuid: (mean, var)}
+
+        if self.target_variables:
+            return tuple(outcomes[v] for v in self.target_variables)
+        else:
+            return outcomes
+
+
+class DeepGPForwardSampling(SamplingAlgorithm):
+    """
+    Calculates mean and variance of deep GP prediction
+    """
+    def __init__(self, model, posterior, observed, n_layers, noise_free=True, n_samples=10, jitter=1e-6, dtype=None):
+
+        super().__init__(model=model, observed=observed, extra_graphs=[posterior])
+        if dtype is None:
+            self.dtype = get_default_dtype()
+        else:
+            self.dtype = dtype
+        self.jitter = jitter
+        self.noise_free = noise_free
+        self.n_layers = n_layers
+        self._rand_gen = MXNetRandomGenerator
+        self.n_samples = n_samples
+
+    def compute(self, F, variables):
+        samples, _, _ = dgp_prediction(F, variables, self.model, self._extra_graphs[0], self.n_layers,
+                                       self._rand_gen, self.n_samples, self.jitter, self.dtype)
+
+        outcomes = {self.model.Y.uuid: samples}
 
         if self.target_variables:
             return tuple(outcomes[v] for v in self.target_variables)
@@ -246,14 +291,14 @@ class DeepGPRegression(Module):
     """
 
     def __init__(self, X, kernels, noise_var, inducing_inputs=None,
-                 num_inducing=10, mean_func=None, dtype=None, ctx=None):
+                 num_inducing=10, mean=None, n_samples=10, dtype=None, ctx=None):
         """
         :param X: Input variable
         :param kernels: List of kernels for each layer
         :param noise_var: Noise variance for likelihood at final layer
         :param inducing_inputs: List of variables that represent the inducing points at each layer or None
         :param num_inducing: Number of inducing points at each layer in inducing_inputs is None
-        :param mean_func: Not used yet
+        :param mean: Not used yet
         :param dtype: dtype to use when creating mxnet arrays
         :param ctx: mxnet context
         """
@@ -265,8 +310,11 @@ class DeepGPRegression(Module):
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
 
+        self.layer_input_dims = [kern.input_dim for kern in kernels]
+        self.layer_output_dims = self.layer_input_dims[1:] + [1]
+
         if inducing_inputs is None:
-            inducing_inputs = [Variable(shape=(num_inducing, 1)) for _ in range(self.n_layers)]
+            inducing_inputs = [Variable(shape=(num_inducing, self.layer_input_dims[i])) for i in range(self.n_layers)]
 
         self.inducing_inputs = inducing_inputs
         inducing_inputs_tuples = []
@@ -280,8 +328,9 @@ class DeepGPRegression(Module):
         super().__init__(
             inputs=inputs, outputs=None, input_names=input_names,
             output_names=output_names, dtype=dtype, ctx=ctx)
-        self.mean_func = mean_func
+        self.mean_func = mean
         self.kernels = kernels
+        self.n_samples = n_samples
 
     def _generate_outputs(self, output_shapes=None):
         """
@@ -307,28 +356,29 @@ class DeepGPRegression(Module):
         graph.noise_var = self.noise_var.replicate_self()
 
         post = Posterior(graph)
+        N = Y.shape[0]
 
         for i in range(self.n_layers):
             z = self.inducing_inputs[i].replicate_self()
             setattr(graph, 'inducing_inputs_' + str(i), z)
+
             M = z.shape[0]
 
-            u = GaussianProcess.define_variable(X=z, kernel=self.kernels[i], shape=(M, Y.shape[-1]),
-                                                mean_func=self.mean_func, rand_gen=self._rand_gen, dtype=self.dtype,
+            u = GaussianProcess.define_variable(X=z, kernel=self.kernels[i], shape=(M, self.layer_output_dims[i]),
+                                                rand_gen=self._rand_gen, dtype=self.dtype,
                                                 ctx=self.ctx)
             setattr(graph, 'U_' + str(i), u)
-
-            setattr(graph, 'F_' + str(i), ConditionalGaussianProcess.define_variable(
+            f = ConditionalGaussianProcess.define_variable(
                 X=graph.X, X_cond=z, Y_cond=u,
-                kernel=self.kernels[i], shape=Y.shape, mean_func=None,
-                rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx))
+                kernel=self.kernels[i], shape=(N, self.layer_output_dims[i]), mean=None,
+                rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
+            setattr(graph, 'F_' + str(i), f)
 
-            setattr(graph, 'mean_func_' + str(i), None)
             setattr(graph, 'kern_' + str(i), u.factor.kernel)
 
-            setattr(graph, 'qU_cov_diag_' + str(i), Variable(shape=(M,), transformation=PositiveTransformation()))
-            setattr(graph, 'qU_cov_W_' + str(i), Variable(shape=(M, M)))
-            setattr(graph, 'qU_mean_' + str(i), Variable(shape=(M, Y.shape[-1])))
+            setattr(post, 'qU_cov_diag_' + str(i), Variable(shape=(M,), transformation=PositiveTransformation()))
+            setattr(post, 'qU_cov_W_' + str(i), Variable(shape=(M, M)))
+            setattr(post, 'qU_mean_' + str(i), Variable(shape=(M, self.layer_output_dims[i])))
 
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(mean=getattr(graph, 'F_' + str(self.n_layers - 1)),
@@ -348,25 +398,23 @@ class DeepGPRegression(Module):
                    [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(targets=self.output_names, conditionals=self.input_names,
                                        algorithm=DeepGPLogPdf(self._module_graph, self._extra_graphs[0], observed,
-                                                              self.n_layers), alg_name='dgp_log_pdf')
+                                                              self.n_layers, n_samples=self.n_samples,
+                                                              dtype=self.dtype), alg_name='dgp_log_pdf')
 
         observed = [v for k, v in self.inputs]
         self.attach_prediction_algorithms(
            targets=self.output_names, conditionals=self.input_names,
-           algorithm=DeepGPMeanVariancePrediction(
-               self._module_graph, self._extra_graphs[0], observed, self.n_layers),
-           alg_name='dgp_predict')
+           algorithm=DeepGPMeanVariancePrediction(self._module_graph, self._extra_graphs[0], observed, self.n_layers,
+                                                  n_samples=self.n_samples, dtype=self.dtype), alg_name='dgp_predict')
 
-    #
-    # self.attach_prediction_algorithms(
-    #    targets=self.output_names, conditionals=self.input_names,
-    #    algorithm=SVGPRegressionMeanVariancePrediction(
-    #        self._module_graph, self._extra_graphs[0], observed),
-    #    alg_name='svgp_predict')
+        self.attach_draw_samples_algorithms(
+           targets=self.output_names, conditionals=self.input_names,
+           algorithm=DeepGPForwardSampling(self._module_graph, self._extra_graphs[0], observed, self.n_layers,
+                                           n_samples=self.n_samples, dtype=self.dtype), alg_name='dgp_sample')
 
     @staticmethod
     def define_variable(X, kernels, noise_var, shape=None, inducing_inputs=None, num_inducing=10, mean_func=None,
-                        dtype=None, ctx=None):
+                        n_samples=10, dtype=None, ctx=None):
         """
         Creates and returns a variable drawn from a doubly stochastic deep GP
 
@@ -383,7 +431,7 @@ class DeepGPRegression(Module):
         gp = DeepGPRegression(
             X=X, kernels=kernels, noise_var=noise_var,
             inducing_inputs=inducing_inputs, num_inducing=num_inducing,
-            mean_func=mean_func, dtype=dtype, ctx=ctx)
+            mean=mean_func, n_samples=n_samples, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
 
@@ -393,6 +441,6 @@ class DeepGPRegression(Module):
         """
         rep = super().replicate_self(attribute_map)
 
-        rep.kernel = self.kernel.replicate_self(attribute_map)
+        rep.kernels = [k.replicate_self(attribute_map) for k in self.kernels]
         rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
         return rep
