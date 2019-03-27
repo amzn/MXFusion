@@ -74,15 +74,10 @@ def compute_marginal_f(F, L, Kfu, Kff_diag, mu_u, Ls, mean_prior_u=None, mean_pr
 
     aux = F.expand_dims(Kff_diag - F.sum(KfuKmmi * Kfu, -1), -1)
 
-    S = Kfu.shape[0]
-    N = Kfu.shape[1]
     D = Ls.shape[1]
 
-    # TODO: work out how to vectorize this...
-    tmp = F.zeros((S, N, D), dtype='float64')  ## FIXME: dype
-    for i in range(D):
-        tmp[:, :, i] = F.sum(F.square(F.linalg.gemm2(KfuKmmi, Ls[:, i, :, :], transpose_b=True)), -1)
-
+    KfuKmmi_tiled = F.tile(F.expand_dims(KfuKmmi, 1), (1, D, 1, 1))
+    tmp = F.transpose(F.sum(F.square(F.linalg.gemm2(KfuKmmi_tiled, Ls, transpose_b=False)), -1), axes=(0, 2, 1))
     v_f = aux + tmp
     return mu_f, v_f
 
@@ -197,17 +192,10 @@ class DeepGPLogPdf(VariationalInference):
                                       self._rand_gen, self.n_samples, self.jitter, self.dtype)
         noise_var = variables[self.model.noise_var]
 
-        self.v_f_mean = F.mean(v_f, 0).asnumpy()
-        self.mu_f_mean = F.mean(mu_f, 0).asnumpy()
         lik = gaussian_variational_expectation(F, y, noise_var, mu_f, v_f)
 
         # Compute kl term
         kl = self._compute_kl(F, variables)
-
-        # TODO: remove this, it's for debugging
-        self.kl = kl.asnumpy()
-        self.lik = lik.mean(axis=0).asnumpy()
-
         return self.log_pdf_scaling * lik.mean(axis=0).sum() - kl
 
     def _compute_kl(self, F, variables):

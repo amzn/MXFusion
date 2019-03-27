@@ -127,17 +127,17 @@ class TestSVGPRegressionModule(object):
 
 
         infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
-        infr2.inference_algorithm.model.Y.factor.svgp_predict.noise_free = False
+        infr2.inference_algorithm.model.Y.factor.dgp_predict.noise_free = False
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
 
         infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
-        infr2.inference_algorithm.model.Y.factor.svgp_predict.diagonal_variance = False
-        infr2.inference_algorithm.model.Y.factor.svgp_predict.noise_free = True
+        infr2.inference_algorithm.model.Y.factor.dgp_predict.diagonal_variance = False
+        infr2.inference_algorithm.model.Y.factor.dgp_predict.noise_free = True
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
 
         infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
-        infr2.inference_algorithm.model.Y.factor.svgp_predict.diagonal_variance = False
-        infr2.inference_algorithm.model.Y.factor.svgp_predict.noise_free = False
+        infr2.inference_algorithm.model.Y.factor.dgp_predict.diagonal_variance = False
+        infr2.inference_algorithm.model.Y.factor.dgp_predict.noise_free = False
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
 
     def test_draw_samples(self):
