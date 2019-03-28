@@ -19,7 +19,10 @@ from ..components.variables import Variable, VariableType
 
 def broadcast_samples_dict(F, array_dict, num_samples=None):
     """
-    Broadcast the shape of arrays in the provided dictionary. When the num_samples argument is given, all the sample dimesnions (the first dimension) of the arrays in the dictionary will be broadcasted to the size of num_samples. If the num_samples argument is not given, the sample dimensions of the arrays in the dictionary will be broadcasted to the maximum number of the sizes of the sample dimensions.
+    Broadcast the shape of arrays in the provided dictionary. When the num_samples argument is given, all the sample
+    dimensions (the first dimension) of the arrays in the dictionary will be broadcasted to the size of num_samples.
+    If the num_samples argument is not given, the sample dimensions of the arrays in the dictionary will be broadcasted
+    to the maximum number of the sizes of the sample dimensions.
 
     :param F: the execution mode of MXNet.
     :type F: mxnet.ndarray or mxnet.symbol
@@ -65,8 +68,7 @@ def discover_shape_constants(data_shapes, graphs):
     variables in the model and inference models.
 
     :param data_shapes: a dict of shapes of data
-    :param graphs: a list of factor graphs of which variable shapes are
-        searched.
+    :param graphs: a list of factor graphs of which variable shapes are searched.
     :returns: a dict of constants discovered from data shapes
     :rtype: {Variable: int}
     """
@@ -79,11 +81,15 @@ def discover_shape_constants(data_shapes, graphs):
         for s1, s2 in zip(def_shape, shape):
             if isinstance(s1, int):
                 if s1 != s2:
-                    raise ModelSpecificationError("Variable ({}) shape mismatch between expected and found! s1 : {} s2 : {}".format(str(variables[var_id]),str(s1), str(s2)))
+                    raise ModelSpecificationError(
+                        "Variable ({}) shape mismatch between expected and found! s1 : {} s2 : {}"
+                        .format(str(variables[var_id]),str(s1), str(s2)))
             elif isinstance(s1, Variable):
                 shape_constants[s1] = s2
             else:
-                raise ModelSpecificationError("The shape of a Variable should either an integer or a Variable, but encountered {}!".format(str(type(s1))))
+                raise ModelSpecificationError(
+                    "The shape of a Variable should either an integer or a Variable, but encountered {}!"
+                    .format(str(type(s1))))
     return shape_constants
 
 
