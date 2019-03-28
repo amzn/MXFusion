@@ -64,6 +64,8 @@ class MinibatchInferenceLoop(GradLoop):
 
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
+        elif isinstance(data, mx.io.DataIter):
+            data_loader = data
         else:
             data_loader = mx.gluon.data.DataLoader(
                 ArrayDataset(*data), batch_size=self.batch_size, shuffle=True,
@@ -77,18 +79,21 @@ class MinibatchInferenceLoop(GradLoop):
             n_batches = 0
             for i, data_batch in enumerate(data_loader):
                 with mx.autograd.record():
+                    if isinstance(data_batch, mx.io.DataBatch):
+                        data_batch = (data_batch.data[0], data_batch.label[0])
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                     loss_for_gradient.backward()
                 if verbose:
                     print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
                           e + 1, i + 1, loss.asscalar()),
                           end='')
+                if callback is not None:
+                    callback(i, loss.asscalar())
                 trainer.step(batch_size=self.batch_size,
                              ignore_stale_grad=True)
                 L_e += loss.asscalar()
                 n_batches += 1
             if verbose:
-                if callback is None:
-                    print('epoch-loss: {} '.format(L_e / n_batches))
-                else:
-                    callback(e, L_e)
+                print('epoch-loss: {} '.format(L_e / n_batches))
+            if callback is not None:
+                callback(e, L_e)
