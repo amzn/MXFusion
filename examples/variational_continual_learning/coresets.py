@@ -92,6 +92,15 @@ class Coreset(metaclass=ABCMeta):
     def reset(self):
         self.iterator = MultiIter([])
 
+    @staticmethod
+    def merge(coreset):
+        # For sizes 0 and 1 just return the original coreset
+        if len(coreset.iterator) <= 1:
+            return coreset
+        merged = coreset.__class__(coreset_size=coreset.coreset_size)
+        merged.append()
+        raise NotImplementedError
+
 
 class Vanilla(Coreset):
     """

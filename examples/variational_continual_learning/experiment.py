@@ -137,12 +137,13 @@ class Experiment:
         """
         if self.single_head:
             # TODO: Cache the results if this is expensive?
-            return Coreset.merge(self.coreset)
+            iterator = Coreset.merge(self.coreset).iterator
         else:
-            if len(self.coreset.iterator) > 0:
-                return self.coreset.iterator[task_id]
-            else:
-                return None
+            iterator = self.coreset.iterator
+
+        if len(iterator) > 0:
+            return iterator[task_id]
+        return None
 
     def fine_tune(self, task_id):
         """
@@ -189,7 +190,8 @@ class Experiment:
             predicted_means = np.mean(predictions, axis=0)
             predicted_labels = np.argmax(predicted_means, axis=1)
             test_labels = test_iterator.label[0][1].asnumpy()
-            score = len(np.where(np.abs(predicted_labels - test_labels) < 1e-10)[0]) * 1.0 / test_labels.shape[0]
+            mt = test_labels.shape[0]
+            score = len(np.where(np.abs(predicted_labels[:mt] - test_labels) < 1e-10)[0]) * 1.0 / mt
             scores.append(score)
         return scores
 

@@ -21,8 +21,11 @@ from mxfusion import Model, Variable
 from mxfusion.components import MXFusionGluonFunction
 from mxfusion.components.distributions import Normal, Categorical
 from mxfusion.inference import BatchInferenceLoop, create_Gaussian_meanfield, GradBasedInference, \
-    StochasticVariationalInference, VariationalPosteriorForwardSampling
-from mxfusion.components.variables import add_sample_dimension
+    StochasticVariationalInference, VariationalPosteriorForwardSampling, MinibatchInferenceLoop, \
+    GradIteratorBasedInference
+
+import numpy as np
+
 from abc import ABC, abstractmethod
 
 from .mlp import MLP
@@ -190,35 +193,26 @@ class BayesianNN(BaseNN):
 
     # noinspection PyUnresolvedReferences
     def train(self, train_iterator, validation_iterator, head, batch_size, epochs, priors=None):
-        for i, batch in enumerate(train_iterator):
-            if i > 0:
-                raise NotImplementedError("Currently not supported for more than one batch of data. "
-                                          "Please switch to using the MinibatchInferenceLoop")
+        if self.single_head:
+            print("Running single-headed inference")
 
-            data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
-            labels = mx.nd.expand_dims(batch.label[0], axis=-1).as_in_context(self.ctx)
+            dummy = mx.nd.flatten(mx.nd.zeros(shape=train_iterator.provide_data[0].shape)).as_in_context(self.ctx)
+            x_shape = dummy.shape
+            y_shape = train_iterator.provide_label[0].shape
 
             if self.verbose:
-                print("Data shape {}".format(data.shape))
+                print("Data shape {}".format(x_shape))
 
             # pass some data to initialise the net
-            self.net(data[:1])
+            self.net(dummy[:1])
 
-            if self.single_head:
-                observed = [self.model.x, self.model.y]
-                ignored = None
-                kwargs = dict(y=labels, x=data)
-            else:
-                observed = [self.model.x, getattr(self.model, "y{}".format(head))]
-                y_other = [getattr(self.model, "y{}".format(h)) for h in range(self.num_heads) if h != head]
-                r_other = [getattr(self.model, "r{}".format(h)) for h in range(self.num_heads) if h != head]
-                ignored = y_other + r_other
-                kwargs = {'x': data, 'y{}'.format(head): labels, 'ignored': dict((v.name, v) for v in ignored)}
+            observed = [self.model.x, self.model.y]
+            kwargs = {'x': x_shape, 'y': y_shape}
 
-            q = create_Gaussian_meanfield(model=self.model, ignored=ignored, observed=observed)
-            alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed,
-                                                 ignored=ignored)
-            self.inference = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
+            q = create_Gaussian_meanfield(model=self.model, observed=observed)
+            alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed)
+
+            self.inference = GradIteratorBasedInference(inference_algorithm=alg)
             self.inference.initialize(**kwargs)
 
             for v in self.get_net_parameters(head).values():
@@ -250,12 +244,75 @@ class BayesianNN(BaseNN):
                 self.inference.params.param_dict[mean_prior]._grad_req = 'null'
                 self.inference.params.param_dict[variance_prior]._grad_req = 'null'
 
-            if self.single_head:
-                print("Running single-headed inference")
-            else:
-                print("Running multi-headed inference for head {}".format(head))
             self.inference.run(max_iter=self.max_iter, learning_rate=self.learning_rate,
-                               verbose=False, callback=self.print_status, **kwargs)
+                               verbose=False, callback=self.print_status, data=train_iterator)
+
+        else:
+            print("Running multi-headed inference for head {}".format(head))
+
+            for i, batch in enumerate(train_iterator):
+                if i > 0:
+                    raise NotImplementedError("Currently not supported for more than one batch of data. "
+                                              "Please switch to using the MinibatchInferenceLoop")
+
+                data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
+                labels = mx.nd.expand_dims(batch.label[0], axis=-1).as_in_context(self.ctx)
+
+                if self.verbose:
+                    print("Data shape {}".format(data.shape))
+
+                # pass some data to initialise the net
+                self.net(data[:1])
+
+                if self.single_head:
+                    observed = [self.model.x, self.model.y]
+                    ignored = None
+                    kwargs = dict(y=labels, x=data)
+                else:
+                    observed = [self.model.x, getattr(self.model, "y{}".format(head))]
+                    y_other = [getattr(self.model, "y{}".format(h)) for h in range(self.num_heads) if h != head]
+                    r_other = [getattr(self.model, "r{}".format(h)) for h in range(self.num_heads) if h != head]
+                    ignored = y_other + r_other
+                    kwargs = {'x': data, 'y{}'.format(head): labels, 'ignored': dict((v.name, v) for v in ignored)}
+
+                q = create_Gaussian_meanfield(model=self.model, ignored=ignored, observed=observed)
+                alg = StochasticVariationalInference(num_samples=5, model=self.model, posterior=q, observed=observed,
+                                                     ignored=ignored)
+
+                self.inference = GradBasedInference(inference_algorithm=alg)
+                self.inference.initialize(**kwargs)
+
+                for v in self.get_net_parameters(head).values():
+                    v_name_mean = v.inherited_name + "_mean"
+                    v_name_variance = v.inherited_name + "_variance"
+
+                    if priors is None or (v_name_mean not in priors and v_name_variance not in priors):
+                        means = self.prior_mean(shape=v.shape)
+                        variances = self.prior_variance(shape=v.shape)
+                    elif isinstance(priors, ParameterDict):
+                        # This is a maximum likelihood estimate
+                        short_name = v.inherited_name.partition(self.prefix)[-1]
+                        means = priors.get(short_name).data()
+                        variances = self.prior_variance(shape=v.shape)
+                    else:
+                        # Use posteriors from previous round of inference
+                        means = priors[v_name_mean]
+                        variances = priors[v_name_variance]
+
+                    mean_prior = getattr(self.model, v_name_mean)
+                    variance_prior = getattr(self.model, v_name_variance)
+
+                    # v.set_prior(Normal(mean=mean_prior, variance=variance_prior))
+
+                    self.inference.params[mean_prior] = means
+                    self.inference.params[variance_prior] = variances
+
+                    # Indicate that we don't want to perform inference over the priors
+                    self.inference.params.param_dict[mean_prior]._grad_req = 'null'
+                    self.inference.params.param_dict[variance_prior]._grad_req = 'null'
+
+                self.inference.run(max_iter=self.max_iter, learning_rate=self.learning_rate,
+                                   verbose=False, callback=self.print_status, **kwargs)
 
     # noinspection PyUnresolvedReferences
     @property
@@ -283,10 +340,12 @@ class BayesianNN(BaseNN):
         if self.inference is None:
             raise RuntimeError("Model not yet learnt")
 
+        predictions = []
+
         for i, batch in enumerate(test_iter):
-            if i > 0:
-                raise NotImplementedError("Currently not supported for more than one batch of data. "
-                                          "Please switch to using the MinibatchInferenceLoop")
+            # if i > 0:
+            #     raise NotImplementedError("Currently not supported for more than one batch of data. "
+            #                               "Please switch to using the MinibatchInferenceLoop")
 
             data = mx.nd.flatten(batch.data[0]).as_in_context(self.ctx)
 
@@ -334,7 +393,8 @@ class BayesianNN(BaseNN):
                 # Set the posterior back to the old posterior
                 self.inference.inference_algorithm._extra_graphs[0] = old_posterior
 
-            return res[0].asnumpy()
+            predictions.append(res[0].asnumpy())
+        return np.concatenate(predictions, axis=1)
 
     @staticmethod
     def prior_mean(shape):
