@@ -40,7 +40,7 @@ class MinibatchInferenceLoop(GradLoop):
             if rv_scaling is not None else rv_scaling
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, verbose=False):
+            learning_rate=1e-3, max_iter=1000, verbose=False, callback=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -56,11 +56,15 @@ class MinibatchInferenceLoop(GradLoop):
         :type learning_rate: float
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
+        :param callback: Callback function for custom print statements
+        :type callback: func
         :param verbose: whether to print per-iteration messages.
         :type verbose: boolean
         """
 
         if isinstance(data, mx.gluon.data.DataLoader):
+            data_loader = data
+        elif isinstance(data, mx.io.DataIter):
             data_loader = data
         else:
             data_loader = mx.gluon.data.DataLoader(
@@ -75,15 +79,21 @@ class MinibatchInferenceLoop(GradLoop):
             n_batches = 0
             for i, data_batch in enumerate(data_loader):
                 with mx.autograd.record():
+                    if isinstance(data_batch, mx.io.DataBatch):
+                        data_batch = (data_batch.data[0], data_batch.label[0])
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                     loss_for_gradient.backward()
                 if verbose:
                     print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
                           e + 1, i + 1, loss.asscalar()),
                           end='')
+                if callback is not None:
+                    callback(i, loss.asscalar())
                 trainer.step(batch_size=self.batch_size,
                              ignore_stale_grad=True)
                 L_e += loss.asscalar()
                 n_batches += 1
             if verbose:
                 print('epoch-loss: {} '.format(L_e / n_batches))
+            if callback is not None:
+                callback(e, L_e)
