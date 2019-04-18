@@ -12,26 +12,20 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
+import mxnet as mx
+from .distribution import DistributionImplementation
+from ..variables.runtime_variable import get_variable_shape
 
-"""The main module for MXFusion.
 
-Submodules
-==========
+class Bernoulli(DistributionImplementation):
 
-.. autosummary::
-    :toctree: _autosummary
+    def __init__(self, prob_true):
+        self.prob_true = prob_true
 
-    distributions
-    functions
-    variables
-    factor
-    model_component
-"""
+    def log_pdf(self, random_variable):
+        logL = random_variable * mx.nd.log(self.prob_true) + (1 - random_variable) * mx.nd.log(1 - self.prob_true)
+        return logL
 
-__all__ = ['distributions', 'functions', 'variables', 'factor', 'model_component', 'dist_impl']
-
-from .model_component import ModelComponent
-from .factor import Factor
-from .distributions import Distribution
-from .variables import Variable, VariableType
-from .functions import MXFusionGluonFunction, FunctionEvaluation
+    def draw_samples(self, num_samples=1):
+        out_shape = (num_samples,) + get_variable_shape(self.prob_true)
+        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.shape) > self.prob_true

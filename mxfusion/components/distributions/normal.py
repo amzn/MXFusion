@@ -21,6 +21,7 @@ from ...common.config import get_default_MXNet_mode
 from ..variables import Variable
 from .distribution import Distribution
 from .univariate import UnivariateDistribution
+from .. import dist_impl
 
 
 class Normal(UnivariateDistribution):
@@ -40,6 +41,8 @@ class Normal(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    dist_impl_class = dist_impl.normal.Normal
+
     def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]

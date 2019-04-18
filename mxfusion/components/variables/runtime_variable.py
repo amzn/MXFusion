@@ -82,6 +82,17 @@ def get_num_samples(F, array):
     return array.shape[0]
 
 
+def get_variable_shape(F, array):
+    """
+    Get the number of samples in the provided array. If the array is not a set of samples, the return value will be one.
+
+    :returns: the number of samples.
+    :rtypes: int
+    """
+    # TODO: replace array.shape with F.shape_array
+    return array.shape[1:]
+
+
 def as_samples(F, array, num_samples):
     """
     Broadcast the variable as if it is a sampled variable. If the variable is already a sampled variable, it directly returns the data reference.

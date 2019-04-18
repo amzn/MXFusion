@@ -13,25 +13,10 @@
 # ==============================================================================
 
 
-"""The main module for MXFusion.
+class DistributionImplementation(object):
 
-Submodules
-==========
+    def log_pdf(self):
+        raise NotImplementedError
 
-.. autosummary::
-    :toctree: _autosummary
-
-    distributions
-    functions
-    variables
-    factor
-    model_component
-"""
-
-__all__ = ['distributions', 'functions', 'variables', 'factor', 'model_component', 'dist_impl']
-
-from .model_component import ModelComponent
-from .factor import Factor
-from .distributions import Distribution
-from .variables import Variable, VariableType
-from .functions import MXFusionGluonFunction, FunctionEvaluation
+    def draw_samples(self, num_samples=1):
+        raise NotImplementedError

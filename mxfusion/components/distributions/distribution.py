@@ -35,6 +35,8 @@ class Distribution(Factor):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+    dist_impl_class = None
+
     def __init__(self, inputs, outputs, input_names, output_names, rand_gen=None, dtype=None, ctx=None):
         super(Distribution, self).__init__(inputs=inputs, outputs=outputs,
                                            input_names=input_names,
@@ -44,6 +46,11 @@ class Distribution(Factor):
         self.dtype = get_default_dtype() if dtype is None else dtype
         self.ctx = ctx
         self.log_pdf_scaling = 1
+
+    def get_distribution_instance(self, variables):
+        if self.dist_impl_class is None:
+            raise NotImplementedError
+        return self.dist_impl_class(**self.fetch_runtime_inputs(variables))
 
     def replicate_self(self, attribute_map=None):
         replicant = super(Distribution, self).replicate_self(attribute_map)
@@ -55,7 +62,7 @@ class Distribution(Factor):
 
     def log_pdf(self, F, variables, targets=None):
         """
-        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. 
+        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
         The inputs and outputs variables are fetched from the *variables* argument according to their UUIDs.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
