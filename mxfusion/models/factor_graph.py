@@ -450,7 +450,7 @@ class FactorGraph(object):
                 setattr(new_model, v.name, new_model[v.uuid])
         return new_model
 
-    def get_parameters(self, excluded=None, include_inherited=False):
+    def get_parameters(self, excluded=None, include_inherited=True):
         """
         Get all the parameters not in the excluded list.
 
@@ -580,9 +580,9 @@ class FactorGraph(object):
             reconcile_direction('predecessor', previous_graph[previous_c], current_graph[current_c], new_level,
                                 component_map)
             """
-            TODO Reconciling in both directions currently breaks the reconciliation process and can cause multiple 
-            previous_uuid's to map to the same current_uuid. It's unclear why that happens. This shouldn't be necessary 
-            until we implement multi-output Factors though (and even then, only if not all the outputs are in a 
+            TODO Reconciling in both directions currently breaks the reconciliation process and can cause multiple
+            previous_uuid's to map to the same current_uuid. It's unclear why that happens. This shouldn't be necessary
+            until we implement multi-output Factors though (and even then, only if not all the outputs are in a
             named chain).
             """
             # reconcile_direction('successor', previous_graph[c], current_graph[current_c], new_level, component_map)

@@ -33,7 +33,8 @@ class TestMXFusionGluonFunctionTests(object):
         self.D = 10
         self.net = nn.HybridSequential()
         with self.net.name_scope():
-            self.net.add(nn.Dense(self.D, activation="relu"))
+            self.net.add(nn.Dense(self.D, in_units=1, activation="relu"))
+        self.net.initialize()
 
     def _make_gluon_function_evaluation(self, dtype, broadcastable):
         class Dot(HybridBlock):
