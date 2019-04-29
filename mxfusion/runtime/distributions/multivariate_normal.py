@@ -14,11 +14,11 @@
 import mxnet as mx
 import numpy as np
 
-from ..dist_impl.distribution import DistributionImplementation
-from ..variables.runtime_variable import get_variable_shape
+from .distribution import RuntimDistribution
+from ...components.variables.runtime_variable import get_variable_shape
 
 
-class MultivariateNormal(DistributionImplementation):
+class MultivariateNormal(RuntimDistribution):
     """
     Multi-dimensional normal distribution. Can represent a number of independent multivariate normal distributions.
     """
@@ -147,4 +147,3 @@ class MultivariateNormal(DistributionImplementation):
                       mx.nd.sum(mx.nd.square(LinvLs)) +
                       mx.nd.sum(mx.nd.square(Linvmu)) -
                       N * M * D)
-

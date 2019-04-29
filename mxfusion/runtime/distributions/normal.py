@@ -14,11 +14,11 @@
 
 import mxnet as mx
 import numpy as np
-from .distribution import DistributionImplementation
-from ..variables.runtime_variable import get_variable_shape
+from .distribution import RuntimDistribution
+from ...components.variables.runtime_variable import get_variable_shape
 
 
-class Normal(DistributionImplementation):
+class Normal(RuntimDistribution):
 
     def __init__(self, mean, variance):
         self.mean = mean

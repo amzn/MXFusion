@@ -13,7 +13,7 @@
 # ==============================================================================
 
 
-class DistributionImplementation(object):
+class RuntimDistribution(object):
 
     def log_pdf(self):
         raise NotImplementedError

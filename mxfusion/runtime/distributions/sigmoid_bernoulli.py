@@ -13,11 +13,11 @@
 # ==============================================================================
 
 import mxnet as mx
-from .distribution import DistributionImplementation
-from ..variables.runtime_variable import get_variable_shape
+from .distribution import RuntimDistribution
+from ...components.variables.runtime_variable import get_variable_shape
 
 
-class SigmoidBernoulli(DistributionImplementation):
+class SigmoidBernoulli(RuntimDistribution):
 
     def __init__(self, prob_true):
         self.prob_true = prob_true

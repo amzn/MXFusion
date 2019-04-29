@@ -1,5 +1,5 @@
 import mxnet as mx
-from mxfusion.components.dist_impl.multivariate_normal import MultivariateNormal
+from mxfusion.runtime.distributions.multivariate_normal import MultivariateNormal
 import pytest
 import numpy as np
 
@@ -80,5 +80,3 @@ def test_kl_inconsistent_shapes():
 
     with pytest.raises(ValueError):
         mvn_1.kl_divergence(mvn_2)
-
-
