@@ -35,7 +35,7 @@ class Distribution(Factor):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    dist_impl_class = None
+    runtime_dist_class = None
 
     def __init__(self, inputs, outputs, input_names, output_names, rand_gen=None, dtype=None, ctx=None):
         super(Distribution, self).__init__(inputs=inputs, outputs=outputs,
@@ -48,9 +48,9 @@ class Distribution(Factor):
         self.log_pdf_scaling = 1
 
     def get_distribution_instance(self, variables):
-        if self.dist_impl_class is None:
+        if self.runtime_dist_class is None:
             raise NotImplementedError
-        return self.dist_impl_class(**self.fetch_runtime_inputs(variables))
+        return self.runtime_dist_class(**self.fetch_runtime_inputs(variables))
 
     def replicate_self(self, attribute_map=None):
         replicant = super(Distribution, self).replicate_self(attribute_map)

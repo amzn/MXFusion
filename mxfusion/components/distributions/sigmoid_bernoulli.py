@@ -14,7 +14,7 @@
 
 
 from .univariate import UnivariateDistribution
-from .. import dist_impl
+from ...runtime import distributions
 
 
 class SigmoidBernoulli(UnivariateDistribution):
@@ -24,7 +24,7 @@ class SigmoidBernoulli(UnivariateDistribution):
     :param prob_true: the probability of being true.
     :type prob_true: Variable
     """
-    dist_impl_class = dist_impl.sigmoid_bernoulli.SigmoidBernoulli
+    runtime_dist_class = distributions.sigmoid_bernoulli.SigmoidBernoulli
 
     def __init__(self, prob_true):
         inputs = [('prob_true', prob_true)]

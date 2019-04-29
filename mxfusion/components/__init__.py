@@ -28,7 +28,7 @@ Submodules
     model_component
 """
 
-__all__ = ['distributions', 'functions', 'variables', 'factor', 'model_component', 'dist_impl']
+__all__ = ['distributions', 'functions', 'variables', 'factor', 'model_component']
 
 from .model_component import ModelComponent
 from .factor import Factor
