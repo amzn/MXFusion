@@ -22,6 +22,8 @@ from mxnet.initializer import Zero
 from mxfusion.components.functions.mxfusion_gluon_function import MXFusionGluonFunction
 from mxfusion.components import Variable
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples
+from mxfusion import Model
+from mxfusion.inference import Inference, ForwardSamplingAlgorithm
 
 
 @pytest.mark.usefixtures("set_seed")
@@ -33,7 +35,8 @@ class TestMXFusionGluonFunctionTests(object):
         self.D = 10
         self.net = nn.HybridSequential()
         with self.net.name_scope():
-            self.net.add(nn.Dense(self.D, activation="relu"))
+            self.net.add(nn.Dense(self.D, in_units=1, activation="relu"))
+        self.net.initialize()
 
     def _make_gluon_function_evaluation(self, dtype, broadcastable):
         class Dot(HybridBlock):
@@ -162,3 +165,15 @@ class TestMXFusionGluonFunctionTests(object):
         x = Variable()
         y = f(x)
         #z = y.value.eval({'x' : mx.nd.ones(self.D)})
+
+    def test_gluon_parameters(self):
+        self.setUp()
+
+        m = Model()
+        m.x = Variable(shape=(1,1))
+        m.f = MXFusionGluonFunction(self.net, num_outputs=1)
+        m.y = m.f(m.x)
+
+        infr = Inference(ForwardSamplingAlgorithm(m, observed=[m.x]))
+        infr.run(x=mx.nd.ones((1, 1)))
+        assert all([v.uuid in infr.params.param_dict for v in m.f.parameters.values()])

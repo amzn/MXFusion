@@ -68,9 +68,9 @@ class FactorGraphTests(unittest.TestCase):
         D = 100
         net = nn.HybridSequential(prefix='hybrid0_')
         with net.name_scope():
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(D, activation="tanh"))
-            net.add(nn.Dense(2, flatten=True))
+            net.add(nn.Dense(D, in_units=10, activation="tanh", flatten=False))
+            net.add(nn.Dense(D, in_units=D, activation="tanh", flatten=False))
+            net.add(nn.Dense(2, in_units=D, flatten=False))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
 
@@ -96,7 +96,8 @@ class FactorGraphTests(unittest.TestCase):
         self.D = 10
         self.basic_net = nn.HybridSequential()
         with self.basic_net.name_scope():
-            self.basic_net.add(nn.Dense(self.D, activation="relu"))
+            self.basic_net.add(nn.Dense(self.D, in_units=10, activation="relu"))
+        self.basic_net.initialize()
         self.bnn_net = self.make_net()
 
     def test_bnn_model(self):
@@ -291,8 +292,8 @@ class FactorGraphTests(unittest.TestCase):
         self.assertTrue(len(component_map) == len(set(m1.components).union(set(m1.Y.factor._module_graph.components)).union(set(m1.Y.factor._extra_graphs[0].components))))
 
     def test_reconcile_model_and_posterior(self):
-        x = np.random.rand(1000, 1)
-        y = np.random.rand(1000, 1)
+        x = np.random.rand(1000, 10)
+        y = np.random.rand(1000, 10)
         x_nd, y_nd = mx.nd.array(y), mx.nd.array(x)
 
         net1 = self.make_net()

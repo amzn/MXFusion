@@ -158,30 +158,10 @@ class MXFusionGluonFunction(MXFusionFunction):
         params = block.collect_params()
         vs = {}
         for param in params.values():
-            v = Variable(isInherited=True, shape=param.shape)
+            v = Variable(isInherited=True, shape=param.shape, initial_value=param.data())
             v.inherited_name = param.name
             vs[v.inherited_name] = v
         return vs
-
-    def collect_gluon_parameters(self):
-        """
-        Return the parameters of the MXNet Gluon block that have *not* been set a prior distribution.
-
-        :returns: the parameters of the MXNet Gluon block without a prior distribution.
-        :rtype: MXNet.gluon.ParameterDict
-        """
-        params = ParameterDict()
-        gluon_params = self._gluon_block.collect_params()
-        params.update({var_name: gluon_params[var_name] for var_name, var in self._gluon_parameters.items()
-                       if var.type == VariableType.PARAMETER})
-        return params
-
-    def collect_params(self):
-        """
-        Return a variable set / dict. Used for the function.collect_params.set_prior() functionality.
-        """
-        # TODO: implement VariableSet
-        raise NotImplementedError
 
     def _override_block_parameters(self, input_kws):
         """

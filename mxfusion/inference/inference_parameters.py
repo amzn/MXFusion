@@ -14,16 +14,13 @@
 
 
 import warnings
-import numpy as np
 import mxnet as mx
 from mxnet import initializer
-from mxnet import ndarray
 from mxnet.gluon import ParameterDict
 from ..components.variables import VariableType, Variable
 from ..components import ModelComponent
 from ..util.inference import realize_shape
 from ..common.config import get_default_device, get_default_dtype
-from ..components.functions.gluon_func_eval import GluonFunctionEvaluation
 
 
 class InferenceParameters(object):
@@ -75,18 +72,11 @@ class InferenceParameters(object):
 
         self._params = ParameterDict()
         for g in graphs:
-            # load in parameterdict from external gluon blocks.
-            for f in g.functions.values():
-                if isinstance(f, GluonFunctionEvaluation):
-                    self._params.update(
-                        f.function.collect_gluon_parameters())
-
             for var in g.get_constants():
                 self._constants[var.uuid] = var.constant
 
             excluded = set(self._constants.keys()).union(observed_uuid)
-            for var in g.get_parameters(excluded=excluded,
-                                        include_inherited=False):
+            for var in g.get_parameters(excluded=excluded):
                 var_shape = realize_shape(var.shape, self._constants)
                 init = initializer.Constant(var.initial_value_before_transformation) \
                     if var.initial_value is not None else None
@@ -161,8 +151,7 @@ class InferenceParameters(object):
     def __getitem__(self, key, ctx=None):
         if not isinstance(key, Variable):
             raise KeyError("The access key of inference parameter needs to be Variable, but got "+str(type(key))+".")
-        pkey = key.inherited_name if key.isInherited else key.uuid
-        val = self._params.get(pkey).data(ctx)
+        val = self._params.get(key.uuid).data(ctx)
         if key.transformation is not None:
             val = key.transformation.transform(val)
         return val
