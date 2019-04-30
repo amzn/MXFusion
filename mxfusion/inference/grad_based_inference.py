@@ -15,6 +15,8 @@
 
 from .inference import Inference
 from .batch_loop import BatchInferenceLoop
+from ..util.inference import discover_shape_constants
+from .minibatch_loop import MinibatchInferenceLoop
 
 
 class GradBasedInference(Inference):
@@ -82,7 +84,21 @@ class GradBasedInference(Inference):
         self.initialize(**kwargs)
 
         infr = self.create_executor()
-        return self._grad_loop.run(
-            infr_executor=infr, data=data, param_dict=self.params.param_dict,
-            ctx=self.mxnet_context, optimizer=optimizer,
-            learning_rate=learning_rate, max_iter=max_iter, verbose=verbose)
+
+        if isinstance(self._grad_loop, MinibatchInferenceLoop):
+            def update_shape_constants(data_batch):
+                data_shapes = {i: d.shape for i, d in zip(self.observed_variable_UUIDs,
+                                                          data_batch)}
+                shape_constants = discover_shape_constants(data_shapes, self._graphs)
+                self.params.update_constants(shape_constants)
+                
+            return self._grad_loop.run(
+                infr_executor=infr, data=data, param_dict=self.params.param_dict,
+                ctx=self.mxnet_context, optimizer=optimizer,
+                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose,
+                update_shape_constants=update_shape_constants)
+        else:
+            return self._grad_loop.run(
+                infr_executor=infr, data=data, param_dict=self.params.param_dict,
+                ctx=self.mxnet_context, optimizer=optimizer,
+                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose)
