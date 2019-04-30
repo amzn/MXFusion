@@ -24,7 +24,8 @@ from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.components.functions import MXFusionGluonFunction
 from mxfusion.common.config import get_default_dtype
 from mxfusion.components.functions.operators import broadcast_to
-from mxfusion import Variable
+from mxfusion import Variable, Model
+from mxfusion.inference import Inference, ForwardSamplingAlgorithm
 
 
 class InferenceSerializationTests(unittest.TestCase):
@@ -63,6 +64,14 @@ class InferenceSerializationTests(unittest.TestCase):
             net.add(nn.Dense(1, dtype=dtype, in_units=D))
         net.initialize(mx.init.Xavier(magnitude=3))
         return net
+
+    def make_simple_gluon_model(self):
+        net = self.make_net()
+        m = Model()
+        m.x = Variable(shape=(1, 1))
+        m.f = MXFusionGluonFunction(net, num_outputs=1)
+        m.y = m.f(m.x)
+        return m
 
     def make_gpregr_model(self, lengthscale, variance, noise_var):
         from mxfusion.models import Model
@@ -208,5 +217,21 @@ class InferenceSerializationTests(unittest.TestCase):
             assert np.all(np.isclose(original_data, reloaded_data))
 
         loss2, _ = infr2.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype))
+
+        os.remove(self.ZIPNAME)
+
+    def test_gluon_func_save_and_load(self):
+        m = self.make_simple_gluon_model()
+        infr = Inference(ForwardSamplingAlgorithm(m, observed=[m.x, m.y]))
+        infr.initialize(x=(1, 1), y=(1, 10))
+        infr.save(self.ZIPNAME)
+
+        m2 = self.make_simple_gluon_model()
+        infr2 = Inference(ForwardSamplingAlgorithm(m2, observed=[m2.x, m2.y]))
+        infr2.initialize(x=(1, 1), y=(1, 10))
+        infr2.load(self.ZIPNAME)
+
+        for n in m.f.parameter_names:
+            assert np.allclose(infr.params[getattr(m.y.factor, n)].asnumpy(), infr2.params[getattr(m2.y.factor, n)].asnumpy())
 
         os.remove(self.ZIPNAME)
