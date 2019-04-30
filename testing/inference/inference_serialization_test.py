@@ -222,14 +222,15 @@ class InferenceSerializationTests(unittest.TestCase):
 
     def test_gluon_func_save_and_load(self):
         m = self.make_simple_gluon_model()
-        infr = Inference(ForwardSamplingAlgorithm(m, observed=[m.x, m.y]))
-        infr.initialize(x=(1, 1), y=(1, 10))
+        infr = Inference(ForwardSamplingAlgorithm(m, observed=[m.x]))
+        infr.run(x=mx.nd.ones((1, 1)))
         infr.save(self.ZIPNAME)
 
         m2 = self.make_simple_gluon_model()
-        infr2 = Inference(ForwardSamplingAlgorithm(m2, observed=[m2.x, m2.y]))
-        infr2.initialize(x=(1, 1), y=(1, 10))
+        infr2 = Inference(ForwardSamplingAlgorithm(m2, observed=[m2.x]))
+        infr2.run(x=mx.nd.ones((1, 1)))
         infr2.load(self.ZIPNAME)
+        infr2.run(x=mx.nd.ones((1, 1)))
 
         for n in m.f.parameter_names:
             assert np.allclose(infr.params[getattr(m.y.factor, n)].asnumpy(), infr2.params[getattr(m2.y.factor, n)].asnumpy())

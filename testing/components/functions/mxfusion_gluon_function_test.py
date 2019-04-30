@@ -174,6 +174,6 @@ class TestMXFusionGluonFunctionTests(object):
         m.f = MXFusionGluonFunction(self.net, num_outputs=1)
         m.y = m.f(m.x)
 
-        infr = Inference(ForwardSamplingAlgorithm(m, observed=[m.x, m.y]))
-        infr.initialize(x=(1, 1), y=(1, 10))
+        infr = Inference(ForwardSamplingAlgorithm(m, observed=[m.x]))
+        infr.run(x=mx.nd.ones((1, 1)))
         assert all([v.uuid in infr.params.param_dict for v in m.f.parameters.values()])
