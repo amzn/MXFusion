@@ -55,8 +55,7 @@ class Module(Factor):
         super(Module, self).__init__(
             inputs=inputs, outputs=outputs, input_names=input_names,
             output_names=output_names)
-        self._rand_gen = MXNetRandomGenerator if rand_gen is None else \
-            rand_gen
+        self._rand_gen = MXNetRandomGenerator if rand_gen is None else rand_gen
         self.dtype = get_default_dtype() if dtype is None else dtype
         self.ctx = ctx
         self._module_graph = None
@@ -64,6 +63,7 @@ class Module(Factor):
         self._log_pdf_algorithms = {}
         self._draw_samples_algorithms = {}
         self._prediction_algorithms = {}
+        self.log_pdf_scaling = 1
 
     def __contains__(self, key):
         return any([key in g for g in [self._module_graph] + self._extra_graphs])
@@ -76,18 +76,20 @@ class Module(Factor):
                 if key in g:
                     return g[key]
         return self._module_graph[key]
+
     def _generate_outputs(self, output_shapes):
         """
         Generate the output of the module with given output_shapes.
 
-        :param output_shape: the shapes of all the output variables
-        :type output_shape: {str: tuple}
+        :param output_shapes: the shapes of all the output variables
+        :type output_shapes: {str: tuple}
         """
         raise NotImplementedError
 
     def _build_module_graphs(self):
         """
-        The internal method for constructing the internal factor graphs of the module. This method needs to be overridden by specific probabilistic modules.
+        The internal method for constructing the internal factor graphs of the module.
+        This method needs to be overridden by specific probabilistic modules.
 
         :returns: model, extra factor graphs
         :rtypes: Model, [FactorGraph]
@@ -96,19 +98,20 @@ class Module(Factor):
 
     def _attach_default_inference_algorithms(self):
         """
-        The internal method for attaching default inference algorithms of the module. This method needs to be overridden by specific probabilistic modules.
+        The internal method for attaching default inference algorithms of the module.
+        This method needs to be overridden by specific probabilistic modules.
         """
         raise NotImplementedError
 
     def set_outputs(self, variables):
         """
-        This method overrides the set_outputs method of Factor. It triggers the initialization produces of a probabilistic module including building the factor graphs and attaching default inference algorithms.
+        This method overrides the set_outputs method of Factor. It triggers the initialization produces of a
+        probabilistic module including building the factor graphs and attaching default inference algorithms.
 
         :param variables: The list of variables to be set as the outputs of the module
-        :type variable: Variable or (Variable,)
+        :type variables: Variable or (Variable,)
         """
-        variables = [variables] if not isinstance(variables, (list, tuple)) \
-            else variables
+        variables = [variables] if not isinstance(variables, (list, tuple)) else variables
         outputs = {name: variable for name, variable in
                    zip(self.output_names, variables)}
         self.successors = [(k, v) for k, v in outputs.items()]
@@ -187,8 +190,7 @@ class Module(Factor):
         return tuple(sorted([uuid_to_names[uuid] for uuid in uuids if uuid in
                              uuid_to_names]))
 
-    def attach_log_pdf_algorithms(self, targets, conditionals, algorithm,
-                                  alg_name=None):
+    def attach_log_pdf_algorithms(self, targets, conditionals, algorithm, alg_name=None):
         """
         Attach an inference algorithm for computing the log_pdf of the module.
 
@@ -199,11 +201,12 @@ class Module(Factor):
         :param algorithm: the inference algorithm to compute log probability of
         the module.
         :type algorithm: InferenceAlgorithm
+        :param alg_name: The name of the algorithm
+        :type alg_name: str
         """
         self._attach_algorithm(self._log_pdf_algorithms, targets, conditionals, algorithm, alg_name)
 
-    def attach_draw_samples_algorithms(self, targets, conditionals, algorithm,
-                                   alg_name=None):
+    def attach_draw_samples_algorithms(self, targets, conditionals, algorithm, alg_name=None):
         """
         Attach an inference algorithm for drawing samples from the module.
 
@@ -213,12 +216,12 @@ class Module(Factor):
         :type conditionals: tuple of str
         :param algorithm: the inference algorithm to draw samples of the chosen target variables from the module.
         :type algorithm: InferenceAlgorithm
+        :param alg_name: The name of the algorithm
+        :type alg_name: str
         """
         self._attach_algorithm(self._draw_samples_algorithms, targets, conditionals, algorithm, alg_name)
 
-
-    def attach_prediction_algorithms(self, targets, conditionals, algorithm,
-                             alg_name=None):
+    def attach_prediction_algorithms(self, targets, conditionals, algorithm, alg_name=None):
         """
         Attach an inference algorithm for prediction from the module.
 
@@ -228,6 +231,8 @@ class Module(Factor):
         :type conditionals: tuple of str
         :param algorithm: the inference algorithm to predict the chosen target variables from the module.
         :type algorithm: InferenceAlgorithm
+        :param alg_name: The name of the algorithm
+        :type alg_name: str
         """
         self._attach_algorithm(self._prediction_algorithms, targets, conditionals, algorithm, alg_name)
 
@@ -256,7 +261,8 @@ class Module(Factor):
 
     def _set_algorithm_name(self, alg_name, algorithm):
         """
-        Sets the attribute of self with the algorithm name, overriding an old algorithm that had the same name. If something other than an InferenceAlgorithm has that name, prints a warning and returns None for alg_name.
+        Sets the attribute of self with the algorithm name, overriding an old algorithm that had the same name.
+        If something other than an InferenceAlgorithm has that name, prints a warning and returns None for alg_name.
         """
 
         from ..inference.inference_alg import InferenceAlgorithm
@@ -266,14 +272,17 @@ class Module(Factor):
             elif isinstance(getattr(self, alg_name), InferenceAlgorithm):
                 setattr(self, alg_name, algorithm)
             else:
-                warnings.warn('Something ({}) in this module ({}) is already using the attribute \"{}\". Skipping setting that name to the algorithm.'.format(str(getattr(self, alg_name)),str(self), str(alg_name)))
+                warnings.warn('Something ({}) in this module ({}) is already using the attribute \"{}\". '
+                              'Skipping setting that name to the algorithm.'.format(str(getattr(self, alg_name)),
+                                                                                    str(self), str(alg_name)))
                 alg_name = None
         return alg_name
 
     def _attach_duplicate_conditional_algorithm(self, algorithms, targets, conditionals, algorithm, alg_name):
         """
         Mutates the algorithms object, adding the new algorithm to it.
-        Also removes the name of an old inference algorithm if it had the same (targets, conditional) pair as the new algorithm.
+        Also removes the name of an old inference algorithm if it had the same (targets, conditional)
+        pair as the new algorithm.
         """
         methods = algorithms[conditionals]
         no_match = True
@@ -294,9 +303,9 @@ class Module(Factor):
 
     def log_pdf(self, F, variables, targets=None):
         """
-        Compute the logarithm of the probability/probability density of a set of random variables in the Module. The set of random
-        variables are specified in the "target" argument and any necessary conditional variables are specified in the "conditionals" argument.
-        Any relevant constants are specified in the "constants" argument.
+        Compute the logarithm of the probability/probability density of a set of random variables in the Module.
+        The set of random variables are specified in the "target" argument and any necessary conditional variables
+        are specified in the "conditionals" argument. Any relevant constants are specified in the "constants" argument.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
@@ -306,14 +315,18 @@ class Module(Factor):
         :returns: the sum of the log probability of all the target variables.
         :rtype: mxnet NDArray or mxnet Symbol
         """
-        alg = self._get_algorithm_for_target_conditional_pair(self._log_pdf_algorithms, targets, variables, exact_match=True)
+        alg = self._get_algorithm_for_target_conditional_pair(self._log_pdf_algorithms, targets, variables,
+                                                              exact_match=True)
+        alg.log_pdf_scaling = self.log_pdf_scaling
         result = alg.compute(F, variables)
         return result
 
     def draw_samples(self, F, variables, num_samples=1, targets=None):
         """
-        Draw samples from the target variables of the Module. If the ``targets`` argument is None, draw samples from all the variables
-        that are *not* in the conditional variables. If the ``targets`` argument is given, this method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict of samples where the keys are the UUIDs of variables and the values are the samples.
+        Draw samples from the target variables of the Module. If the ``targets`` argument is None, draw samples from
+        all the variables that are *not* in the conditional variables. If the ``targets`` argument is given, this
+        method returns a list of samples of variables in the order of the target argument, otherwise it returns a dict
+        of samples where the keys are the UUIDs of variables and the values are the samples.
 
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
@@ -337,7 +350,8 @@ class Module(Factor):
         :param F: the MXNet computation mode (``mxnet.symbol`` or ``mxnet.ndarray``).
         :param variables: The set of variables
         :type variables: {UUID : MXNet NDArray or MXNet Symbol}
-        :param num_samples: The number of samples to draw for the target variables if sampling is used for prediction. (optional)
+        :param num_samples: The number of samples to draw for the target variables if sampling is used for prediction.
+        (optional)
         :type num_samples: int
         :param targets: a list of Variables to predict.
         :type targets: [UUID]
@@ -352,14 +366,16 @@ class Module(Factor):
     def _get_algorithm_for_target_conditional_pair(self, algorithms, targets, variables, exact_match=False):
         """
         Searches through the algorithms to find the right algorithm for the target/conditional pair.
-        :param exact_match: This indicates whether the targets passed in must be precisely those in the algorithm, or whether a subset of targets will suffice.
+        :param exact_match: This indicates whether the targets passed in must be precisely those in the algorithm,
+        or whether a subset of targets will suffice.
         """
         if targets is None:
             target_names = tuple(sorted(self.output_names.copy()))
         else:
             target_names = self.get_names_from_uuid(targets)
         conditionals_names = self.get_names_from_uuid(variables.keys())
-        conditionals_names = conditionals_names if not exact_match else tuple(sorted(set(conditionals_names) - set(target_names)))
+        conditionals_names = conditionals_names if not exact_match else \
+            tuple(sorted(set(conditionals_names) - set(target_names)))
 
         if conditionals_names in algorithms:
             algs = algorithms[conditionals_names]
@@ -370,15 +386,21 @@ class Module(Factor):
                 if exact_match and target_names == set(t):
                     return alg
 
-        raise ModelSpecificationError("The targets-conditionals pattern for draw_samples computation "+str((target_names, conditionals_names))+" cannot find a matched inference algorithm.")
+        raise ModelSpecificationError("The targets-conditionals pattern for draw_samples computation " +
+                                      str((target_names, conditionals_names)) +
+                                      " cannot find a matched inference algorithm.")
 
     def prepare_executor(self, rv_scaling=None):
         """
-        Prepare the creation of an executor. This includes collecting the list of variable transformations and the list of the variables that are inherited from external Gluon blocks, and setting log_pdf_scaling for random variables.
+        Prepare the creation of an executor. This includes collecting the list of variable transformations and the list
+        of the variables that are inherited from external Gluon blocks, and setting log_pdf_scaling for
+        random variables.
 
-        :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling or mini-batch learning.
+        :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling
+        or mini-batch learning.
         :type rv_scaling: {UUID: float}
-        :returns: the list of the variable transformations and the list of the variables that are excluded from being set as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
+        :returns: the list of the variable transformations and the list of the variables that are excluded from being
+        set as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
         :rtypes: {str(UUID): Transformation}, set(str(UUID))
         """
         excluded = set()
@@ -388,8 +410,6 @@ class Module(Factor):
             for v in g.variables.values():
                 if v.type == VariableType.PARAMETER and v.transformation is not None:
                     var_trans[v.uuid] = v.transformation
-                if v.type == VariableType.PARAMETER and v.isInherited:
-                    excluded.add(v.uuid)
                 if v.type == VariableType.RANDVAR:
                     if v.uuid in rv_scaling:
                         v.factor.log_pdf_scaling = rv_scaling[v.uuid]
@@ -405,8 +425,11 @@ class Module(Factor):
         for conditionals, algorithms in algorithms.items():
             for targets, algorithm, alg_name in algorithms:
                 graphs_index = {g: i for i,g in enumerate(self._extra_graphs)}
-                extra_graphs = [replicant._extra_graphs[graphs_index[graph]] for graph in algorithm.graphs if graph in graphs_index]
-                algs[conditionals] = (targets, algorithm.replicate_self(replicant._module_graph, extra_graphs), alg_name)
+                extra_graphs = [replicant._extra_graphs[graphs_index[graph]] for graph in algorithm.graphs
+                                if graph in graphs_index]
+                algs[conditionals] = (targets,
+                                      algorithm.replicate_self(replicant._module_graph, extra_graphs),
+                                      alg_name)
         return algs
 
     def reconcile_with_module(self, previous_module):
@@ -415,7 +438,9 @@ class Module(Factor):
         primary_previous_graph = previous_module._module_graph
         secondary_previous_graphs = previous_module._extra_graphs
         primary_current_graph = self._module_graph
-        component_map = FactorGraph.reconcile_graphs(current_graphs, primary_previous_graph, secondary_previous_graphs=secondary_previous_graphs, primary_current_graph=primary_current_graph)
+        component_map = FactorGraph.reconcile_graphs(current_graphs, primary_previous_graph,
+                                                     secondary_previous_graphs=secondary_previous_graphs,
+                                                     primary_current_graph=primary_current_graph)
         return component_map
 
     def replicate_self(self, attribute_map=None):
@@ -428,6 +453,7 @@ class Module(Factor):
         replicant.dtype = self.dtype
         replicant.ctx = self.ctx
         replicant._module_graph = self._module_graph.clone()
+        replicant.log_pdf_scaling = 1
 
         # Note this assumes the extra graphs are A) posteriors and B) derived from self._module_graph.
         replicant._extra_graphs = [m.clone(self._module_graph) for m in
@@ -442,9 +468,9 @@ class Module(Factor):
         from ..models import FactorGraph
         self._module_graph = FactorGraph(module_json['graphs'][0]['name']).load_from_json(module_json['graphs'][0])
         if len(module_json['graphs']) > 1:
-            self._extra_graphs = [FactorGraph(extra_graph['name']).load_from_json(extra_graph) for extra_graph in module_json['graphs'][1:]]
+            self._extra_graphs = [FactorGraph(extra_graph['name']).load_from_json(extra_graph)
+                                  for extra_graph in module_json['graphs'][1:]]
         return self
-
 
     def as_json(self):
         mod_dict = super(Module, self).as_json()

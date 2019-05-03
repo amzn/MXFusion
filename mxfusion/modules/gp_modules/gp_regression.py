@@ -33,7 +33,14 @@ class GPRegressionLogPdf(VariationalInference):
     The method to compute the logarithm of the probability density function of
     a Gaussian process model with Gaussian likelihood.
     """
+    def __init__(self, model, posterior, observed, jitter=0.):
+        super(GPRegressionLogPdf, self).__init__(
+            model=model, posterior=posterior, observed=observed)
+        self.log_pdf_scaling = 1
+        self.jitter = jitter
+
     def compute(self, F, variables):
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         Y = variables[self.model.Y]
         noise_var = variables[self.model.noise_var]
@@ -48,10 +55,13 @@ class GPRegressionLogPdf(VariationalInference):
         K = kern.K(F, X, **kern_params) + \
             F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
             F.expand_dims(noise_var, axis=-2)
+        if self.jitter > 0.:
+            K = K + F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
+                self.jitter
         L = F.linalg.potrf(K)
 
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             Y = Y - mean
         LinvY = F.linalg.trsm(L, Y)
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
@@ -80,6 +90,18 @@ class GPRegressionSampling(SamplingAlgorithm):
             rand_gen
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         noise_var = variables[self.model.noise_var]
         N = X.shape[-2]
@@ -101,8 +123,8 @@ class GPRegressionSampling(SamplingAlgorithm):
                                            dtype=self.model.F.factor.dtype)
         y_samples = F.linalg.trmm(L, die)
 
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             y_samples = y_samples + mean
 
         samples = {self.model.Y.uuid: y_samples}
@@ -122,6 +144,18 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
         self.diagonal_variance = diagonal_variance
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         N = X.shape[-2]
         noise_var = variables[self.model.noise_var]
@@ -138,8 +172,8 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
         LinvKxt = F.linalg.trsm(L, Kxt)
         mu = F.linalg.gemm2(LinvKxt, LinvY, True, False)
 
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             mu = mu + mean
 
         if self.diagonal_variance:
@@ -174,6 +208,18 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         N = X.shape[-2]
         noise_var = variables[self.model.noise_var]
@@ -190,8 +236,8 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
         LinvKxt = F.linalg.trsm(L, Kxt)
         mu = F.linalg.gemm2(LinvKxt, LinvY, True, False)
 
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             mu = mu + mean
 
         if self.diagonal_variance:
@@ -238,8 +284,8 @@ class GPRegression(Module):
     :type kernel: Kernel
     :param noise_var: the variance of the Gaussian likelihood
     :type noise_var: Variable
-    :param mean_func: the mean function of Gaussian process.
-    :type mean_func: MXFusionFunction
+    :param mean: the mean of Gaussian process.
+    :type mean: Variable
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
     :type rand_gen: RandomGenerator
     :param dtype: the data type for float point numbers.
@@ -248,7 +294,7 @@ class GPRegression(Module):
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
 
-    def __init__(self, X, kernel, noise_var, mean_func=None, rand_gen=None,
+    def __init__(self, X, kernel, noise_var, mean=None, rand_gen=None,
                  dtype=None, ctx=None):
         if not isinstance(X, Variable):
             X = Variable(value=X)
@@ -256,21 +302,26 @@ class GPRegression(Module):
             noise_var = Variable(value=noise_var)
         inputs = [('X', X), ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
+        if mean is not None:
+            inputs.append(('mean', mean))
+            input_names.append('mean')
+            self._has_mean = True
+        else:
+            self._has_mean = False
         output_names = ['random_variable']
         super(GPRegression, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
             output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
-        self.mean_func = mean_func
         self.kernel = kernel
 
-    def _generate_outputs(self, output_shapes=None):
+    def _generate_outputs(self, output_shapes):
         """
         Generate the output of the module with given output_shapes.
 
-        :param output_shape: the shapes of all the output variables
-        :type output_shape: {str: tuple}
+        :param output_shapes: the shapes of all the output variables
+        :type output_shapes: {str: tuple}
         """
-        if output_shapes is None:
+        if output_shapes['random_variable'] is None:
             Y_shape = self.X.shape[:-1] + (1,)
         else:
             Y_shape = output_shapes['random_variable']
@@ -284,15 +335,19 @@ class GPRegression(Module):
         graph = Model(name='gp_regression')
         graph.X = self.X.replicate_self()
         graph.noise_var = self.noise_var.replicate_self()
+        if self._has_mean:
+            mean = self.mean.replicate_self()
+            graph.mean = mean
+        else:
+            mean = None
         graph.F = GaussianProcess.define_variable(
             X=graph.X, kernel=self.kernel, shape=Y.shape,
-            mean_func=self.mean_func, rand_gen=self._rand_gen,
+            mean=mean, rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
             mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
-        graph.mean_func = self.mean_func
         graph.kernel = graph.F.factor.kernel
         # The posterior graph is used to store parameters for prediction
         post = Posterior(graph)
@@ -312,8 +367,7 @@ class GPRegression(Module):
             [v for k, v in self.outputs]
         self.attach_log_pdf_algorithms(
             targets=self.output_names, conditionals=self.input_names,
-            algorithm=GPRegressionLogPdf(self._module_graph, self._extra_graphs[0],
-                                     observed),
+            algorithm=GPRegressionLogPdf(self._module_graph, self._extra_graphs[0], observed),
             alg_name='gp_log_pdf')
 
         observed = [v for k, v in self.inputs]
@@ -330,7 +384,7 @@ class GPRegression(Module):
             alg_name='gp_predict')
 
     @staticmethod
-    def define_variable(X, kernel, noise_var, shape=None, mean_func=None,
+    def define_variable(X, kernel, noise_var, shape=None, mean=None,
                         rand_gen=None, dtype=None, ctx=None):
         """
         Creates and returns a variable drawn from a Gaussian process regression.
@@ -345,8 +399,8 @@ class GPRegression(Module):
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
-        :param mean_func: the mean function of Gaussian process
-        :type mean_func: MXFusionFunction
+        :param mean: the mean of Gaussian process.
+        :type mean: Variable
         :param rand_gen: the random generator (default: MXNetRandomGenerator)
         :type rand_gen: RandomGenerator
         :param dtype: the data type for float point numbers
@@ -355,7 +409,7 @@ class GPRegression(Module):
         :type ctx: None or mxnet.cpu or mxnet.gpu
         """
         gp = GPRegression(
-            X=X, kernel=kernel, noise_var=noise_var, mean_func=mean_func,
+            X=X, kernel=kernel, noise_var=noise_var, mean=mean,
             rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
@@ -367,5 +421,5 @@ class GPRegression(Module):
         rep = super(GPRegression, self).replicate_self(attribute_map)
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
-        rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
+        rep._has_mean = self._has_mean
         return rep

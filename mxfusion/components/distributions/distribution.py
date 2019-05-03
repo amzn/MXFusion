@@ -93,14 +93,16 @@ class Distribution(Factor):
     def draw_samples(self, F, variables, num_samples=1, targets=None,
                      always_return_tuple=False):
         """
-        Draw a number of samples from the distribution. All the dependent variables are automatically collected from a dictionary of variables according to the UUIDs of the dependent variables.
+        Draw a number of samples from the distribution. All the dependent variables are automatically collected from a
+        dictionary of variables according to the UUIDs of the dependent variables.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :param variables: the set of variables where the dependent variables are collected from.
         :type variables: {str(UUID): MXNet NDArray or Symbol}
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
-        :param always_return_tuple: return the samples in a tuple of shape one. This allows easy programming when there are potentially multiple output variables.
+        :type num_samples: int
+        :param always_return_tuple: return the samples in a tuple of shape one. This allows easy programming when there
+        are potentially multiple output variables.
         :type always_return_tuple: boolean
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
@@ -122,7 +124,7 @@ class Distribution(Factor):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple, [tuple]
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]

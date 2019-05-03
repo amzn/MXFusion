@@ -14,13 +14,18 @@
 
 
 import warnings
+import io
+import json
 import numpy as np
 import mxnet as mx
+import zipfile
 from .inference_parameters import InferenceParameters
 from ..common.config import get_default_device, get_default_dtype
-from ..common.exceptions import InferenceError
+from ..common.exceptions import InferenceError, SerializationError
 from ..util.inference import discover_shape_constants, init_outcomes
 from ..models import FactorGraph, Model, Posterior
+from ..util.serialization import ModelComponentEncoder, make_numpy, load_json_from_zip, load_parameters, \
+                                 FILENAMES, DEFAULT_ZIP, ENCODINGS, SERIALIZATION_VERSION
 
 
 class Inference(object):
@@ -44,7 +49,6 @@ class Inference(object):
 
     def __init__(self, inference_algorithm, constants=None,
                  hybridize=False, dtype=None, context=None):
-
         self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._hybridize = hybridize
@@ -57,8 +61,9 @@ class Inference(object):
 
     def print_params(self):
         """
-        Returns a string with the inference parameters nicely formatted for display, showing which model they came from and their name + uuid.
-        
+        Returns a string with the inference parameters nicely formatted for display, showing which model they came from
+        and their name + uuid.
+
         Format:
         > infr.print_params()
         Variable(1ab23)(name=y) - (Model/Posterior(123ge2)) - (first mxnet values/shape)
@@ -154,8 +159,9 @@ class Inference(object):
         """
         Run the inference method.
 
-        :param **kwargs: The keyword arguments specify the data for inference self. The key of each argument is the name of the corresponding
-            variable in model definition and the value of the argument is the data in numpy array format.
+        :param kwargs: The keyword arguments specify the data for inference self. The key of each argument is the name
+        of the corresponding variable in model definition and the value of the argument is the data in numpy
+        array format.
         :returns: the samples of target variables (if not specified, the samples of all the latent variables)
         :rtype: {UUID: samples}
         """
@@ -171,35 +177,36 @@ class Inference(object):
         pass
 
     def load(self,
-             graphs_file=None,
-             inference_configuration_file=None,
-             parameters_file=None,
-             mxnet_constants_file=None,
-             variable_constants_file=None):
+             zip_filename=DEFAULT_ZIP):
         """
-        Loads back everything needed to rerun an inference algorithm.
-        The major pieces of this are the InferenceParameters, FactorGraphs, and
-        InferenceConfiguration.
+        Loads back everything needed to rerun an inference algorithm from a zip file.
+        See the save function for details on the structure of the zip file.
 
-        :param graphs_file: The file containing the graphs to load back for this inference algorithm. The first of these is the primary graph.
-        :type graphs_file: str of filename
-        :param inference_configuration_file: The file containing any inference specific configuration needed to
-        reload this inference algorithm.
-            e.g. observation patterns used to train it.
-        :type inference_configuration_file: str of filename
-        :param parameters_file: These are the parameters of the previous inference algorithm.
-        These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
-        in a binary format.
-        :param mxnet_constants_file: These are the constants in mxnet format from the previous inference algorithm.
-        These are in a {uuid: mx.nd.array} mapping.
-        :type mxnet_constants_file: file saved down with mx.nd.save(), so a {uuid: mx.nd.array} mapping saved
-        in a binary format.
-        :param variable_constants_file: These are the constants in primitive format from the previous
-        inference algorithm.
-        :type variable_constants_file: json dict of {uuid: constant_primitive}
+        :param zip_filename: Path to the zip file of the inference method to load back in.
+                             Defaults to the default name of inference.zip
+        :type zip_filename: str of zip filename
         """
-        graphs = FactorGraph.load_graphs(graphs_file)
+
+        # Check version is correct
+        zip_version = load_json_from_zip(zip_filename, FILENAMES['version_file'])
+        if zip_version['serialization_version'] != SERIALIZATION_VERSION:
+            raise SerializationError("Serialization version of saved inference \
+                                     and running code are note the same.")
+
+        # Load parameters back in
+
+        with zipfile.ZipFile(zip_filename, 'r') as zip_file:
+            mxnet_parameters = load_parameters(FILENAMES['mxnet_params'], zip_file, context=self.mxnet_context)
+            mxnet_constants = load_parameters(FILENAMES['mxnet_constants'], zip_file, context=self.mxnet_context)
+
+        variable_constants = load_json_from_zip(zip_filename,
+                                                FILENAMES['variable_constants'])
+
+        # Load graphs
+        from ..util.serialization import ModelComponentDecoder
+        graphs_list = load_json_from_zip(zip_filename, FILENAMES['graphs'],
+                                           decoder=ModelComponentDecoder)
+        graphs = FactorGraph.load_graphs(graphs_list)
         primary_model = graphs[0]
         secondary_graphs = graphs[1:]
 
@@ -208,56 +215,99 @@ class Inference(object):
             current_graphs=self.graphs,
             primary_previous_graph=primary_model,
             secondary_previous_graphs=secondary_graphs)
+
         new_parameters = InferenceParameters.load_parameters(
             uuid_map=self._uuid_map,
-            parameters_file=parameters_file,
-            variable_constants_file=variable_constants_file,
-            mxnet_constants_file=mxnet_constants_file,
+            mxnet_parameters=mxnet_parameters,
+            variable_constants=variable_constants,
+            mxnet_constants=mxnet_constants,
             current_params=self.params._params)
         self.params = new_parameters
-        self.load_configuration(inference_configuration_file, self._uuid_map)
 
-    def load_configuration(self, config_file, uuid_map):
+        configuration = load_json_from_zip(zip_filename, FILENAMES['configuration'])
+        self.load_configuration(configuration, self._uuid_map)
+
+    def load_configuration(self, configuration, uuid_map):
         """
         Loads relevant inference configuration back from a file.
-        Currently only loads the observed variables UUIDs back in, using the uuid_map
-        parameter to store the correct current observed variables.
+        Currently only loads the observed variables UUIDs back in,
+        using the uuid_map parameter to store the
+        correct current observed variables.
 
-        :param config_file: The file to save the configuration down into.
-        :type config_file: str
-        :param uuid_map: A map of previous/loaded model component uuids to their current variable in the loaded graph.
+        :param configuration: The loaded configuration dictionary
+        :type configuration: dict
+        :param uuid_map: A map of previous/loaded model component
+         uuids to their current variable in the loaded graph.
         :type uuid_map: { current_model_uuid : loaded_previous_uuid}
         """
-        import json
-        with open(config_file) as f:
-            configuration = json.load(f)
+        pass
         # loaded_uuid = [uuid_map[uuid] for uuid in configuration['observed']]
 
-    def save_configuration(self, config_file):
+    def get_serializable(self):
         """
-        Saves relevant inference configuration down into a file.
-        Currently only saves the observed variables UUIDs as {'observed': [observed_uuids]}.
-
-        :param config_file: The file to save the configuration down into.
-        :type config_file: str
+        Returns the minimum set of properties that the object needs to save in order to be
+        serialized down and loaded back in properly.
+        :returns: A dictionary of configuration properties needed to serialize and reload this inference method.
+        :rtype: Dictionary that is JSON serializable.
         """
-        import json
-        with open(config_file, 'w') as f:
-            json.dump({'observed': self.observed_variable_UUIDs}, f, ensure_ascii=False)
+        return {'observed': self.observed_variable_UUIDs}
 
-    def save(self, prefix=None):
+    def save(self, zip_filename=DEFAULT_ZIP):
         """
         Saves down everything needed to reload an inference algorithm.
-        The two primary pieces of this are the InferenceParameters and FactorGraphs.
-
-        :param prefix: The directory and any appending tag for the files to save this Inference as.
-        :type prefix: str , ex. "../saved_inferences/experiment_1"
+        This method writes everything into a single zip archive, with 6 internal files.
+        1. version.json - This has the version of serialization used to create the zip file.
+        2. graphs.json - This is a networkx representation of all FactorGraphs used during Inference.
+           See mxfusion.models.FactorGraph.save for more information.
+        3. mxnet_parameters.npz - This is a numpy zip file saved using numpy.savez(), containing one file for each
+           mxnet parameter in the InferenceParameters object. Each parameter is saved in a binary file named by the
+           parameter's UUID.
+        4. mxnet_constants.npz - The same as mxnet_parameters, except only for constant mxnet parameters.
+        5. variable_constants.json - Parameters file of primitive data type constants, such as ints or floats.
+           I.E. { UUID : int/float}
+        6. configuration.json - This has other configuration related to inference such as the observation pattern.
+        :param zip_filename: Path to and name of the zip archive to save the inference method as.
+        :type zip_filename: str
         """
-        prefix = prefix if prefix is not None else "inference"
-        self.params.save(prefix=prefix)
-        self.save_configuration(prefix + '_configuration.json')
+        # Retrieve dictionary representations of things to save
+        mxnet_parameters, mxnet_constants, variable_constants = self.params.get_serializable()
+        configuration = self.get_serializable()
         graphs = [g.as_json()for g in self._graphs]
-        FactorGraph.save(prefix + "_graphs.json", graphs)
+        version_dict = {"serialization_version": SERIALIZATION_VERSION}
+
+        files_to_save = []
+        objects = [graphs, mxnet_parameters, mxnet_constants,
+                   variable_constants, configuration, version_dict]
+        ordered_filenames = [FILENAMES['graphs'], FILENAMES['mxnet_params'], FILENAMES['mxnet_constants'],
+                             FILENAMES['variable_constants'], FILENAMES['configuration'], FILENAMES['version_file']]
+        encodings = [ENCODINGS['json'], ENCODINGS['numpy'], ENCODINGS['numpy'],
+                             ENCODINGS['json'], ENCODINGS['json'], ENCODINGS['json']]
+
+        # Form each individual file buffer.
+        for filename, obj, encoding in zip(ordered_filenames, objects, encodings):
+            # For the FactorGraphs, configuration, and variable constants just write them as regular json.
+            if encoding == ENCODINGS['json']:
+                buffer = io.StringIO()
+                json.dump(obj, buffer, ensure_ascii=False,
+                          cls=ModelComponentEncoder)
+            # For MXNet parameters, save them as numpy compressed zip files of arrays.
+            # So a numpy-zip within the bigger zip.
+            elif encoding == ENCODINGS['numpy']:
+                buffer = io.BytesIO()
+                np_obj = make_numpy(obj)
+                np.savez(buffer, **np_obj)
+            files_to_save.append((filename, buffer))
+
+        # Form the overall zipfile stream
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "a",
+                             zipfile.ZIP_DEFLATED, False) as zip_file:
+            for base_name, data in files_to_save:
+                zip_file.writestr(base_name, data.getvalue())
+
+        # Finally save the actual zipfile stream to disk
+        with open(zip_filename, 'wb') as f:
+            f.write(zip_buffer.getvalue())
 
 
 class TransferInference(Inference):
@@ -269,7 +319,8 @@ class TransferInference(Inference):
     :type inference_algorithm: InferenceAlgorithm
     :param constants: Specify a list of model variables as constants
     :type constants: {Variable: mxnet.ndarray}
-    :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
+    :param hybridize: Whether to hybridize
+     the MXNet Gluon block of the inference method.
     :type hybridize: boolean
     :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}

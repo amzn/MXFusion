@@ -14,8 +14,8 @@
 
 
 import mxnet as mx
-from .grad_loop import GradLoop
 from mxnet.gluon.data import ArrayDataset
+from .grad_loop import GradLoop
 
 
 class MinibatchInferenceLoop(GradLoop):
@@ -40,7 +40,7 @@ class MinibatchInferenceLoop(GradLoop):
             if rv_scaling is not None else rv_scaling
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, verbose=False):
+            learning_rate=1e-3, max_iter=1000, verbose=False, update_shape_constants=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -58,6 +58,8 @@ class MinibatchInferenceLoop(GradLoop):
         :type max_iter: int
         :param verbose: whether to print per-iteration messages.
         :type verbose: boolean
+        :param update_shape_constants: The callback function to update the shape constants according to the size of minibatch
+        :type update_shape_constants: Python function
         """
 
         if isinstance(data, mx.gluon.data.DataLoader):
@@ -74,16 +76,20 @@ class MinibatchInferenceLoop(GradLoop):
             L_e = 0
             n_batches = 0
             for i, data_batch in enumerate(data_loader):
+                if not isinstance(data_batch, list or tuple):
+                    data_batch = [data_batch]
+                if update_shape_constants is not None:
+                    update_shape_constants(data_batch)
                 with mx.autograd.record():
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                     loss_for_gradient.backward()
                 if verbose:
                     print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
-                          e + 1, i + 1, loss.asscalar() / self.batch_size),
+                          e + 1, i + 1, loss.asscalar()),
                           end='')
                 trainer.step(batch_size=self.batch_size,
                              ignore_stale_grad=True)
-                L_e += loss.asscalar() / self.batch_size
+                L_e += loss.asscalar()
                 n_batches += 1
             if verbose:
                 print('epoch-loss: {} '.format(L_e / n_batches))
