@@ -13,13 +13,13 @@
 # ==============================================================================
 
 import mxnet as mx
-from .distribution import RuntimDistribution
-from ...components.variables.runtime_variable import get_variable_shape
+from .distribution import DistributionRunTime
 
 
-class Bernoulli(RuntimDistribution):
+class BernoulliRunTime(DistributionRunTime):
 
     def __init__(self, prob_true):
+        super(BernoulliRunTime, self).__init__()
         self.prob_true = prob_true
 
     def log_pdf(self, random_variable):
@@ -27,5 +27,5 @@ class Bernoulli(RuntimDistribution):
         return logL
 
     def draw_samples(self, num_samples=1):
-        out_shape = (num_samples,) + get_variable_shape(self.prob_true)
-        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.shape) > self.prob_true
+        out_shape = (num_samples,) + self.prob_true.shape[1:]
+        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.dtype) < self.prob_true

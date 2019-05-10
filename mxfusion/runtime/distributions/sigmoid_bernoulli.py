@@ -13,19 +13,19 @@
 # ==============================================================================
 
 import mxnet as mx
-from .distribution import RuntimDistribution
-from ...components.variables.runtime_variable import get_variable_shape
+from .distribution import DistributionRunTime
 
 
-class SigmoidBernoulli(RuntimDistribution):
+class SigmoidBernoulliRunTime(DistributionRunTime):
 
     def __init__(self, prob_true):
+        super(SigmoidBernoulliRunTime, self).__init__()
         self.prob_true = prob_true
 
     def log_pdf(self, random_variable):
         return -mx.nd.Activation((1-2*random_variable)*self.prob_true, act_type='softrelu')
 
     def draw_samples(self, num_samples=1):
-        out_shape = (num_samples,) + get_variable_shape(self.prob_true)
+        out_shape = (num_samples,) + self.prob_true.shape[1:]
         p = mx.nd.Activation(self.prob_true, act_type='sigmoid')
         return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.shape) > p

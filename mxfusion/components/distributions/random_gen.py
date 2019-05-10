@@ -135,7 +135,7 @@ class MXNetRandomGenerator(RandomGenerator):
         :return: Array of samples
         """
         F = get_default_MXNet_mode() if F is None else F
-        return F.random.uniform(low=0, high=1, shape=shape, dtype=dtype) > prob_true
+        return F.random.uniform(low=0, high=1, shape=shape, dtype=dtype) < prob_true
 
     @staticmethod
     def sample_gamma(alpha=1, beta=1, shape=None, dtype=None, out=None, ctx=None, F=None):

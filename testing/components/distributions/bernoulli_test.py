@@ -85,7 +85,6 @@ class TestBernoulliDistribution(object):
 
         assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
-        assert np.array_equal(rv_samples_np, rv_samples_rt.asnumpy().astype(bool))
 
         # Also make sure the non-mock sampler works
         rand_gen = None
@@ -100,3 +99,11 @@ class TestBernoulliDistribution(object):
         assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
         assert rv_samples_rt.dtype == dtype
+
+    def test_draw_samples_accuracy(self):
+        from mxfusion.runtime.distributions.bernoulli import BernoulliRunTime
+
+        dist = BernoulliRunTime(mx.nd.array([0.75]))
+        samples = dist.draw_samples(1000)
+        mean = samples.mean().asscalar()
+        assert np.allclose(mean, 0.75, rtol=1e-2, atol=1e-2)

@@ -102,12 +102,6 @@ class TestNormalDistribution(object):
         assert array_has_samples(mx.nd, rv_samples_rt)
         assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
 
-        if np.issubdtype(dtype, np.float64):
-            rtol, atol = 1e-7, 1e-10
-        else:
-            rtol, atol = 1e-4, 1e-5
-        assert np.allclose(rv_samples_np, rv_samples_rt.asnumpy(), rtol=rtol, atol=atol)
-
     def test_draw_samples_non_mock(self, plot=False):
         # Also make sure the non-mock sampler works
         dtype = np.float32

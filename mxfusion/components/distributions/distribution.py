@@ -13,6 +13,7 @@
 # ==============================================================================
 
 
+import mxnet as mx
 from ..factor import Factor
 from .random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape, \
@@ -47,10 +48,12 @@ class Distribution(Factor):
         self.ctx = ctx
         self.log_pdf_scaling = 1
 
-    def get_distribution_instance(self, variables):
+    def get_runtime_distribution(self, variables):
         if self.runtime_dist_class is None:
             raise NotImplementedError
-        return self.runtime_dist_class(**self.fetch_runtime_inputs(variables))
+        kwargs = self.fetch_runtime_inputs(variables)
+        kwargs = broadcast_samples_dict(mx.nd, kwargs)
+        return self.runtime_dist_class(**kwargs)
 
     def replicate_self(self, attribute_map=None):
         replicant = super(Distribution, self).replicate_self(attribute_map)
@@ -69,13 +72,18 @@ class Distribution(Factor):
         :returns: log pdf of the distribution
         :rtypes: MXNet NDArray or MXNet Symbol
         """
+
         kwargs = {}
         for name, var in self.inputs:
             kwargs[name] = variables[var.uuid]
         for name, var in self.outputs:
             kwargs[name] = variables[var.uuid]
         kwargs = broadcast_samples_dict(F, kwargs)
-        return self.log_pdf_impl(F=F, **kwargs)
+        if self.runtime_dist_class is not None:
+            runtime_dist = self.get_runtime_distribution(variables)
+            return runtime_dist.log_pdf(*[kwargs[n] for n in self.output_names])
+        else:
+            return self.log_pdf_impl(F=F, **kwargs)
 
     def log_pdf_impl(self, F, **kwargs):
         """
@@ -119,7 +127,11 @@ class Distribution(Factor):
             kwargs[name] = variables[var.uuid]
         kwargs = broadcast_samples_dict(F, kwargs, num_samples=num_samples)
         kwargs['rv_shape'] = realize_shape(self.outputs[0][1].shape, variables)
-        s = self.draw_samples_impl(F=F, num_samples=num_samples, **kwargs)
+        if self.runtime_dist_class is not None:
+            runtime_dist = self.get_runtime_distribution(variables)
+            s = runtime_dist.draw_samples(num_samples=num_samples)
+        else:
+            s = self.draw_samples_impl(F=F, num_samples=num_samples, **kwargs)
         if always_return_tuple and not isinstance(s, (tuple, list)):
             s = (s,)
         return s

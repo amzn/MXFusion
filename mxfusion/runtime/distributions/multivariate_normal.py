@@ -16,11 +16,11 @@ from mxnet.ndarray.linalg import sumlogdiag, trsm
 import numpy as np
 
 from ...common.exceptions import InferenceError
-from .distribution import RuntimDistribution
+from .distribution import DistributionRunTime
 from ...components.variables.runtime_variable import get_variable_shape
 
 
-class MultivariateNormal(RuntimDistribution):
+class MultivariateNormalRunTime(DistributionRunTime):
     """
     Multi-dimensional normal distribution. Can represent a number of independent multivariate normal distributions.
     """
@@ -31,7 +31,7 @@ class MultivariateNormal(RuntimDistribution):
         :param covariance: Covariance matrix of the distribution. Shape: (n_samples, n_outputs, n_dim, n_dim)
         :type covariance: MXNet NDArray
         """
-        super(MultivariateNormal, self).__init__()
+        super(MultivariateNormalRunTime, self).__init__()
 
         # if mean.ndim != 3:
         #     raise ValueError('Mean should have 3 dimensions. It has {}'.format(mean.ndim))
@@ -131,7 +131,7 @@ class MultivariateNormal(RuntimDistribution):
         :rtypes: MXNet NDArray
         """
 
-        if not isinstance(other, MultivariateNormal):
+        if not isinstance(other, MultivariateNormalRunTime):
             raise InferenceError('KL divergence for MultiVariateNormal only implemented for another MultiVariateNormal, not '
                             'a {} object.'.format(type(other)))
 
