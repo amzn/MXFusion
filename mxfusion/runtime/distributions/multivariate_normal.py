@@ -33,12 +33,6 @@ class MultivariateNormalRunTime(DistributionRunTime):
         """
         super(MultivariateNormalRunTime, self).__init__()
 
-        # if mean.ndim != 3:
-        #     raise ValueError('Mean should have 3 dimensions. It has {}'.format(mean.ndim))
-        #
-        # if covariance.ndim != 4:
-        #     raise ValueError('Covariance should have 4 dimensions. It has {}'.format(covariance.ndim))
-
         if covariance is None or mean.shape != covariance.shape[:-1] or covariance.shape[-2]!=covariance.shape[-1]:
             raise InferenceError('Mean and covariance shapes inconsistent. Mean shape: {}. Covariance shape: {}'.format(
                 mean.shape, covariance.shape))
@@ -52,7 +46,7 @@ class MultivariateNormalRunTime(DistributionRunTime):
         if mean.shape != cholesky.shape[:-1]:
             raise InferenceError('Mean and Cholesky shapes inconsistent. Mean shape: {}. Covariance shape: {}'.format(
                 mean.shape, cholesky.shape))
-        dist = MultivariateNormal(mean)
+        dist = MultivariateNormalRunTime(mean)
         dist._cholesky = cholesky
         return dist
 
@@ -126,13 +120,13 @@ class MultivariateNormalRunTime(DistributionRunTime):
         """
         Computes KL(self, other). Both distributions must have the same shape.
 
-        :param other: Another MultiVariateNormal distribution
-        :type other: MultiVariateNormal
+        :param other: Another MultivariateNormalRunTime distribution
+        :type other: MultivariateNormalRunTime
         :rtypes: MXNet NDArray
         """
 
         if not isinstance(other, MultivariateNormalRunTime):
-            raise InferenceError('KL divergence for MultiVariateNormal only implemented for another MultiVariateNormal, not '
+            raise InferenceError('KL divergence for MultivariateNormalRunTime only implemented for another MultivariateNormalRunTime, not '
                             'a {} object.'.format(type(other)))
 
         if self.mean.shape != other.mean.shape or self.cholesky.shape != other.cholesky.shape:
