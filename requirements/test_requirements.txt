@@ -6,5 +6,5 @@ pytest-cov>=2.5.1
 scipy>=1.1.0
 GPy>=1.9.6
 matplotlib
-scikit-learn>=0.20.0
+scikit-learn<=0.20.0
 mxnet>=1.3

@@ -15,7 +15,7 @@
 
 from .univariate import UnivariateDistribution
 from ...common.config import get_default_MXNet_mode
-from .. import dist_impl
+from ...runtime import distributions
 
 
 class Bernoulli(UnivariateDistribution):
@@ -31,7 +31,7 @@ class Bernoulli(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    dist_impl_class = dist_impl.bernoulli.Bernoulli
+    runtime_dist_class = distributions.bernoulli.BernoulliRuntime
 
     def __init__(self, prob_true, rand_gen=None, dtype=None, ctx=None):
         inputs = [('prob_true', prob_true)]

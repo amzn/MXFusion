@@ -14,13 +14,13 @@
 
 import mxnet as mx
 import numpy as np
-from .distribution import DistributionImplementation
-from ..variables.runtime_variable import get_variable_shape
+from .distribution import DistributionRuntime
 
 
-class Normal(DistributionImplementation):
+class NormalRuntime(DistributionRuntime):
 
     def __init__(self, mean, variance):
+        super(NormalRuntime, self).__init__()
         self.mean = mean
         self.variance = variance
 
@@ -31,8 +31,8 @@ class Normal(DistributionImplementation):
         return logL
 
     def draw_samples(self, num_samples=1):
-        out_shape = (num_samples,) + get_variable_shape(self.mean)
-        return mx.nd.broadcast_add(mx.nd.broadcast_mul(mx.nd.random.normal(shape=out_shape, dtype=self.mean.dtype, ctx=self.mean.ctx), mx.nd.sqrt(self.variance)), self.mean)
+        out_shape = (num_samples,) + self.mean.shape[1:]
+        return mx.nd.broadcast_add(mx.nd.broadcast_mul(mx.nd.random.normal(shape=out_shape, dtype=self.mean.dtype, ctx=self.mean.context), mx.nd.sqrt(self.variance)), self.mean)
 
     def kl_divergence(self, other_dist):
         raise NotImplementedError

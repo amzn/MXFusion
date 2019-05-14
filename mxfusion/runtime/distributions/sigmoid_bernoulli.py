@@ -12,11 +12,20 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
+import mxnet as mx
+from .distribution import DistributionRuntime
 
-class DistributionImplementation(object):
 
-    def log_pdf(self):
-        raise NotImplementedError
+class SigmoidBernoulliRuntime(DistributionRuntime):
+
+    def __init__(self, prob_true):
+        super(SigmoidBernoulliRuntime, self).__init__()
+        self.prob_true = prob_true
+
+    def log_pdf(self, random_variable):
+        return -mx.nd.Activation((1-2*random_variable)*self.prob_true, act_type='softrelu')
 
     def draw_samples(self, num_samples=1):
-        raise NotImplementedError
+        out_shape = (num_samples,) + self.prob_true.shape[1:]
+        p = mx.nd.Activation(self.prob_true, act_type='sigmoid')
+        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.shape) > p
