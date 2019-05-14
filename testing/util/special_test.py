@@ -17,12 +17,11 @@ import pytest
 import mxnet as mx
 import numpy as np
 from mxfusion.util.special import log_determinant, log_multivariate_gamma
-from sklearn.datasets import make_spd_matrix
+from mxfusion.util.testutils import make_spd_matrix
 from itertools import product
 from scipy.special import multigammaln
 
 
-# @pytest.mark.usefixtures("set_seed")
 class TestSpecialFunctions:
     """
     Tests special functions.
@@ -31,7 +30,8 @@ class TestSpecialFunctions:
 
     @pytest.mark.parametrize("n_dim, random_state", list(product((10, 100, 1000), range(1, 4))))
     def test_log_determinant(self, n_dim, random_state):
-        A = make_spd_matrix(n_dim=n_dim, random_state=random_state)
+        np.random.seed(random_state)
+        A = make_spd_matrix(dim=n_dim)
         assert all(np.linalg.eigvals(A) > 0)
 
         a = mx.nd.array(A)
