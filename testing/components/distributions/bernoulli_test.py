@@ -101,9 +101,9 @@ class TestBernoulliDistribution(object):
         assert rv_samples_rt.dtype == dtype
 
     def test_draw_samples_accuracy(self):
-        from mxfusion.runtime.distributions.bernoulli import BernoulliRunTime
+        from mxfusion.runtime.distributions.bernoulli import BernoulliRuntime
 
-        dist = BernoulliRunTime(mx.nd.array([0.75]))
+        dist = BernoulliRuntime(mx.nd.array([0.75]))
         samples = dist.draw_samples(1000)
         mean = samples.mean().asscalar()
         assert np.allclose(mean, 0.75, rtol=1e-2, atol=1e-2)

@@ -13,13 +13,13 @@
 # ==============================================================================
 
 import mxnet as mx
-from .distribution import DistributionRunTime
+from .distribution import DistributionRuntime
 
 
-class SigmoidBernoulliRunTime(DistributionRunTime):
+class SigmoidBernoulliRuntime(DistributionRuntime):
 
     def __init__(self, prob_true):
-        super(SigmoidBernoulliRunTime, self).__init__()
+        super(SigmoidBernoulliRuntime, self).__init__()
         self.prob_true = prob_true
 
     def log_pdf(self, random_variable):

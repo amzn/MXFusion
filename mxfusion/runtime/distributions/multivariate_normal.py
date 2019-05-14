@@ -16,11 +16,11 @@ from mxnet.ndarray.linalg import sumlogdiag, trsm
 import numpy as np
 
 from ...common.exceptions import InferenceError
-from .distribution import DistributionRunTime
+from .distribution import DistributionRuntime
 from ...components.variables.runtime_variable import get_variable_shape
 
 
-class MultivariateNormalRunTime(DistributionRunTime):
+class MultivariateNormalRuntime(DistributionRuntime):
     """
     Multi-dimensional normal distribution. Can represent a number of independent multivariate normal distributions.
     """
@@ -31,7 +31,7 @@ class MultivariateNormalRunTime(DistributionRunTime):
         :param covariance: Covariance matrix of the distribution. Shape: (n_samples, n_outputs, n_dim, n_dim)
         :type covariance: MXNet NDArray
         """
-        super(MultivariateNormalRunTime, self).__init__()
+        super(MultivariateNormalRuntime, self).__init__()
 
         if covariance is None or mean.shape != covariance.shape[:-1] or covariance.shape[-2]!=covariance.shape[-1]:
             raise InferenceError('Mean and covariance shapes inconsistent. Mean shape: {}. Covariance shape: {}'.format(
@@ -46,7 +46,7 @@ class MultivariateNormalRunTime(DistributionRunTime):
         if mean.shape != cholesky.shape[:-1]:
             raise InferenceError('Mean and Cholesky shapes inconsistent. Mean shape: {}. Covariance shape: {}'.format(
                 mean.shape, cholesky.shape))
-        dist = MultivariateNormalRunTime(mean)
+        dist = MultivariateNormalRuntime(mean)
         dist._cholesky = cholesky
         return dist
 
@@ -120,13 +120,13 @@ class MultivariateNormalRunTime(DistributionRunTime):
         """
         Computes KL(self, other). Both distributions must have the same shape.
 
-        :param other: Another MultivariateNormalRunTime distribution
-        :type other: MultivariateNormalRunTime
+        :param other: Another MultivariateNormalRuntime distribution
+        :type other: MultivariateNormalRuntime
         :rtypes: MXNet NDArray
         """
 
-        if not isinstance(other, MultivariateNormalRunTime):
-            raise InferenceError('KL divergence for MultivariateNormalRunTime only implemented for another MultivariateNormalRunTime, not '
+        if not isinstance(other, MultivariateNormalRuntime):
+            raise InferenceError('KL divergence for MultivariateNormalRuntime only implemented for another MultivariateNormalRuntime, not '
                             'a {} object.'.format(type(other)))
 
         if self.mean.shape != other.mean.shape or self.cholesky.shape != other.cholesky.shape:

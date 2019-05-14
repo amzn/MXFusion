@@ -14,13 +14,13 @@
 
 import mxnet as mx
 import numpy as np
-from .distribution import DistributionRunTime
+from .distribution import DistributionRuntime
 
 
-class NormalRunTime(DistributionRunTime):
+class NormalRuntime(DistributionRuntime):
 
     def __init__(self, mean, variance):
-        super(NormalRunTime, self).__init__()
+        super(NormalRuntime, self).__init__()
         self.mean = mean
         self.variance = variance
 

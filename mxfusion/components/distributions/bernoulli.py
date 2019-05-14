@@ -31,7 +31,7 @@ class Bernoulli(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    runtime_dist_class = distributions.bernoulli.BernoulliRunTime
+    runtime_dist_class = distributions.bernoulli.BernoulliRuntime
 
     def __init__(self, prob_true, rand_gen=None, dtype=None, ctx=None):
         inputs = [('prob_true', prob_true)]

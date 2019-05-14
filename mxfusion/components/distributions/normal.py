@@ -41,7 +41,7 @@ class Normal(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    runtime_dist_class = distributions.normal.NormalRunTime
+    runtime_dist_class = distributions.normal.NormalRuntime
 
     def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
         inputs = [('mean', mean), ('variance', variance)]
