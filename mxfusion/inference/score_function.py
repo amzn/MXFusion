@@ -1,4 +1,21 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import mxnet as mx
+
+from mxfusion.common.exceptions import InferenceError
 from .inference_alg import InferenceAlgorithm
 from .variational import StochasticVariationalInference
 from ..components.variables import VariableType
@@ -68,7 +85,8 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
     """
     Implemented following the [Black Box Variational Inference](https://arxiv.org/abs/1401.0118) paper.
 
-    The addition of Rao-Blackwellization and Control Variates (RBCV) requires that the posterior passed in be of meanfield form (i.e. all posterior variables independent.)
+    The addition of Rao-Blackwellization and Control Variates (RBCV) requires that the posterior passed in be of
+    meanfield form (i.e. all posterior variables independent.)
 
     Terminology:
       Lambda - Posterior parameters
@@ -156,7 +174,6 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
 
         gradient_lambda = F.sum(grad)
 
-
         # Robbins-Monro sequence??
         gradient_log_L = gradient_lambda + gradient_theta
 
@@ -164,12 +181,14 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
 
     def _extract_descendant_blanket_params(self, graph, node):
         """
-        Returns a set of the markov blankets of all of the descendents of the node in the graph, mapped to their parameter form.
+        Returns a set of the markov blankets of all of the descendants of the node in the graph,
+        mapped to their parameter form.
         """
         if node.graph != graph.components_graph:
-            raise InferenceError("Graph of node and graph to find it's descendents in differ. These should match so something went wrong.")
+            raise InferenceError("Graph of node and graph to find it's descendants in differ. "
+                                 "These should match so something went wrong.")
 
-        descendents = graph.get_descendants(node)
-        varset = [graph.get_markov_blanket(d) for d in descendents]
+        descendants = graph.get_descendants(node)
+        varset = [graph.get_markov_blanket(d) for d in descendants]
         varset = set(item for s in varset for item in s)
         return varset

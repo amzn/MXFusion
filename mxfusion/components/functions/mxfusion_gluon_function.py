@@ -1,19 +1,35 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 import mxnet as mx
 from copy import copy
 from .gluon_func_eval import GluonFunctionEvaluation
 from .mxfusion_function import MXFusionFunction
 from ..variables import Variable, VariableType
 from mxnet.gluon import ParameterDict, Block, HybridBlock
-from ...common.exceptions import ModelSpecificationError, InferenceError
+from ...common.exceptions import ModelSpecificationError
 
 
 class MXFusionGluonFunction(MXFusionFunction):
     """
-    The wrapper of a MXNet Gluon block in MXFusion. It automatically fetches all the Gluon parameters in its ParameterDict. When this function
-    wrapper is called in Model definition, it returns a factor corresponding to the function evaluation.
+    The wrapper of a MXNet Gluon block in MXFusion. It automatically fetches all the Gluon parameters in its
+    ParameterDict. When this function wrapper is called in Model definition, it returns a factor corresponding to
+    the function evaluation.
 
     :param block: The MXNet Gluon block to be wrapped.
-    :type block: mxnet.gluon.Blockk or mxnet.gluon.HybridBlock
+    :type block: mxnet.gluon.Block or mxnet.gluon.HybridBlock
     :param num_outputs: The number of output variables of the Gluon block.
     :type num_outputs: int
     :param dtype: the data type of float point numbers used in the Gluon block.
@@ -37,6 +53,10 @@ class MXFusionGluonFunction(MXFusionFunction):
         self._output_names = [self.name + "_output_" + str(i) for i in
                               range(self.num_outputs)]
         self._gluon_parameter_names = sorted(self._gluon_parameters.keys())
+
+    @property
+    def gluon_block(self):
+        return self._gluon_block
 
     @property
     def input_names(self):
@@ -79,9 +99,10 @@ class MXFusionGluonFunction(MXFusionFunction):
         Invokes the MXNet Gluon block with the arguments passed in.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
+        :param input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs
+        specified in the inputs
             of FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :type input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -108,7 +129,8 @@ class MXFusionGluonFunction(MXFusionFunction):
         broadcastable = self.broadcastable
         for bv in kwargs.values():
             if bv.type != VariableType.PARAMETER and self.broadcastable:
-                # Broadcasting function evaluation can not be applied to the Gluon block with gluon block parameters as random variables.
+                # Broadcasting function evaluation can not be applied to the Gluon block with gluon block
+                # parameters as random variables.
                 broadcastable = False
                 break
 
@@ -136,39 +158,23 @@ class MXFusionGluonFunction(MXFusionFunction):
         params = block.collect_params()
         vs = {}
         for param in params.values():
-            v = Variable(isInherited=True, shape=param.shape)
+            v = Variable(isInherited=True, shape=param.shape, initial_value=param.data())
             v.inherited_name = param.name
             vs[v.inherited_name] = v
         return vs
 
-    def collect_gluon_parameters(self):
-        """
-        Return the parameters of the MXNet Gluon block that have *not* been set a prior distribution.
-
-        :returns: the parameters of the MXNet Gluon block without a prior distribution.
-        :rtype: MXNet.gluon.ParameterDict
-        """
-        params = ParameterDict()
-        gluon_params = self._gluon_block.collect_params()
-        params.update({var_name: gluon_params[var_name] for var_name, var in self._gluon_parameters.items() if var.type == VariableType.PARAMETER})
-        return params
-
-    def collect_params(self):
-        """
-        Return a variable set / dict. Used for the function.collect_params.set_prior() functionality.
-        """
-        # TODO: implement VariableSet
-        raise NotImplementedError
-
     def _override_block_parameters(self, input_kws):
         """
-        When a probabilistic distribution is defined for the parameters of a Gluon block (in ParameterDict), a special treatment is necessary
-        because otherwise these parameters will be directly exposed to a gradient optimizer as free parameters.
+        When a probabilistic distribution is defined for the parameters of a Gluon block (in ParameterDict), a special
+        treatment is necessary because otherwise these parameters will be directly exposed to a gradient optimizer as
+        free parameters.
 
-        For each parameters of the Gluon bock with probabilistic distribution, this method dynamically sets its values as the outcome of
-        upstream computation and ensure the correct gradient can be estimated via automatic differenciation.
+        For each parameters of the Gluon bock with probabilistic distribution, this method dynamically sets its values
+        as the outcome of upstream computation and ensure the correct gradient can be estimated via automatic
+        differentiation.
 
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the
+        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of
+        inputs specified in the
             inputs of FunctionEvaluation.
         :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         """
@@ -189,7 +195,7 @@ class MXFusionGluonFunction(MXFusionFunction):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         replicant = super(
             MXFusionGluonFunction, self).replicate_self(attribute_map)

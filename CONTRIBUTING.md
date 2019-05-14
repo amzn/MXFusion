@@ -26,13 +26,13 @@ If you're wishing for a feature that doesn't exist yet in MXFusion, there are pr
 
 If you're thinking about adding code to MXFusion, here are some guidelines to get you started.
 
-* If the change is a major feature, create a [CIP](link to CIP definition) in the docs/CIPs folder and post it as a PR, optionally with a prototype implementation of your proposed changes. This is to get community feedback on the changes  and document the design reasoning of MXFusion for future reference.
+* If the change is a major feature, create a [design proposal](docs/design_proposals/design_proposal_guidelines.md) in the design_proposals folder and post it as a PR, optionally with a prototype implementation of your proposed changes. This is to get community feedback on the changes and document the design reasoning of MXFusion for future reference.
 
 * Keep pull requests small, preferably one feature per pull request. This lowers the bar to entry for a reviewer, and keeps feedback focused for each feature.
 
 Some major areas where we appreciate contributions:
 * [Adding new Distributions/Functions/Modules](examples/notebooks/writing_a_new_distribution.ipynb)
-* [Adding new Inference Algorithms](inference link TODO)
+* [Adding new Inference Algorithms](docs/design_documents/inference.md)
 * Example notebooks showing how to build/train a particular model.
 
 If you're still not sure where to begin, have a look at our [issues](issues TODO) page for open work.
@@ -73,7 +73,7 @@ Before submitting the pull request, please go through this checklist to make the
 * Do all public functions have docstrings including examples? If you added a new module, did you add it to the Sphinx docstring in the ```__init__.py``` file of the module's folder?
 * Is the code style correct (PEP8)?
 * Is the commit message formatted correctly?
-* If this is a large addition, is there a tutorial or more extensive module-level description? Did you discuss the addition in a [CIP](CIP)? Is there an issue related to the change? If so, please link the issue or CIP.
+* If this is a large addition, is there a tutorial or more extensive module-level description? Did you discuss the addition in a [design proposal](docs/design_proposals/design_proposal_guidelines.md)? Is there an issue related to the change? If so, please link the issue or design doc.
 
 
 ## Setting up a development environment
@@ -102,7 +102,7 @@ make html
 
 from the docs folder.
 
-You'll need to have MXFusion's dependencies as well as some Sphinx dependencies installed to generate the docs. Both are found in requirements files in the top level requirements folder.
+You'll need to have MXFusion's dependencies as well as some Sphinx dependencies installed to generate the docs. Both are found in requirements files in the top level requirements folder. You will also need to install Pandoc separately from [here](http://pandoc.org/installing.html).
 
 ## Licensing
 

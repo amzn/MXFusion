@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from uuid import uuid4
 from ..common.exceptions import ModelSpecificationError
 
@@ -16,7 +31,8 @@ class ModelComponent(object):
     **Mode 2 - Graph mode**
 
     If a node is attached to a FactorGraph, it does not store direct references to its successors and predecessors.
-    When accessed, the predecessors/successors properties directly query the graph they are attached to to find out what the respective neighbor nodes are.
+    When accessed, the predecessors/successors properties directly query the graph they are attached to to find out
+    what the respective neighbor nodes are.
     """
 
     def __init__(self):
@@ -43,6 +59,11 @@ class ModelComponent(object):
     def __repr__(self):
         return self.uuid
 
+    def as_json(self):
+        return {'uuid': self._uuid,
+                'name': self.name,
+                'attributes': [a.uuid for a in self.attributes]}
+
     @property
     def graph(self):
         """
@@ -53,9 +74,11 @@ class ModelComponent(object):
     @graph.setter
     def graph(self, graph):
         """
-        Attaches the node to a graph, switching from Bidirectional mode to Graph mode if it is not already in Graph mode.
+        Attaches the node to a graph, switching from Bidirectional mode to Graph mode if it is not already
+        in Graph mode.
 
-        A node cannot be re-attached to a different graph once it is attached. Use the ``replicate()`` functionality if you need to do this.
+        A node cannot be re-attached to a different graph once it is attached. Use the ``replicate()`` functionality
+        if you need to do this.
 
         :param graph: The ``components_graph`` of the ``FactorGraph`` this node is attaching to.
         :type graph: networkx.DiGraph
@@ -85,7 +108,8 @@ class ModelComponent(object):
 
     def _align_graph_modes(self, edge_nodes):
         """
-        This function will update the current node and all nodes passed in to be in Graph mode if any of edge_nodes are in Graph mode.
+        This function will update the current node and all nodes passed in to be in Graph mode if any of edge_nodes are
+        in Graph mode.
 
         :param edge_nodes: All the nodes to align to the same graph mode. I.E. predecessors or successors.
         :type edge_nodes: List of tuples of name to node e.g. [('random_variable': Variable y)]
@@ -109,7 +133,7 @@ class ModelComponent(object):
         Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
-            succ = [(e['name'], v) for v, e in self.graph.succ[self].items()]
+            succ = [(e['name'], v) for v, edges in self.graph.succ[self].items() for e in edges.values()]
             return succ
         else:
             return self._successors
@@ -126,7 +150,8 @@ class ModelComponent(object):
             if successor.graph is None:
                 successor._predecessors.append((successor_name, predecessor))
             if successor.graph is not None:
-                raise ModelSpecificationError("Internal Error. Cannot add predecessor when a component is attached to a graph.")
+                raise ModelSpecificationError(
+                    "Internal Error. Cannot add predecessor when a component is attached to a graph.")
 
         self._align_graph_modes(successors)
         if self.graph is not None:
@@ -134,7 +159,7 @@ class ModelComponent(object):
                 self.graph.remove_edge(self, successor)
             for name, successor in successors:
                 successor.graph = self.graph
-                self.graph.add_edge(self, successor, name=name)
+                self.graph.add_edge(self, successor, key=name, name=name)
         else:
             self._successors = successors
             for name, successor in successors:
@@ -149,7 +174,7 @@ class ModelComponent(object):
         Note: The ordering of this list is not guaranteed to be consistent with assigned order.
         """
         if self.graph is not None:
-            pred = [(e['name'], v) for v, e in self.graph.pred[self].items()]
+            pred = [(e['name'], v) for v, edges in self.graph.pred[self].items() for e in edges.values()]
             return pred
         else:
             return self._predecessors
@@ -166,7 +191,8 @@ class ModelComponent(object):
             if predecessor.graph is None:
                 predecessor._successors.append((predecessor_name, successor))
             if predecessor.graph is not None:
-                raise ModelSpecificationError("Internal Error. Cannot add a successor when a component is attached to a graph.")
+                raise ModelSpecificationError(
+                    "Internal Error. Cannot add a successor when a component is attached to a graph.")
 
         self._align_graph_modes(predecessors)
         if self.graph is not None:
@@ -174,7 +200,7 @@ class ModelComponent(object):
                 self.graph.remove_edge(predecessor, self)
             for name, predecessor in predecessors:
                 predecessor.graph = self.graph
-                self.graph.add_edge(predecessor, self, name=name)
+                self.graph.add_edge(predecessor, self, key=name, name=name)
         else:
             self._predecessors = predecessors
             for name, predecessor in predecessors:
@@ -209,20 +235,23 @@ class ModelComponent(object):
 
         :param var_map: A mapping from the original model's components to the replicated components.
         :type var_map: {original_node: new_node}
-        :param neighbors: Dictionary containing the list of a node's neighbors in one direction (predecessors or successors).
+        :param neighbors: Dictionary containing the list of a node's neighbors in one direction
+        (predecessors or successors).
         :type neighbors: List of tuples of name to node e.g. [('random_variable': Variable y)]
-        :param recurse_type: Parameter that decides how to replicate the neighbor nodes. Must be one of: 'recursive', 'one_level', or None.
+        :param recurse_type: Parameter that decides how to replicate the neighbor nodes. Must be one of: 'recursive',
+        'one_level', or None.
         :type recurse_type: String or None
-        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to replicate that node's predecessors and successors.
+        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to
+        replicate that node's predecessors and successors.
         :type replication_function: function
 
         """
         if recurse_type == 'recursive':
             replicated_neighbors = [(name, i.replicate(var_map=var_map, replication_function=replication_function))
-                                   for name, i in neighbors]
+                                    for name, i in neighbors]
         elif recurse_type == 'one_level':
             replicated_neighbors = [(name, i._replicate_self_with_attributes(var_map=var_map))
-                                   for name, i in neighbors]
+                                    for name, i in neighbors]
         elif recurse_type is None:
             replicated_neighbors = []
         else:
@@ -233,10 +262,11 @@ class ModelComponent(object):
         """
         Replicates this component and its neighbors based on the replication_function logic passed in.
 
-        :param var_map: A mapping from the original model's components to the replicated components. This is used to track which components
-            have already been replicated in a dynamic programming style.
+        :param var_map: A mapping from the original model's components to the replicated components. This is used to
+        track which components have already been replicated in a dynamic programming style.
         :type var_map: {original_node: new_node}
-        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to replicate that node's predecessors and successors. If None, only replicates this node.
+        :param replication_function: A function that takes in a ModelComponent and returns an answer for how to
+        replicate that node's predecessors and successors. If None, only replicates this node.
         :type replication_function: function
         """
         var_map = var_map if var_map is not None else {}

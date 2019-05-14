@@ -1,90 +1,23 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..factor import Factor
 from .random_gen import MXNetRandomGenerator
-from ...util.inference import realize_shape
+from ...util.inference import realize_shape, \
+    broadcast_samples_dict
 from ...common.config import get_default_dtype
-
-
-class LogPDFDecorator(object):
-    """
-    The decorator for the log_pdf function in Distribution
-    """
-    def __call__(self, func):
-
-        func_reshaped = self._wrap_log_pdf_with_broadcast(func)
-        func_variables = self._wrap_log_pdf_with_variables(func_reshaped)
-        return func_variables
-
-    def _wrap_log_pdf_with_variables(self, func):
-
-        def log_pdf_variables(self, F, variables, targets=None):
-            """
-            Computes the logrithm of the probability density/mass function
-            (PDF/PMF) of the distribution. The inputs and outputs variables are
-            fetched from the *variables* argument according to their UUIDs.
-
-            :param F: the MXNet computation mode
-            :type F: mxnet.symbol or mxnet.ndarray
-            :param variables: the set of MXNet arrays that holds the values of
-            variables at runtime.
-            :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            args = {}
-            for name, var in self.inputs:
-                args[name] = variables[var.uuid]
-            for name, var in self.outputs:
-                args[name] = variables[var.uuid]
-            return func(self, F=F, **args)
-        return log_pdf_variables
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        raise NotImplementedError
-
-
-class DrawSamplesDecorator(object):
-    """
-    The decorator for the draw_samples function in Distribution
-    """
-    def __call__(self, func):
-
-        func_reshaped = self._wrap_draw_samples_with_broadcast(func)
-        func_variables = self._wrap_draw_samples_with_variables(func_reshaped)
-        return func_variables
-
-    def _wrap_draw_samples_with_variables(self, func):
-
-        def draw_samples_variables(self, F, variables, num_samples=1,
-                                   always_return_tuple=False, targets=None):
-            """
-            Draw a set of samples from the distribution. The inputs variables
-            are fetched from the *variables* argument according to their UUIDs.
-
-            :param F: the MXNet computation mode
-            :type F: mxnet.symbol or mxnet.ndarray
-            :param variables: the set of MXNet arrays that holds the values of
-            variables at runtime.
-            :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
-            :param num_samples: the number of drawn samples (default: one)
-            :int num_samples: int
-            :param always_return_tuple: Whether return a tuple even if there is
-            only one variables in outputs.
-            :type always_return_tuple: boolean
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet
-            Symbol]
-            """
-            args = {}
-            for name, var in self.inputs:
-                args[name] = variables[var.uuid]
-            args['rv_shape'] = {name: realize_shape(rv.shape, variables) for
-                                name, rv in self.outputs}
-            return func(self, F=F, num_samples=num_samples,
-                        always_return_tuple=always_return_tuple, **args)
-        return draw_samples_variables
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        raise NotImplementedError
 
 
 class Distribution(Factor):
@@ -120,9 +53,26 @@ class Distribution(Factor):
         replicant.log_pdf_scaling = 1
         return replicant
 
-    def log_pdf(self, F=None, **kwargs):
+    def log_pdf(self, F, variables, targets=None):
         """
-        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution.
+        Computes the logarithm of the probability density/mass function (PDF/PMF) of the distribution. 
+        The inputs and outputs variables are fetched from the *variables* argument according to their UUIDs.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :returns: log pdf of the distribution
+        :rtypes: MXNet NDArray or MXNet Symbol
+        """
+        kwargs = {}
+        for name, var in self.inputs:
+            kwargs[name] = variables[var.uuid]
+        for name, var in self.outputs:
+            kwargs[name] = variables[var.uuid]
+        kwargs = broadcast_samples_dict(F, kwargs)
+        return self.log_pdf_impl(F=F, **kwargs)
+
+    def log_pdf_impl(self, F, **kwargs):
+        """
+        The implementation of log_pdf for a specific distribution.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: log pdf of the distribution
@@ -140,14 +90,41 @@ class Distribution(Factor):
         """
         raise NotImplementedError
 
-    def draw_samples(self, rv_shape, num_samples=1, F=None, **kwargs):
+    def draw_samples(self, F, variables, num_samples=1, targets=None,
+                     always_return_tuple=False):
         """
-        Draw a number of samples from the distribution.
+        Draw a number of samples from the distribution. All the dependent variables are automatically collected from a
+        dictionary of variables according to the UUIDs of the dependent variables.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :param variables: the set of variables where the dependent variables are collected from.
+        :type variables: {str(UUID): MXNet NDArray or Symbol}
+        :param num_samples: the number of drawn samples (default: one).
+        :type num_samples: int
+        :param always_return_tuple: return the samples in a tuple of shape one. This allows easy programming when there
+        are potentially multiple output variables.
+        :type always_return_tuple: boolean
+        :returns: a set samples of the distribution.
+        :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
+        """
+        kwargs = {}
+        for name, var in self.inputs:
+            kwargs[name] = variables[var.uuid]
+        kwargs = broadcast_samples_dict(F, kwargs, num_samples=num_samples)
+        kwargs['rv_shape'] = realize_shape(self.outputs[0][1].shape, variables)
+        s = self.draw_samples_impl(F=F, num_samples=num_samples, **kwargs)
+        if always_return_tuple and not isinstance(s, (tuple, list)):
+            s = (s,)
+        return s
+
+    def draw_samples_impl(self, rv_shape, num_samples=1, F=None, **kwargs):
+        """
+        The implementation of draw_samples for a specific distribution.
 
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple, [tuple]
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]

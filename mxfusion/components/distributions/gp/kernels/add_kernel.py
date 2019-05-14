@@ -1,9 +1,24 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from .kernel import CombinationKernel
 
 
 class AddKernel(CombinationKernel):
     """
-    The add kernel that computes a covariance matrix by suming the covariance
+    The add kernel that computes a covariance matrix by summing the covariance
     matrices of a list of kernels.
 
     :param sub_kernels: a list of kernels that are combined to compute a covariance matrix.
@@ -38,7 +53,8 @@ class AddKernel(CombinationKernel):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square
+        covariance matrix of X. In other words,
             X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
         :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
@@ -55,8 +71,8 @@ class AddKernel(CombinationKernel):
         """
         The internal interface for the actual computation for the diagonal of the covariance matrix.
 
-        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of the kernel has been
-        removed. The dimensions of *X* has been sliced according to *active_dims*.
+        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of
+        the kernel has been removed. The dimensions of *X* has been sliced according to *active_dims*.
 
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.

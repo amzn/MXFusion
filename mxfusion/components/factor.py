@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 """Factor module.
 
 .. autosummary::
@@ -5,18 +20,44 @@
 
 """
 
+import mxnet as mx
+from mxnet.ndarray.ndarray import NDArray
 from copy import copy
 from .model_component import ModelComponent
+from .variables import Variable
+from ..common.config import get_default_dtype
+from ..common.exceptions import ModelSpecificationError
+
+
+def _define_variable_from_constant(v):
+    """
+    If the input is an instance of Variable, it returns the input. If the input
+    is an integer, float or MXNet NDArray, it creates an Variable instance with
+    the value being the input.
+
+    :param v: the input value
+    :type v: int, float, MXNet NDArray or Variable
+    """
+    if isinstance(v, Variable):
+        return v
+    elif isinstance(v, (int, float)):
+        return Variable(value=mx.nd.array([v], dtype=get_default_dtype()))
+    elif isinstance(v, NDArray):
+        return Variable(value=v)
+    else:
+        raise ModelSpecificationError('The inputs/outputs of a factor can only be a int, float, '
+                                      'MXNet NDArray or Variable, but get '+str(v)+'.')
 
 
 class Factor(ModelComponent):
     """
-    A factor represents a relation among multiple variables in a model such as a distribution, a function or a module. It consists of a list of output
-    variables and optionally a list of input variables.
+    A factor represents a relation among multiple variables in a model such as a distribution, a function or a module.
+    It consists of a list of output variables and optionally a list of input variables.
 
-    The ``inputs`` and ``outputs`` argument of ``__init__`` holds the input and output of the factor, which are represented in Python dict. The key of a variable in
-    the dict is the name of the variable referred in the context of the factor, e.g., the mean and variance of a normal distribution. The value of a
-    variable is the reference to the variable in memory. Both input and output variables are accessible as class attributes.
+    The ``inputs`` and ``outputs`` argument of ``__init__`` holds the input and output of the factor, which are
+    represented in Python dict. The key of a variable in the dict is the name of the variable referred in the context
+    of the factor, e.g., the mean and variance of a normal distribution. The value of a variable is the reference to
+    the variable in memory. Both input and output variables are accessible as class attributes.
 
     The ``inputs`` and ``outputs`` argument of ``__init__`` can be:
 
@@ -35,9 +76,11 @@ class Factor(ModelComponent):
     def __getattr__(self, value):
         if value.startswith("__"):
             """
-            When python copies objects, it begins by checking for ``__setstate__()`` which doesn't exist, so it calls ``__getattr__()``. Our implementation then
-            calls the ``self.inputs`` getter before the object is fully prepared because ``__init__()`` never gets called during the copy. This causes an infinite
-            recursion to ``__getattr__()``. By skipping magic methods with "__" prefix, we allow the object to initialize correctly during copying.
+            When python copies objects, it begins by checking for ``__setstate__()`` which doesn't exist, so it calls 
+            ``__getattr__()``. Our implementation then calls the ``self.inputs`` getter before the object is fully 
+            prepared because ``__init__()`` never gets called during the copy. This causes an infinite recursion to 
+            ``__getattr__()``. By skipping magic methods with "__" prefix, we allow the object to initialize correctly 
+            during copying.
 
             # TODO this is very inefficient, can be improved.
             """
@@ -57,12 +100,15 @@ class Factor(ModelComponent):
 
     def __init__(self, inputs, outputs, input_names, output_names):
         super(Factor, self).__init__()
+        inputs = [(k, _define_variable_from_constant(v)) for k, v
+                  in inputs] if inputs is not None else inputs
+        outputs = [(k, _define_variable_from_constant(v)) for k, v
+                   in outputs] if outputs is not None else outputs
         self._check_name_conflict(inputs, outputs)
         self._input_names = input_names if input_names is not None else []
         self._output_names = output_names if output_names is not None else []
         self.predecessors = inputs if inputs is not None else []
         self.successors = outputs if outputs is not None else []
-
 
     def __repr__(self):
         out_str = str(self.__class__.__name__)
@@ -76,7 +122,8 @@ class Factor(ModelComponent):
         """
         This functions is a copy constructor for the object.
         In order to perform copy construction we first call ``__new__()`` on the class which creates a blank object.
-        We then initialize that object using the method's standard init procedures, and do any extra copying of attributes.
+        We then initialize that object using the method's standard init procedures, and do any extra copying of
+        attributes.
 
         Replicates this Factor, using new inputs, outputs, and a new uuid.
         Used during model replication to functionally replicate a factor into a new graph.
@@ -108,7 +155,7 @@ class Factor(ModelComponent):
         Return a list of nodes whose edges point into this node.
         """
         if self.graph is not None:
-            pred = {e['name']: v for v, e in self.graph.pred[self].items()}
+            pred = {e['name']: v for v, edges in self.graph.pred[self].items() for e in edges.values()}
             return [(name, pred[name]) for name in self.input_names]
         else:
             return self._predecessors
@@ -119,7 +166,7 @@ class Factor(ModelComponent):
         Return a list of nodes pointed to by the edges of this node.
         """
         if self.graph is not None:
-            succ = {e['name']: v for v, e in self.graph.succ[self].items()}
+            succ = {e['name']: v for v, edges in self.graph.succ[self].items() for e in edges.values()}
             return [(name, succ[name]) for name in self.output_names]
         else:
             return self._successors
@@ -150,6 +197,18 @@ class Factor(ModelComponent):
         """
         variables = [variables] if not isinstance(variables, (list, tuple)) else variables
         self.successors = [(name, variable) for name, variable in zip(self.output_names, variables)]
+
+    def set_single_input(self, key, value):
+        """
+        Set a single input variable of a factor.
+
+        :param key: the name of the input variable in the factor
+        :type key: str
+        :param value: the variable to be set
+        :type value: Variable
+        """
+        inputs = [(k, value) if k == key else (k, v) for k, v in self.inputs]
+        self.predecessors = inputs
 
     @property
     def input_names(self):

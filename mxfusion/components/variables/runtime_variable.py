@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from mxnet.ndarray.ndarray import NDArray
 from mxnet.symbol.symbol import Symbol
 
@@ -45,7 +60,7 @@ def expectation(F, array):
     return F.mean(array, axis=0)
 
 
-def is_sampled_array(F, array):
+def array_has_samples(F, array):
     """
     Check if the array is a set of samples.
 
@@ -78,7 +93,26 @@ def as_samples(F, array, num_samples):
     :param num_samples: the number of samples
     :type num_samples: int
     """
-    if is_sampled_array(F, array):
+    if array_has_samples(F, array):
         return array
     else:
         return F.broadcast_axis(array, axis=0, size=num_samples)
+
+
+def arrays_as_samples(F, arrays):
+    """
+    Broadcast the dimension of samples for a list of variables. If the number of samples of at least one of the variables is larger than one, all the variables in the list are broadcasted to have the same number of samples.
+
+    :param F: the execution mode of MXNet.
+    :type F: mxnet.ndarray or mxnet.symbol
+    :param arrays: a list of arrays with samples to be broadcasted.
+    :type arrays: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
+    :returns: the list of variables after broadcasting
+    :rtypes: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
+    """
+    num_samples = [max([get_num_samples(F, v) for v in a.values()]) if isinstance(a, dict) else get_num_samples(F, a) for a in arrays]
+    max_num_samples = max(num_samples)
+    if max_num_samples > 1:
+        return [{k: as_samples(F, v, max_num_samples) for k, v in a.items()} if isinstance(a, dict) else as_samples(F, a, max_num_samples) for a in arrays]
+    else:
+        return arrays

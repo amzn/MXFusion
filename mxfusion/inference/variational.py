@@ -1,12 +1,25 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from .inference_alg import InferenceAlgorithm, SamplingAlgorithm
 
 
 class VariationalInference(InferenceAlgorithm):
     """
-    The class of the Stochastic Variational Inference (SVI) algorithm.
+    The  base class for Variational Inference (VI) algorithms.
 
-    :param num_samples: the number of samples used in estimating the variational lower bound
-    :type num_samples: int
     :param model: the definition of the probabilistic model
     :type model: Model
     :param posterior: the definition of the variational posterior of the probabilistic model

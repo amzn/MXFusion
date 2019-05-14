@@ -1,12 +1,31 @@
-from ..function_evaluation import FunctionEvaluation, FunctionEvaluationDecorator
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
+from ....common.exceptions import ModelSpecificationError
+from ..function_evaluation import FunctionEvaluation
 from ...variables import Variable
+
 
 class Operator(FunctionEvaluation):
     """
     Abstract Operator object for using MXNet operators in MXFusion space.
-    Child classes implement the eval method with their operator and access necessary state through the properties dictionary.
+    Child classes implement the eval method with their operator and access necessary state through the
+    properties dictionary.
     """
-    def __init__(self, inputs, outputs, operator_name, properties=None, broadcastable=False):
+    def __init__(self, inputs, outputs, operator_name, properties=None,
+                 broadcastable=False):
 
         # TODO Add a flag for broadcastable
 
@@ -17,7 +36,8 @@ class Operator(FunctionEvaluation):
         self.broadcastable = broadcastable
 
         super(Operator, self).__init__(
-            inputs, outputs, input_names, output_names, broadcastable=broadcastable)
+            inputs, outputs, input_names, output_names,
+            broadcastable=broadcastable)
 
     def replicate_self(self, attribute_map=None):
         replicant = super(Operator, self).replicate_self(attribute_map)
@@ -29,6 +49,7 @@ class Operator(FunctionEvaluation):
     def properties(self):
         return self._properties
 
+
 class MXNetOperatorDecorator(object):
 
     def __init__(self, name, args, inputs, num_outputs=1, broadcastable=False):
@@ -37,7 +58,8 @@ class MXNetOperatorDecorator(object):
         :type name: string
         :param args: The names of the arguments for the mxnet operator in order.
         :type args: list of strings
-        :param inputs: The inputs to the MXNet operator that could have gradient's chained through them. I.E. the mx.nd.array or mx.sym.array parameters. This will be a subset of args (possibly the same set).
+        :param inputs: The inputs to the MXNet operator that could have gradient's chained through them.
+        I.E. the mx.nd.array or mx.sym.array parameters. This will be a subset of args (possibly the same set).
         :type inputs: list of strings
         :param num_outputs: How many output variables the operator produces. Defaults to 1.
         :type num_outputs: int
@@ -62,19 +84,25 @@ class MXNetOperatorDecorator(object):
 
             class CustomOperator(Operator):
 
-                @FunctionEvaluationDecorator()
-                def eval(self, F, **input_kws):
+                def eval_impl(self, F, **input_kws):
                     input_kws.update(self.properties)
                     return func(F, **input_kws)
 
-            op = CustomOperator(inputs=[(n, all_args[n]) for n in self.input_names if n in all_args],
-                                  outputs=[('output_'+str(i), Variable()) for i in range(self.num_outputs)],
-                                  operator_name=self.operator_name,
-                                  properties={n: all_args[n] for n in self.property_names if n in all_args}
-                                  )
+            if not len(all_args) >= len(self.input_names):
+                raise ModelSpecificationError("Must pass in arguments matching the input names {} but received {}."
+                                              .format(self.input_names, all_args))
 
-            if self.num_outputs==1:
+            op = CustomOperator(
+                inputs=[(n, all_args[n]) for n in self.input_names],
+                outputs=[('output_'+str(i), Variable()) for i in
+                         range(self.num_outputs)],
+                operator_name=self.operator_name,
+                properties={n: all_args[n] for n in self.property_names if n in
+                            all_args}
+                )
+            if self.num_outputs == 1:
                 return op.outputs[0][1]
             else:
-                return tuple([op.outputs[i][1] for i in range(self.num_outputs)])
+                return tuple(
+                    [op.outputs[i][1] for i in range(self.num_outputs)])
         return create_operator

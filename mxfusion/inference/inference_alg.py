@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from abc import ABC, abstractmethod
 from mxnet.gluon import HybridBlock
 from mxnet import autograd
@@ -15,10 +30,11 @@ class ObjectiveBlock(HybridBlock):
     :type infr_method: a pointer to a function
     :param constants: the variables with constant values
     :type constants: {Variable UUID: int or float or mxnet.ndarray}
-    :param data_def: a list of variable UUID, which corresponds to the order of variables expected as the positional arguments in "hybrid_forward".
+    :param data_def: a list of variable UUID, which corresponds to the order of variables expected as the positional
+    arguments in "hybrid_forward".
     :type data_def: [UUID]
     :param var_trans: the transformations applied variables
-    :type var_trains: {UUID: VariableTransformation}
+    :type var_trans: {UUID: VariableTransformation}
     :param var_ties: A dictionary of variables that are tied and use the MXNet Parameter of the dict value uuid.
     :type var_ties: { UUID of source variable: UUID of target variable}
     :param excluded: a set of variables excluded from being set as Block parameters.
@@ -43,7 +59,7 @@ class ObjectiveBlock(HybridBlock):
 
     def hybrid_forward(self, F, x, *args, **kw):
         """
-        This function does all the preprocesses and postprocesses for the execution of a InferenceAlgorithm.
+        This function does all the pre-processes and post-processes for the execution of a InferenceAlgorithm.
 
         :param F: the MXNet computation mode
         :type F: mxnet.symbol or mxnet.ndarray
@@ -51,7 +67,7 @@ class ObjectiveBlock(HybridBlock):
         :type x: MXNet NDArray or MXNet Symbol
         :param *arg: all the positional arguments, which correspond to the data provided to the InferenceAlgorithm.
         :type *arg: list of MXNet NDArray or MXNet Symbol
-        :parma **kw: all the keyword arguments, which correspond to the parameters that may require gradients.
+        :param **kw: all the keyword arguments, which correspond to the parameters that may require gradients.
         :type kw: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the InferenceAlgorithm that are determined by the inference algorithm.
         :rtypes: {str: MXNet NDArray or MXNet Symbol}
@@ -79,17 +95,30 @@ class InferenceAlgorithm(ABC):
     The abstract class for an inference algorithm. A concrete inference
     algorithm will inherit this class and overload the "compute" function with
     the actual computation logic.
-
-    :param model: the definition of the probabilistic model
-    :type model: Model
-    :param observed: A list of observed variables
-    :type observed: [Variable]
-    :param extra_graphs: a list of extra FactorGraph used in the inference
-                         algorithm.
-    :type extra_graphs: [FactorGraph]
     """
 
+    def replicate_self(self, model, extra_graphs=None):
+
+        replicant = self.__class__.__new__(self.__class__)
+        replicant._model_graph = model
+        replicant._extra_graphs = extra_graphs if extra_graphs is not None else []
+        observed = [replicant.model[o] for o in self._observed_uuid]
+        replicant._observed = set(observed)
+        replicant._observed_uuid = variables_to_UUID(observed)
+        replicant._observed_names = [v.name for v in observed]
+        return replicant
+
     def __init__(self, model, observed, extra_graphs=None):
+        """
+        Initialize the algorithm
+
+        :param model: the definition of the probabilistic model
+        :type model: Model
+        :param observed: A list of observed variables
+        :type observed: [Variable]
+        :param extra_graphs: a list of extra FactorGraph used in the inference algorithm.
+        :type extra_graphs: [FactorGraph]
+        """
         self._model_graph = model
         self._extra_graphs = extra_graphs if extra_graphs is not None else []
         self._graphs = [model] if extra_graphs is None else \
@@ -135,11 +164,15 @@ class InferenceAlgorithm(ABC):
 
     def prepare_executor(self, rv_scaling=None):
         """
-        Prepare the creation of an executor. This includes collecting the list of variable transformations and the list of the variables that are inherited from external Gluon blocks, and setting log_pdf_scaling for random variables.
+        Prepare the creation of an executor. This includes collecting the list of variable transformations and the list
+        of the variables that are inherited from external Gluon blocks, and setting log_pdf_scaling for random
+        variables.
 
-        :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling or mini-batch learning.
+        :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling
+        or mini-batch learning.
         :type rv_scaling: {UUID: float}
-        :returns: the list of the variable transformations and the list of the variables that are excluded from being setted as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
+        :returns: the list of the variable transformations and the list of the variables that are excluded from being
+        set as Gluon block parameters (see the excluded argument of __init__ of ObjectiveBlock).
         :rtypes: {str(UUID): Transformation}, set(str(UUID))
         """
         excluded = set()
@@ -149,8 +182,6 @@ class InferenceAlgorithm(ABC):
             for v in g.variables.values():
                 if v.type == VariableType.PARAMETER and v.transformation is not None:
                     var_trans[v.uuid] = v.transformation
-                if v.type == VariableType.PARAMETER and v.isInherited:
-                    excluded.add(v.uuid)
                 if v.type == VariableType.RANDVAR:
                     if v.uuid in rv_scaling:
                         v.factor.log_pdf_scaling = rv_scaling[v.uuid]
@@ -170,7 +201,8 @@ class InferenceAlgorithm(ABC):
         :type params: InferenceParameters
         :param var_ties: A dictionary of variables that are tied and use the MXNet Parameter of the dict value uuid.
         :type var_ties: { UUID of source variable: UUID of target variable}
-        :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling or mini-batch learning.
+        :param rv_scaling: The scaling of log_pdf of the random variables that are set by users for data sub-sampling
+        or mini-batch learning.
         :type rv_scaling: {UUID: float}
         :returns: the Gluon block computing the outcome of inference
         :rtype: mxnet.gluon.HybridBlock
@@ -203,14 +235,15 @@ class InferenceAlgorithm(ABC):
 
     def set_parameter(self, variables, target_variable, target_value):
         """
-        Set the value of a variable as the artifacts of this inference algorithm. This triggers to set the value to the corresponding variable into InferenceParameters at the end of inference.
+        Set the value of a variable as the artifacts of this inference algorithm. This triggers to set the value to the
+        corresponding variable into InferenceParameters at the end of inference.
 
         :param variables: the set of MXNet arrays that holds the values of
         all the variables at runtime.
         :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :param target_variable: the variable that a value is set to
         :type target_variable: Variable
-        :param target_value: the value to be setted
+        :param target_value: the value to be set
         :type target_value: MXNet NDArray or float
         """
         variables[target_variable.uuid] = target_value
@@ -230,8 +263,7 @@ class SamplingAlgorithm(InferenceAlgorithm):
     :type num_samples: int
     :param target_variables: (optional) the target variables to sample
     :type target_variables: [UUID]
-    :param extra_graphs: a list of extra FactorGraph used in the inference
-                         algorithm.
+    :param extra_graphs: a list of extra FactorGraph used in the inference algorithm.
     :type extra_graphs: [FactorGraph]
     """
 
@@ -246,7 +278,8 @@ class SamplingAlgorithm(InferenceAlgorithm):
         """
         The abstract method for the computation of the inference algorithm.
 
-        If inference algorithm is used for gradient based optimizations, it should return two values. The first for the loss function, the second the gradient of the loss function.
+        If inference algorithm is used for gradient based optimizations, it should return two values.
+        The first for the loss function, the second the gradient of the loss function.
 
         :param F: the execution context (mxnet.ndarray or mxnet.symbol)
         :type F: Python module
@@ -254,6 +287,7 @@ class SamplingAlgorithm(InferenceAlgorithm):
         variables at runtime.
         :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
         :returns: the outcome of the inference algorithm
-        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol. If gradient based, will return two values. The first the loss function, the second the gradient of the loss function.
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol. If gradient based, will return two values.
+        The first the loss function, the second the gradient of the loss function.
         """
         raise NotImplementedError

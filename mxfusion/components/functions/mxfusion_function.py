@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from abc import abstractmethod
 from ...common.config import get_default_dtype
 from ..variables import Variable
@@ -28,10 +43,10 @@ class MXFusionFunction(object):
         The method handling the execution of the function.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the
+        :param input_kws: the dict of inputs to the functions. The key in the
         dict should match with the name of inputs specified in the inputs of
         FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :type input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -39,7 +54,7 @@ class MXFusionFunction(object):
 
     def __call__(self, *args, **kwargs):
         """
-        The evaluation of the function in a model defition. It takes a list of
+        The evaluation of the function in a model definition. It takes a list of
         arguments in the type of MXFusion Variable and returns the output
         variables.
 
@@ -124,7 +139,7 @@ class MXFusionFunction(object):
 
     def replicate_self(self, attribute_map=None):
         """
-        The copy constructor for the fuction.
+        The copy constructor for the function.
         """
         replicant = self.__class__.__new__(self.__class__)
 

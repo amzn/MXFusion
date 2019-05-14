@@ -1,7 +1,21 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from .kernel import NativeKernel
 from ....variables import Variable
 from ....variables import PositiveTransformation
-from .....util.customop import broadcast_to_w_samples
 
 
 class StationaryKernel(NativeKernel):
@@ -9,7 +23,7 @@ class StationaryKernel(NativeKernel):
     The base class for Stationary kernels (covariance functions).
 
     Stationary kernels (covariance functions).
-    Stationary covariance fucntion depend only on r^2, where r^2 is defined as
+    Stationary covariance function depend only on r^2, where r^2 is defined as
     .. math::
         r2(x, x') = \\sum_{q=1}^Q (x_q - x'_q)^2
     The covariance function k(x, x' can then be written k(r).
@@ -17,13 +31,14 @@ class StationaryKernel(NativeKernel):
     In this implementation, r is scaled by the lengthscales parameter(s):
     .. math::
         r2(x, x') = \\sum_{q=1}^Q \\frac{(x_q - x'_q)^2}{\\ell_q^2}.
-    By default, there's only one lengthscale: seaprate lengthscales for each dimension can be enables by setting ARD=True.
+    By default, there's only one lengthscale: separate lengthscales for each dimension can be enables by setting
+    ARD=True.
 
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).
     :type input_dim: int
-    :param ARD: a binary switch for Automatic Relevance Determination (ARD). If true, the squared distance is divided by a lengthscale for individual
-        dimensions.
+    :param ARD: a binary switch for Automatic Relevance Determination (ARD). If true, the squared distance is divided
+    by a lengthscale for individual dimensions.
     :type ARD: boolean
     :param variance: the initial value for the variance parameter (scalar), which scales the whole covariance matrix.
     :type variance: float or MXNet NDArray
@@ -31,7 +46,8 @@ class StationaryKernel(NativeKernel):
     :type lengthscale: float or MXNet NDArray
     :param name: the name of the kernel. The name is used to access kernel parameters.
     :type name: str
-    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation. (default: None, taking all the dimensions).
+    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation.
+    (default: None, taking all the dimensions).
     :type active_dims: [int] or None
     :param dtype: the data type for float point numbers.
     :type dtype: numpy.float32 or numpy.float64
@@ -67,22 +83,22 @@ class StationaryKernel(NativeKernel):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
-            X2 is internally treated as X.
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square
+        covariance matrix of X. In other words, X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
         :return: The squared distance.
         :rtype: MXNet NDArray or MXNet Symbol
         """
         lengthscale = F.expand_dims(lengthscale, axis=-2)
         if X2 is None:
-            xsc = X / broadcast_to_w_samples(F, lengthscale, X.shape)
+            xsc = X / lengthscale
             amat = F.linalg.syrk(xsc) * -2
             dg_a = F.sum(F.square(xsc), axis=-1)
             amat = F.broadcast_add(amat, F.expand_dims(dg_a, axis=-1))
             amat = F.broadcast_add(amat, F.expand_dims(dg_a, axis=-2))
         else:
-            x1sc = X / broadcast_to_w_samples(F, lengthscale, X.shape)
-            x2sc = X2 / broadcast_to_w_samples(F, lengthscale, X2.shape)
+            x1sc = X / lengthscale
+            x2sc = X2 / lengthscale
             amat = F.linalg.gemm2(x1sc, x2sc, False, True) * -2
             dg1 = F.sum(F.square(x1sc), axis=-1, keepdims=True)
             amat = F.broadcast_add(amat, dg1)
@@ -104,7 +120,8 @@ class StationaryKernel(NativeKernel):
         :return: The covariance matrix.
         :rtype: MXNet NDArray or MXNet Symbol
         """
-        return broadcast_to_w_samples(F, variance, X.shape[:-1])
+        return F.zeros(shape=X.shape[:-1], dtype=self.dtype,
+                       ctx=self.ctx) + variance
 
     def replicate_self(self, attribute_map=None):
         """

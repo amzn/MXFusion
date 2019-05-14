@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from copy import copy
 from .....common.exceptions import ModelSpecificationError
 from .....util.util import rename_duplicate_names, slice_axis
@@ -9,13 +24,15 @@ from ....functions.mxfusion_function import MXFusionFunction
 
 class Kernel(MXFusionFunction):
     """
-    The base class for a Gaussian process kernel: a positive definite function which forms of a covariance function (kernel).
+    The base class for a Gaussian process kernel: a positive definite function which forms of a covariance function
+    (kernel).
 
     :param input_dim: the number of dimensions of the kernel. (The total number of active dimensions).
     :type input_dim: int
     :param name: the name of the kernel. The name is also used as the prefix for the kernel parameters.
     :type name: str
-    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation. (default: None, taking all the dimensions).
+    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation.
+    (default: None, taking all the dimensions).
     :type active_dims: [int] or None
     :param dtype: the data type for float point numbers.
     :type dtype: numpy.float32 or numpy.float64
@@ -45,12 +62,12 @@ class Kernel(MXFusionFunction):
     @property
     def local_parameters(self):
         """
-        The kernel parameters in the current kernel, which does not include kernel parameters that belongs to the sub-kernels of a compositional
-        kernel. The keys of the returned dictionary are the name of the kernel parameters (without the prefix) and the values are the corresponding
-        variables.
+        The kernel parameters in the current kernel, which does not include kernel parameters that belongs to the
+        sub-kernels of a compositional kernel. The keys of the returned dictionary are the name of the kernel
+        parameters (without the prefix) and the values are the corresponding variables.
 
-        :return: a dictionary of local kernel parameters, in which the keys are the name of individual parameters, including the kernel in front, and
-            the values are the corresponding Variables.
+        :return: a dictionary of local kernel parameters, in which the keys are the name of individual parameters,
+        including the kernel in front, and the values are the corresponding Variables.
         :rtype: {str: Variable}
         """
         return {getattr(self, n) for n in self._parameter_names}
@@ -58,11 +75,12 @@ class Kernel(MXFusionFunction):
     @property
     def parameters(self):
         """
-        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the returned dictionary are the name of
-        the kernel parameters with a prefix (the name of the kernel plus '_') and the values are the corresponding variables.
+        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the
+        returned dictionary are the name of the kernel parameters with a prefix (the name of the kernel plus '_') and
+        the values are the corresponding variables.
 
-        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters, including the kernel in front,
-            and the values are the corresponding Variables.
+        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters,
+        including the kernel in front, and the values are the corresponding Variables.
         :rtype: {str: Variable}
         """
         raise NotImplementedError
@@ -85,11 +103,11 @@ class Kernel(MXFusionFunction):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
-            X2 is internally treated as X.
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square
+        covariance matrix of X. In other words, X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
-        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :return: The covariance matrix
         :rtype: MXNet NDArray or MXNet Symbol
         """
@@ -114,8 +132,8 @@ class Kernel(MXFusionFunction):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
-        :type **kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :param kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type kernel_params: {str: MXNet NDArray or MXNet Symbol}
         :return: The diagonal of the covariance matrix.
         :rtype: MXNet NDArray or MXNet Symbol
         """
@@ -128,12 +146,14 @@ class Kernel(MXFusionFunction):
             X = slice_axis(F, X, axis=-1, indices=self.active_dims)
         return self._compute_Kdiag(F=F, X=X, **params)
 
-    def add(self, other, name='sum'):
+    def add(self, other, name='add'):
         """
         Construct a new kernel by adding this kernel to another kernel.
 
         :param other: the other kernel to be added.
         :type other: Kernel
+        :param name: The name of the kernel
+        :type name: str
         :return: the kernel which is the sum of the current kernel with the specified kernel.
         :rtype: Kernel
         """
@@ -149,12 +169,35 @@ class Kernel(MXFusionFunction):
         """
         return self.add(other)
 
+    def multiply(self, other, name='mul'):
+        """
+        Construct a new kernel by multiplying this kernel with another kernel.
+
+        :param other: the other kernel to be added.
+        :type other: Kernel
+        :param name: The name of the kernel
+        :type name: str
+        :return: the kernel which is the sum of the current kernel with the specified kernel.
+        :rtype: Kernel
+        """
+        if not isinstance(other, Kernel):
+            raise ModelSpecificationError(
+                "Only a Gaussian Process Kernel can be multiplied with a Gaussian Process Kernel.")
+        from .multiply_kernel import MultiplyKernel
+        return MultiplyKernel([self, other], name=name, ctx=self.ctx, dtype=self.dtype)
+
+    def __mul__(self, other):
+        """
+        Overload the "*" operator to perform multiplication of kernels
+        """
+        return self.multiply(other)
+
     def _compute_K(self, F, X, X2=None, **kernel_params):
         """
         The internal interface for the actual covariance matrix computation.
 
-        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of the kernel has been
-        removed. The dimensions of *X* and *X2* have been sliced according to *active_dims*.
+        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of
+        the kernel has been removed. The dimensions of *X* and *X2* have been sliced according to *active_dims*.
 
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
@@ -173,8 +216,8 @@ class Kernel(MXFusionFunction):
         """
         The internal interface for the actual computation for the diagonal of the covariance matrix.
 
-        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of the kernel has been
-        removed. The dimensions of *X* has been sliced according to *active_dims*.
+        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of
+        the kernel has been removed. The dimensions of *X* has been sliced according to *active_dims*.
 
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
@@ -188,13 +231,15 @@ class Kernel(MXFusionFunction):
 
     def fetch_parameters(self, params):
         """
-        The helper function to fetch the kernel parameters from a set of variables according to the UUIDs of the kernel parameters. It returns a
-        dictionary of kernel parameters, where the keys are the name of the kernel parameters and the values are the MXNet array at runtime. The
-        returned dict can be directly passed into *K* and *Kdiag* as *kernel_params*.
+        The helper function to fetch the kernel parameters from a set of variables according to the UUIDs of the kernel
+        parameters. It returns a dictionary of kernel parameters, where the keys are the name of the kernel parameters
+        and the values are the MXNet array at runtime. The returned dict can be directly passed into *K* and *Kdiag* as
+        *kernel_params*.
 
         :param params: the set of parameters where the kernel parameters are fetched from.
         :type params: {str (UUID): MXNet NDArray or MXNet Symbol}
-        :return: a dict of the kernel parameters, where the keys are the name of the kernel parameters and the values are the MXNet array at runtime.
+        :return: a dict of the kernel parameters, where the keys are the name of the kernel parameters and the values
+        are the MXNet array at runtime.
         :rtype: {str (kernel name): MXNet NDArray or MXNet Symbol}
         """
         return {n: params[v.uuid] for n, v in self.parameters.items()}
@@ -204,10 +249,10 @@ class Kernel(MXFusionFunction):
         The method handling the execution of the function.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the
+        :param input_kws: the dict of inputs to the functions. The key in the
         dict should match with the name of inputs specified in the inputs of
         FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :type input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """
@@ -236,7 +281,8 @@ class NativeKernel(Kernel):
     :type input_dim: int
     :param name: the name of the kernel. The name is used to access kernel parameters.
     :type name: str
-    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation. (default: None, taking all the dimensions).
+    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation.
+    (default: None, taking all the dimensions).
     :type active_dims: [int] or None
     :param dtype: the data type for float point numbers.
     :type dtype: numpy.float32 or numpy.float64
@@ -252,11 +298,12 @@ class NativeKernel(Kernel):
     @property
     def parameters(self):
         """
-        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the returned dictionary are the name of
-        the kernel parameters with a prefix (the name of the kernel plus '_') and the values are the corresponding variables.
+        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the
+        returned dictionary are the name of the kernel parameters with a prefix (the name of the kernel plus '_')
+        and the values are the corresponding variables.
 
-        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters, including the kernel in front,
-            and the values are the corresponding Variables.
+        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters,
+        including the kernel in front, and the values are the corresponding Variables.
         :rtype: {str: Variable}
         """
         return {self.name + '_' + n: getattr(self, n) for n in
@@ -269,7 +316,8 @@ class NativeKernel(Kernel):
 
 class CombinationKernel(Kernel):
     """
-    The base class for combination kernels: the covariance matrix is computed by combining the covariance matrix from multiple sub-kernels.
+    The base class for combination kernels: the covariance matrix is computed by combining the covariance matrix from
+    multiple sub-kernels.
 
     :param sub_kernels: a list of kernels that are combined to compute a covariance matrix.
     :type sub_kernels: [Kernel]
@@ -294,11 +342,12 @@ class CombinationKernel(Kernel):
     @property
     def parameters(self):
         """
-        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the returned dictionary are the name of
-        the kernel parameters with a prefix (the name of the kernel plus '_') and the values are the corresponding variables.
+        All the kernel parameters including the kernel parameters that belongs to the sub-kernels. The keys of the
+        returned dictionary are the name of the kernel parameters with a prefix (the name of the kernel plus '_') and
+        the values are the corresponding variables.
 
-        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters, including the kernel in front,
-            and the values are the corresponding Variables.
+        :return: a dictionary of all the kernel parameters, in which the keys are the name of individual parameters,
+        including the kernel in front, and the values are the corresponding Variables.
         :rtype: {str: Variable}
         """
         p = {}
@@ -317,10 +366,8 @@ class CombinationKernel(Kernel):
         """
         The copy constructor for a kernel.
         """
-        replicant = super(CombinationKernel, self).replicate_self(
-            attribute_map)
-        replicant.sub_kernels = [k.replicate_self(attribute_map) for k in
-                                 self.sub_kernels]
+        replicant = super(CombinationKernel, self).replicate_self(attribute_map)
+        replicant.sub_kernels = [k.replicate_self(attribute_map) for k in self.sub_kernels]
         for k in replicant.sub_kernels:
             setattr(replicant, k.name, k)
         return replicant

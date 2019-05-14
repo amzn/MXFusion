@@ -1,89 +1,23 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from abc import abstractmethod
 from ..factor import Factor
-from ..variables import is_sampled_array, get_num_samples, as_samples
+from ..variables import array_has_samples, get_num_samples
 from ..variables import VariableType
-
-
-class FunctionEvaluationDecorator(object):
-    """
-    The decorator for the eval function in FunctionEvaluation
-    """
-    def __call__(self, func):
-
-        func_reshaped = self._wrap_eval_with_reshape(func)
-        func_variables = self._wrap_eval_with_variables(func_reshaped)
-        return func_variables
-
-    def _wrap_eval_with_variables(self, func):
-        def eval_RT_variableset(self, F, variables, always_return_tuple=False):
-            """
-            The method handling the execution of the function. The inputs arguments of the function are fetched from the *variables* argument according to their UUIDs.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param variables: the set of MXNet arrays that holds the values of variables at runtime.
-            :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
-            :param always_return_tuple: Whether return a tuple even if there is
-            only one variables in outputs.
-            :type always_return_tuple: boolean
-            :returns: the return value of the function
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            args = {name: variables[var.uuid] for name, var in self.inputs
-                    if not var.isInherited or var.type == VariableType.RANDVAR}
-            return func(
-                self, F=F, always_return_tuple=always_return_tuple, **args)
-        return eval_RT_variableset
-
-    def _wrap_eval_with_reshape(self, func):
-        def eval_RT(self, F, always_return_tuple=False, **input_kws):
-            """
-            The method handling the execution of the function with RTVariable
-            as its input arguments and return values.
-            """
-            has_samples = any([is_sampled_array(F, v) for v in input_kws.values()])
-            if not has_samples:
-                # If none of the inputs are samples, directly evaluate the function
-                nSamples = 0
-                results = func(self, F=F, **{n: v[0] for n, v in input_kws.items()})
-                if isinstance(results, (list, tuple)):
-                    results = [F.expand_dims(r, axis=0) for r in results]
-                else:
-                    results = F.expand_dims(results, axis=0)
-            else:
-                nSamples = max([get_num_samples(F, v) for v in input_kws.values()])
-                if self.broadcastable:
-                    # If some of the inputs are samples and the function is
-                    # broadcastable, evaluate the function with the inputs that are
-                    # broadcasted to the right shape.
-                    results = func(self, F=F, **{n: as_samples(F, v, nSamples)
-                                                 for n, v in input_kws.items()})
-                else:
-                    # If some of the inputs are samples and the function is *not*
-                    # broadcastable, evaluate the function with each set of samples
-                    # and concatenate the output variables.
-                    results = []
-                    for sample_idx in range(nSamples):
-                        r = func(
-                            self, F=F, **{
-                                n: v[sample_idx] if is_sampled_array(F, v) else
-                                v[0] for n, v in input_kws.items()})
-                        if isinstance(r, (list, tuple)):
-                            r = [F.expand_dims(i, axis=0) for i in r]
-                        else:
-                            r = F.expand_dims(r, axis=0)
-                        results.append(r)
-                    if isinstance(results[0], (list, tuple)):
-                        # if the function has multiple output variables.
-                        results = [F.concat([r[i] for r in results], dim=0) for
-                                   i in range(len(results[0]))]
-                    else:
-                        results = F.concat(*results, dim=0)
-            results = results if isinstance(results, (list, tuple)) \
-                else [results]
-            if len(results) == 1 and not always_return_tuple:
-                results = results[0]
-            return results
-        return eval_RT
+from ...util.inference import broadcast_samples_dict
 
 
 class FunctionEvaluation(Factor):
@@ -105,13 +39,67 @@ class FunctionEvaluation(Factor):
             output_names=output_names)
 
     def replicate_self(self, attribute_map=None):
-        replicant = super(FunctionEvaluation, self).replicate_self(attribute_map)
+        replicant = super(
+            FunctionEvaluation, self).replicate_self(attribute_map)
         replicant.broadcastable = self.broadcastable
         return replicant
 
+    def eval(self, F, variables, always_return_tuple=False):
+        """
+        Evaluate the function with the pre-specified input arguments in the model defintion. All the input arguments
+        are automatically collected from a dictionary of variables according to the UUIDs of the input arguments.
+
+        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
+        :param variables: the set of variables where the dependent variables are collected from.
+        :type variables: {str(UUID): MXNet NDArray or Symbol}
+        :param always_return_tuple: whether to always return the function outcome in a tuple, even if there is only
+        one output variable. This makes programming easy, as the downstream code can consistently expect a tuple.
+        :type always_return_tuple: boolean
+        :returns: the outcome of the function evaluation
+        :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
+        """
+
+        if self.broadcastable:
+            # If some of the inputs are samples and the function is
+            # broadcastable, evaluate the function with the inputs that are
+            # broadcasted to the right shape.
+            kwargs = {name: variables[var.uuid] for name, var in self.inputs if not var.isInherited}
+            kwargs = broadcast_samples_dict(F, kwargs)
+            kwargs.update({name: variables[var.uuid][0] for name, var in self.inputs if var.isInherited})
+            results = self.eval_impl(F=F, **kwargs)
+            results = results if isinstance(results, (list, tuple)) \
+                else [results]
+        else:
+            kwargs = {name: variables[var.uuid] for name, var in self.inputs}
+            # If some of the inputs are samples and the function is *not*
+            # broadcastable, evaluate the function with each set of samples
+            # and concatenate the output variables.
+            num_samples = max([get_num_samples(F, v) for v in kwargs.values()])
+
+            results = None
+            for sample_idx in range(num_samples):
+                r = self.eval_impl(F=F, **{
+                        n: v[sample_idx] if array_has_samples(F, v) else v[0]
+                        for n, v in kwargs.items()})
+                if isinstance(r, (list, tuple)):
+                    r = [F.expand_dims(r_i, axis=0) for r_i in r]
+                else:
+                    r = [F.expand_dims(r, axis=0)]
+                if results is None:
+                    results = [[r_i] for r_i in r]
+                else:
+                    for r_list, r_i in zip(results, r):
+                        r_list.append(r_i)
+            if num_samples == 1:
+                results = [r[0] for r in results]
+            else:
+                results = [F.concat(*r, dim=0) for r in results]
+        if len(results) == 1 and not always_return_tuple:
+            results = results[0]
+        return results
+
     @abstractmethod
-    @FunctionEvaluationDecorator()
-    def eval(self, F, **input_kws):
+    def eval_impl(self, F, **input_kws):
         """
         The method handling the execution of the function.
 
@@ -131,10 +119,10 @@ class FunctionEvaluationWithParameters(FunctionEvaluation):
     The evaluation of a function with internal function parameters.
 
     :param func: the function that this evaluation is generated from
-    :param inputs: MXFusion.components.functions.MXFusionFunction
-    :type inputs:  {str : Variable}
-    :param outputs: the output variables of the function.
-    :type outputs: {str : Variable}
+    :param input_variables: MXFusion.components.functions.MXFusionFunction
+    :type input_variables:  {str : Variable}
+    :param output_variables: the output variables of the function.
+    :type output_variables: {str : Variable}
     :param broadcastable: Whether the function supports broadcasting with the additional dimension for samples.
     :type: boolean
     """
@@ -167,15 +155,14 @@ class FunctionEvaluationWithParameters(FunctionEvaluation):
     def function(self):
         return self._func
 
-    @FunctionEvaluationDecorator()
-    def eval(self, F, **input_kws):
+    def eval_impl(self, F, **input_kws):
         """
         Invokes the MXNet Gluon block with the arguments passed in.
 
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
-            of FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
+        :param input_kws: the dict of inputs to the functions. The key in the dict should match with the name of
+        inputs specified in the inputs of FunctionEvaluation.
+        :type input_kws: {variable name: MXNet NDArray or MXNet Symbol}
         :returns: the return value of the function
         :rtypes: MXNet NDArray or MXNet Symbol
         """

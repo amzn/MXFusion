@@ -1,86 +1,20 @@
-from ..variables import Variable
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from .univariate import UnivariateDistribution
-from .distribution import LogPDFDecorator, DrawSamplesDecorator
-from ...util.customop import broadcast_to_w_samples
-from ..variables import get_num_samples, is_sampled_array
 from ...common.config import get_default_MXNet_mode
-from ...common.exceptions import InferenceError
-
-
-class CategoricalLogPDFDecorator(LogPDFDecorator):
-
-    def _wrap_log_pdf_with_broadcast(self, func):
-        def log_pdf_broadcast(self, F, **kw):
-            """
-            Computes the logrithm of the probability density/mass function (PDF/PMF) of the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param kw: the dict of input and output variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: log pdf of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol
-            """
-            variables = {name: kw[name] for name, _ in self.inputs}
-            variables['random_variable'] = kw['random_variable']
-            rv_shape = variables['random_variable'].shape[1:]
-
-            nSamples = max([get_num_samples(F, v) for v in variables.values()])
-            full_shape = list(rv_shape)
-            full_shape[self.axis] = self.num_classes
-            full_shape = tuple(full_shape)
-            full_shape = (nSamples,) + full_shape
-
-            variables = {
-                name: broadcast_to_w_samples(F, v, full_shape[:-1]+(v.shape[-1],)) for name, v in
-                variables.items()}
-            res = func(self, F=F, **variables)
-            return res
-        return log_pdf_broadcast
-
-
-class CategoricalDrawSamplesDecorator(DrawSamplesDecorator):
-
-    def _wrap_draw_samples_with_broadcast(self, func):
-        def draw_samples_broadcast(self, F, rv_shape, num_samples=1,
-                                   always_return_tuple=False, **kw):
-            """
-            Draw a number of samples from the distribution.
-
-            :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-            :param rv_shape: the shape of each sample
-            :type rv_shape: tuple
-            :param nSamples: the number of drawn samples (default: one)
-            :int nSamples: int
-            :param always_return_tuple: Whether return a tuple even if there is only one variables in outputs.
-            :type always_return_tuple: boolean
-            :param kw: the dict of input variables of the distribution
-            :type kw: {name: MXNet NDArray or MXNet Symbol}
-            :returns: a set samples of the distribution
-            :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
-            """
-            rv_shape = list(rv_shape.values())[0]
-            variables = {name: kw[name] for name, _ in self.inputs}
-
-            isSamples = any([is_sampled_array(F, v) for v in variables.values()])
-            if isSamples:
-                num_samples_inferred = max([get_num_samples(F, v) for v in
-                                         variables.values()])
-                if num_samples_inferred != num_samples:
-                    raise InferenceError("The number of samples in the nSamples argument of draw_samples of Gaussian process has to be the same as the number of samples given to the inputs. nSamples: "+str(num_samples)+" the inferred number of samples from inputs: "+str(num_samples_inferred)+".")
-            full_shape = list(rv_shape)
-            full_shape[self.axis] = self.num_classes
-            full_shape = tuple(full_shape)
-            full_shape = (num_samples,) + full_shape
-
-            variables = {
-                name: broadcast_to_w_samples(F, v, full_shape[:-1]+(v.shape[-1],)) for name, v in
-                variables.items()}
-            res = func(self, F=F, rv_shape=rv_shape, num_samples=num_samples,
-                       **variables)
-            if always_return_tuple:
-                res = (res,)
-            return res
-        return draw_samples_broadcast
 
 
 class Categorical(UnivariateDistribution):
@@ -107,8 +41,6 @@ class Categorical(UnivariateDistribution):
     def __init__(self, log_prob, num_classes, one_hot_encoding=False,
                  normalization=True, axis=-1, rand_gen=None, dtype=None,
                  ctx=None):
-        if not isinstance(log_prob, Variable):
-            log_prob = Variable(value=log_prob)
         inputs = [('log_prob', log_prob)]
         input_names = ['log_prob']
         output_names = ['random_variable']
@@ -119,7 +51,8 @@ class Categorical(UnivariateDistribution):
             rand_gen=rand_gen, dtype=dtype,
             ctx=ctx)
         if axis != -1:
-            raise NotImplementedError("The Categorical distribution currently only supports the last dimension to be the class label dimension, i.e., axis == -1.")
+            raise NotImplementedError("The Categorical distribution currently only supports the last dimension to be "
+                                      "the class label dimension, i.e., axis == -1.")
         self.axis = axis
         self.normalization = normalization
         self.one_hot_encoding = one_hot_encoding
@@ -129,7 +62,8 @@ class Categorical(UnivariateDistribution):
         """
         This functions as a copy constructor for the object.
         In order to do a copy constructor we first call ``__new__`` on the class which creates a blank object.
-        We then initialize that object using the methods standard init procedures, and do any extra copying of attributes.
+        We then initialize that object using the methods standard init procedures, and do any extra copying of
+        attributes.
 
         Replicates this Factor, using new inputs, outputs, and a new uuid.
         Used during model replication to functionally replicate a factor into a new graph.
@@ -146,15 +80,14 @@ class Categorical(UnivariateDistribution):
         replicant.num_classes = self.num_classes
         return replicant
 
-    @CategoricalLogPDFDecorator()
-    def log_pdf(self, log_prob, random_variable, F=None):
+    def log_pdf_impl(self, log_prob, random_variable, F=None):
         """
         Computes the logarithm of probabilistic mass function of the Categorical distribution.
 
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param log_prob: the logarithm of the probability being in each of the classes.
         :type log_prob: MXNet NDArray or MXNet Symbol
-        :param random_variable: the point to compute the logpdf for.
+        :param random_variable: the point to compute the log pdf for.
         :type random_variable: MXNet NDArray or MXNet Symbol
         :returns: log pdf of the distribution.
         :rtypes: MXNet NDArray or MXNet Symbol
@@ -172,8 +105,7 @@ class Categorical(UnivariateDistribution):
             logL = logL * self.log_pdf_scaling
         return logL
 
-    @CategoricalDrawSamplesDecorator()
-    def draw_samples(self, log_prob, rv_shape, num_samples=1, F=None):
+    def draw_samples_impl(self, log_prob, rv_shape, num_samples=1, F=None):
         """
         Draw a number of samples from the Categorical distribution.
 
@@ -182,18 +114,21 @@ class Categorical(UnivariateDistribution):
         :param rv_shape: the shape of each sample.
         :type rv_shape: tuple
         :param num_samples: the number of drawn samples (default: one).
-        :int num_samples: int
+        :type num_samples: int
         :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
         :returns: a set samples of the Categorical distribution
         :rtypes: MXNet NDArray or MXNet Symbol
         """
         F = get_default_MXNet_mode() if F is None else F
+        rv_ndim = len(rv_shape)
 
         if self.normalization:
             log_prob = F.log_softmax(log_prob, axis=self.axis)
 
-        log_prob = F.reshape(log_prob, shape=(1, -1, self.num_classes))
-        samples = self._rand_gen.sample_multinomial(log_prob, get_prob=False)
+        log_prob = F.transpose(log_prob, axes=list(range(rv_ndim))+[rv_ndim])
+        if num_samples != log_prob.shape[0]:
+            log_prob = F.broadcast_to(log_prob, (num_samples,)+rv_shape[:-1]+(self.num_classes,))
+        samples = self._rand_gen.sample_multinomial(log_prob)
         if self.one_hot_encoding:
             samples = F.one_hot(samples, depth=self.num_classes)
         samples = F.reshape(samples, shape=(num_samples,) + rv_shape)

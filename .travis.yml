@@ -35,20 +35,20 @@ jobs:
   include:
   - os: osx
     language: generic
-    env: PYTHON=3.4.4
+    env: PYTHON=3.4.9
   - os: osx
     language: generic
-    env: PYTHON=3.5.1
+    env: PYTHON=3.5.6
   - os: osx
     language: generic
-    env: PYTHON=3.6.6
-
-  - stage: release
-    python: '3.6' # Official supported Python dist.
-    deploy:
-      provider: pypi
-      user: meissnereric
-      password:
-        secure: "jvE8Tkc2a91bJ9FZLxVUUbt85qjX8VvehrMB5wIScHGXzyZ8EemvNfD+2tCBw6k5QbU4QRGBPM29+4e6UWaI8NKwHqUtIu5T8BdXMCNgGIL4EsvXiHLZbnM3srayprT0qGMCzEoBOMCNzskTj0zJSTPFIwXr8o4jiEq5V7eMNlCMdkCRwfejaTXDX5gW+O26IeAEBYWXbM6c0bvoIUlMGH2mg5e35RRTRlVj6ZSoAHS5UnAj05tgq9S+hNBSjBSYuDNXicCdRh9doexxSyvL8eC1coXj9CabL2yXE6EKK+cIsmHCB7XcTzoIF0CyWdm0MDsGB3BT0csz19kMH5RCXZD413d7Vs6h+fo8bS5otxjkKNowOQLQagor8nimnLCrZVuKU/LEl4/KbR1riEJEZgMe4eH+yTFncMLTfa5IDfw+swkpq0L2RDN1RhagGlOjh3k/7BhCKLxvY5iIteBIkJxpZ8FDEEjZ1o2JFM0LqiOogDGHtrGIMLOSey3DIFMvjjbTwjg8H9X3hBVVLtQ26DUMuwAmzRCIpPW25UKARL3KLmpvTm00WEr5hjmIc4BmEwM6XcbLwceiY49bCBKit0dtIE4lg7xV8rdwjZWADwlmTt+BUYktZBNC9gnaOQNirfE6+SIKYEZkVxaer1TIylokwa2D8wQHYWhSjDdjG10="
-      on:
-        branch: master
+    env: PYTHON=3.6.7
+    
+deploy:
+  provider: pypi
+  user: zhenwen
+  skip_existing: true
+  password:
+    secure: VcDc6tNT+nuXODwVZsL2J5mPHXjIjEfdOa6vByneJdGKbw94/RDJL31bNYDp/uQj/zUvQu4xrLPpgoobuPD/o2jMgxeGRaoYhA0VGs3kfWGzTzcFSzIYBhtIcP1RUowrxHsGoubi3ERtEK+XgidnDszVd5e2AVeAmh4wJwNK/xLSvSeqplqJ4d8AbfZiDZsMCxT03CUisIRMxRnd4YUlpW83ejecElK1UWaDae2hcbiSVjo3+5n7moUFly1HiKdLJ5R0CH7jNpv8YJxaaWayftTvQdMt2c1tf5whJLKNZm7uVhd0oXM9febxaI5RKpVihI5d3ho/2XrbuXPighH5Sjt1Zr8yExx50mTcvpcmzB7TPkptfOQtKMDMB0uYzUWlqtVMn1Nrzr7QTkVI0hlqMrqGOTz5RI7ljNwOhi9HOu8D8gICw7k4lCE7wk40lws8MOljUXo/xK/R+NCpM091dt3RGQhx3FaZ//PG477E5V3SHeoEBcaFJvWoN7coeykOnXfMxT4rad8DaTi8tHvElBpB/1p7kFGeUa0Uv1MTEeDaykIq6T8HLwYGlkjPPF5af36eiNVHOQ4LMU5XgwWKBqDpNV0alkzH8ohvsPEwK0qUR9PdL7dOYYfS903LDB0rjgOijynnmKkY63XtT40ckKLoVZTCKhUBn4s0SvD3Nvo=
+  on:
+    branch: master
+    

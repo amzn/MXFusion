@@ -1,5 +1,20 @@
-from .function_evaluation import FunctionEvaluationWithParameters, \
-    FunctionEvaluationDecorator
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
+from ..variables.variable import VariableType
+from .function_evaluation import FunctionEvaluationWithParameters
 
 
 class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
@@ -21,26 +36,3 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
             func=func, input_variables=input_variables,
             output_variables=output_variables, broadcastable=broadcastable
         )
-        self._input_to_gluon_names = [k for k, v in self.inputs if not
-                                      v.isInherited]
-
-    def replicate_self(self, attribute_map=None):
-        replicant = super(
-            GluonFunctionEvaluation, self).replicate_self(attribute_map)
-        replicant._input_to_gluon_names = self._input_to_gluon_names
-        return replicant
-
-    @FunctionEvaluationDecorator()
-    def eval(self, F, **input_kws):
-        """
-        Invokes the MXNet Gluon block with the arguments passed in.
-
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
-            of FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
-        :returns: the return value of the function
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        inputs_func = {k: input_kws[k] for k in self._input_to_gluon_names}
-        return self._func.eval(F, **inputs_func)

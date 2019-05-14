@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from .kernel import NativeKernel
 from ....variables import Variable
 from ....variables import PositiveTransformation
@@ -17,7 +32,8 @@ class Bias(NativeKernel):
     :type variance: float or MXNet NDArray
     :param name: the name of the kernel. The name is used to access kernel parameters.
     :type name: str
-    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation. (default: None, taking all the dimensions).
+    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation.
+    (default: None, taking all the dimensions).
     :type active_dims: [int] or None
     :param dtype: the data type for float point numbers.
     :type dtype: numpy.float32 or numpy.float64
@@ -44,8 +60,8 @@ class Bias(NativeKernel):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
-            X2 is internally treated as X.
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None,
+        this computes a square covariance matrix of X. In other words, X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
         :param variance: the variance parameter.
         :type variance: MXNet NDArray or MXNet Symbol
@@ -85,7 +101,8 @@ class White(NativeKernel):
     :type variance: float or MXNet NDArray
     :param name: the name of the kernel. The name is used to access kernel parameters.
     :type name: str
-    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation. (default: None, taking all the dimensions).
+    :param active_dims: The dimensions of the inputs that are taken for the covariance matrix computation.
+    (default: None, taking all the dimensions).
     :type active_dims: [int] or None
     :param dtype: the data type for float point numbers.
     :type dtype: numpy.float32 or numpy.float64
@@ -112,8 +129,8 @@ class White(NativeKernel):
         :param F: MXNet computation type <mx.sym, mx.nd>
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
-            X2 is internally treated as X.
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square
+        covariance matrix of X. In other words, X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
         :param variance: the variance parameter.
         :type variance: MXNet NDArray or MXNet Symbol

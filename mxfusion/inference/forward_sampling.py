@@ -1,3 +1,18 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License").
+#   You may not use this file except in compliance with the License.
+#   A copy of the License is located at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   or in the "license" file accompanying this file. This file is distributed
+#   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+#   express or implied. See the License for the specific language governing
+#   permissions and limitations under the License.
+# ==============================================================================
+
+
 from ..common.exceptions import InferenceError
 from ..components.variables import Variable
 from .variational import StochasticVariationalInference
@@ -37,9 +52,7 @@ class ForwardSamplingAlgorithm(SamplingAlgorithm):
         samples = self.model.draw_samples(
             F=F, variables=variables, targets=self.target_variables,
             num_samples=self.num_samples)
-        if self.target_variables is not None:
-            samples = {v: samples[v] for v in self.target_variables}
-        samples = {k: v for k, v in samples.items()}
+
         return samples
 
 
@@ -53,8 +66,8 @@ class ForwardSampling(TransferInference):
     :type model: Model
     :param observed: A list of observed variables
     :type observed: [Variable]
-    :param var_ties: A dictionary of variables that are tied together and use the MXNet Parameter of the dict value's uuid.
-    :type var_ties: { UUID to tie from : UUID to tie to }
+    :param var_tie: A dictionary of variables that are tied together and use the MXNet Parameter of the dict value's uuid.
+    :type var_tie: { UUID to tie from : UUID to tie to }
     :param infr_params: list or single of InferenceParameters objects from previous Inference runs.
     :type infr_params: InferenceParameters or [InferenceParameters]
     :param target_variables: (optional) the target variables to sample
@@ -63,7 +76,7 @@ class ForwardSampling(TransferInference):
     :type hybridize: boolean
     :param constants: Specify a list of model variables as constants
     :type constants: {Variable: mxnet.ndarray}
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
@@ -95,11 +108,11 @@ def merge_posterior_into_model(model, posterior, observed):
     :param observed: A list of observed variables
     :type observed: [Variable]
     """
-    new_model, var_map = model.clone()
+    new_model = model.clone()
     for lv in model.get_latent_variables(observed):
         v = posterior.extract_distribution_of(posterior[lv])
         new_model.replace_subgraph(new_model[v], v)
-    return new_model, var_map
+    return new_model
 
 
 class VariationalPosteriorForwardSampling(ForwardSampling):
@@ -118,7 +131,7 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
     :type constants: {Variable: mxnet.ndarray}
     :param hybridize: Whether to hybridize the MXNet Gluon block of the inference method.
     :type hybridize: boolean
-    :param dtype: data type for internal numberical representation
+    :param dtype: data type for internal numerical representation
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
@@ -133,7 +146,7 @@ class VariationalPosteriorForwardSampling(ForwardSampling):
         m = inherited_inference.inference_algorithm.model
         q = inherited_inference.inference_algorithm.posterior
 
-        model_graph, var_map = merge_posterior_into_model(
+        model_graph = merge_posterior_into_model(
             m, q, observed=inherited_inference.observed_variables)
 
         super(VariationalPosteriorForwardSampling, self).__init__(
