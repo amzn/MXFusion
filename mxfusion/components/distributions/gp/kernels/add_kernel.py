@@ -53,7 +53,8 @@ class AddKernel(CombinationKernel):
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.
         :type X: MXNet NDArray or MXNet Symbol
-        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square covariance matrix of X. In other words,
+        :param X2: (optional) the second set of arguments to the kernel. If X2 is None, this computes a square
+        covariance matrix of X. In other words,
             X2 is internally treated as X.
         :type X2: MXNet NDArray or MXNet Symbol
         :param **kernel_params: the set of kernel parameters, provided as keyword arguments.
@@ -70,8 +71,8 @@ class AddKernel(CombinationKernel):
         """
         The internal interface for the actual computation for the diagonal of the covariance matrix.
 
-        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of the kernel has been
-        removed. The dimensions of *X* has been sliced according to *active_dims*.
+        This function takes as an assumption: The prefix in the keys of *kernel_params* that corresponds to the name of
+        the kernel has been removed. The dimensions of *X* has been sliced according to *active_dims*.
 
         :param F: MXNet computation type <mx.sym, mx.nd>.
         :param X: the first set of inputs to the kernel.

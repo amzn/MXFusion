@@ -36,6 +36,8 @@ class BatchInferenceLoop(GradLoop):
         :type optimizer: str
         :param learning_rate: the learning rate of the gradient optimizer (default: 0.001)
         :type learning_rate: float
+        :param n_prints: number of messages to print
+        :type n_prints: int
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
         :param verbose: whether to print per-iteration messages.

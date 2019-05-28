@@ -36,22 +36,3 @@ class GluonFunctionEvaluation(FunctionEvaluationWithParameters):
             func=func, input_variables=input_variables,
             output_variables=output_variables, broadcastable=broadcastable
         )
-
-    @property
-    def _input_to_gluon_names(self):
-        return [k for k, v in self.inputs if (not v.isInherited) or
-                v.type != VariableType.PARAMETER]
-
-    def eval_impl(self, F, **input_kws):
-        """
-        Invokes the MXNet Gluon block with the arguments passed in.
-
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray)
-        :param **input_kws: the dict of inputs to the functions. The key in the dict should match with the name of inputs specified in the inputs
-            of FunctionEvaluation.
-        :type **input_kws: {variable name: MXNet NDArray or MXNet Symbol}
-        :returns: the return value of the function
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        inputs_func = {k: input_kws[k] for k in self._input_to_gluon_names}
-        return self._func.eval(F, **inputs_func)

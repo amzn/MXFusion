@@ -31,7 +31,8 @@ from ...components.functions.operators import broadcast_to
 
 class SVGPRegressionLogPdf(VariationalInference):
     """
-    The inference algorithm for computing the variational lower bound of the stochastic variational Gaussian process with Gaussian likelihood.
+    The inference algorithm for computing the variational lower bound of the stochastic variational Gaussian process
+    with Gaussian likelihood.
     """
     def __init__(self, model, posterior, observed, jitter=0.):
         super(SVGPRegressionLogPdf, self).__init__(
@@ -40,6 +41,7 @@ class SVGPRegressionLogPdf(VariationalInference):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         Y = variables[self.model.Y]
         Z = variables[self.model.inducing_inputs]
@@ -56,7 +58,13 @@ class SVGPRegressionLogPdf(VariationalInference):
         X, Y, Z, noise_var, mu, S_W, S_diag, kern_params = arrays_as_samples(
             F, [X, Y, Z, noise_var, mu, S_W, S_diag, kern_params])
 
-        noise_var_m = F.expand_dims(noise_var, axis=-2)
+        if noise_var.ndim == 2:  # it is heteroscedastic noise, when ndim == 3
+            noise_var = F.expand_dims(noise_var, axis=-2)
+
+        if noise_var.shape[-1] == 1:
+            beta_sum = D*F.sum(1/noise_var, axis=-1)
+        else:
+            beta_sum = F.sum(1/noise_var, axis=-1)
 
         Kuu = kern.K(F, Z, **kern_params)
         if self.jitter > 0.:
@@ -67,35 +75,37 @@ class SVGPRegressionLogPdf(VariationalInference):
 
         S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
 
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             Y = Y - mean
 
-        psi1Y = F.linalg.gemm2(Kuf, Y, False, False)
+        psi1Y = F.linalg.gemm2(Kuf, Y/noise_var, False, False)
         L = F.linalg.potrf(Kuu)
         Ls = F.linalg.potrf(S)
         LinvLs = F.linalg.trsm(L, Ls)
         Linvmu = F.linalg.trsm(L, mu)
         LinvKuf = F.linalg.trsm(L, Kuf)
 
-        LinvKufY = F.linalg.trsm(L, psi1Y)/noise_var_m
-        LmInvPsi2LmInvT = F.linalg.syrk(LinvKuf)/noise_var_m
-        LinvSLinvT = F.linalg.syrk(LinvLs)
-        LmInvSmuLmInvT = LinvSLinvT*D + F.linalg.syrk(Linvmu)
+        KfuKuuInvmu = F.linalg.gemm2(LinvKuf, Linvmu, True, False)
+        KfuKuuInvLs = F.linalg.gemm2(LinvKuf, LinvLs, True, False)
+
+        LinvKufY = F.linalg.trsm(L, psi1Y)
 
         KL_u = (M/2. + F.linalg.sumlogdiag(Ls))*D - F.linalg.sumlogdiag(L)*D\
             - F.sum(F.sum(F.square(LinvLs), axis=-1), axis=-1)/2.*D \
             - F.sum(F.sum(F.square(Linvmu), axis=-1), axis=-1)/2.
 
         logL = -F.sum(F.sum(F.square(Y)/noise_var + np.log(2. * np.pi) +
-                            F.log(noise_var_m), axis=-1), axis=-1)/2.
-        logL = logL - D/2.*F.sum(Kff_diag/noise_var, axis=-1)
-        logL = logL - F.sum(F.sum(LmInvSmuLmInvT*LmInvPsi2LmInvT, axis=-1),
+                            F.log(noise_var), axis=-1), axis=-1)/2.
+        logL = logL - F.sum(Kff_diag*beta_sum, axis=-1)/2.
+        logL = logL - F.sum(F.sum(F.square(KfuKuuInvmu)/noise_var, axis=-1),
                             axis=-1)/2.
-        logL = logL + F.sum(F.sum(F.square(LinvKuf)/noise_var_m, axis=-1),
-                            axis=-1)*D/2.
+        logL = logL - F.sum(F.sum(F.square(KfuKuuInvLs)*F.expand_dims(beta_sum, axis=-1), axis=-1),
+                            axis=-1)/2.
+        logL = logL + F.sum(F.sum(F.square(LinvKuf)*F.expand_dims(beta_sum, axis=-2), axis=-1),
+                            axis=-1)/2.
         logL = logL + F.sum(F.sum(Linvmu*LinvKufY, axis=-1), axis=-1)
-        logL = logL + self.model.U.factor.log_pdf_scaling*KL_u
+        logL = self.log_pdf_scaling*logL + KL_u
         return logL
 
 
@@ -109,6 +119,18 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
         self.diagonal_variance = diagonal_variance
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
@@ -135,8 +157,8 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
 
         Kxt = kern.K(F, Z, X, **kern_params)
         mu = F.linalg.gemm2(Kxt, wv, True, False)
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             mu = mu + mean
 
         LinvKxt = F.linalg.trsm(L, Kxt)
@@ -145,15 +167,19 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
             tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
             var = Ktt - F.sum(F.square(LinvKxt), axis=-2) + \
                 F.sum(tmp*LinvKxt, axis=-2)
+            var = F.expand_dims(var, axis=-1)
             if not self.noise_free:
-                var += noise_var
+                var = var + noise_var
         else:
             Ktt = kern.K(F, X, **kern_params)
             tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
             var = Ktt - F.linalg.syrk(LinvKxt, True) + \
                 F.linalg.gemm2(LinvKxt, tmp, True, False)
+            var = F.expand_dims(var, axis=-1)
             if not self.noise_free:
-                var += F.eye(N, dtype=X.dtype) * noise_var
+                var = var + \
+                    F.reshape(F.eye(N, dtype=X.dtype), shape=(1, N, N, 1)) * \
+                    F.expand_dims(noise_var, axis=-2)
 
         outcomes = {self.model.Y.uuid: (mu, var)}
 
@@ -175,6 +201,18 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
         self.jitter = jitter
 
     def compute(self, F, variables):
+        """
+        The method for the computation of the sampling algorithm
+
+        :param F: the execution context (mxnet.ndarray or mxnet.symbol)
+        :type F: Python module
+        :param variables: the set of MXNet arrays that holds the values of
+        variables at runtime.
+        :type variables: {str(UUID): MXNet NDArray or MXNet Symbol}
+        :returns: the outcome of the inference algorithm
+        :rtype: mxnet.ndarray.ndarray.NDArray or mxnet.symbol.symbol.Symbol
+        """
+        has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
         N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
@@ -201,8 +239,8 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
 
         Kxt = kern.K(F, Z, X, **kern_params)
         mu = F.linalg.gemm2(Kxt, wv, True, False)
-        if self.model.mean_func is not None:
-            mean = self.model.mean_func(F, X)
+        if has_mean:
+            mean = variables[self.model.mean]
             mu = mu + mean
 
         LinvKxt = F.linalg.trsm(L, Kxt)
@@ -213,7 +251,8 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
                 F.sum(tmp*LinvKxt, axis=-2)
             if not self.noise_free:
                 var += noise_var
-            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:], dtype=self.model.F.factor.dtype)
+            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:],
+                                               dtype=self.model.F.factor.dtype)
             samples = mu + die * F.sqrt(F.expand_dims(var, axis=-1))
         else:
             Ktt = kern.K(F, X, **kern_params)
@@ -250,12 +289,13 @@ class SVGPRegression(Module):
     :type kernel: Kernel
     :param noise_var: the variance of the Gaussian likelihood
     :type noise_var: Variable
-    :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated if not specified.
+    :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated
+    if not specified.
     :type inducing_inputs: Variable
-    :param inducing_num: the number of inducing points of sparse GP (default: 10)
-    :type inducing_num: int
-    :param mean_func: the mean function of Gaussian process.
-    :type mean_func: MXFusionFunction
+    :param num_inducing: the number of inducing points of sparse GP (default: 10)
+    :type num_inducing: int
+    :param mean: the mean of Gaussian process.
+    :type mean: Variable
     :param rand_gen: the random generator (default: MXNetRandomGenerator).
     :type rand_gen: RandomGenerator
     :param dtype: the data type for float point numbers.
@@ -265,32 +305,39 @@ class SVGPRegression(Module):
     """
 
     def __init__(self, X, kernel, noise_var, inducing_inputs=None,
-                 inducing_num=10, mean_func=None,
+                 num_inducing=10, mean=None,
                  rand_gen=None, dtype=None, ctx=None):
         if not isinstance(X, Variable):
             X = Variable(value=X)
         if not isinstance(noise_var, Variable):
             noise_var = Variable(value=noise_var)
         if inducing_inputs is None:
-            inducing_inputs = Variable(shape=(inducing_num, kernel.input_dim))
+            inducing_inputs = Variable(
+                shape=(num_inducing, kernel.input_dim),
+                initial_value=np.random.randn(num_inducing, kernel.input_dim))
         inputs = [('X', X), ('inducing_inputs', inducing_inputs),
                   ('noise_var', noise_var)]
         input_names = [k for k, _ in inputs]
+        if mean is not None:
+            inputs.append(('mean', mean))
+            input_names.append('mean')
+            self._has_mean = True
+        else:
+            self._has_mean = False
         output_names = ['random_variable']
         super(SVGPRegression, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
             output_names=output_names, dtype=dtype, ctx=ctx)
-        self.mean_func = mean_func
         self.kernel = kernel
 
     def _generate_outputs(self, output_shapes=None):
         """
         Generate the output of the module with given output_shapes.
 
-        :param output_shape: the shapes of all the output variables
-        :type output_shape: {str: tuple}
+        :param output_shapes: the shapes of all the output variables
+        :type output_shapes: {str: tuple}
         """
-        if output_shapes is None:
+        if output_shapes['random_variable'] is None:
             Y_shape = self.X.shape[:-1] + (1,)
         else:
             Y_shape = output_shapes['random_variable']
@@ -309,17 +356,20 @@ class SVGPRegression(Module):
         graph.U = GaussianProcess.define_variable(
             X=graph.inducing_inputs, kernel=self.kernel,
             shape=(graph.inducing_inputs.shape[0], Y.shape[-1]),
-            mean_func=self.mean_func, rand_gen=self._rand_gen, dtype=self.dtype,
-            ctx=self.ctx)
+            rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
+        if self._has_mean:
+            mean = self.mean.replicate_self()
+            graph.mean = mean
+        else:
+            mean = None
         graph.F = ConditionalGaussianProcess.define_variable(
             X=graph.X, X_cond=graph.inducing_inputs, Y_cond=graph.U,
-            kernel=self.kernel, shape=Y.shape, mean_func=self.mean_func,
+            kernel=self.kernel, shape=Y.shape, mean=mean,
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
             mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
             dtype=self.dtype, ctx=self.ctx))
-        graph.mean_func = self.mean_func
         graph.kernel = graph.U.factor.kernel
         post = Posterior(graph)
         post.qU_cov_diag = Variable(shape=(M,), transformation=PositiveTransformation())
@@ -357,10 +407,11 @@ class SVGPRegression(Module):
 
     @staticmethod
     def define_variable(X, kernel, noise_var, shape=None, inducing_inputs=None,
-                        inducing_num=10, mean_func=None, rand_gen=None,
+                        num_inducing=10, mean=None, rand_gen=None,
                         dtype=None, ctx=None):
         """
-        Creates and returns a variable drawn from a Stochastic variational sparse Gaussian process regression with Gaussian likelihood.
+        Creates and returns a variable drawn from a Stochastic variational sparse Gaussian process regression with
+        Gaussian likelihood.
 
         :param X: the input variables on which the random variables are conditioned.
         :type X: Variable
@@ -371,12 +422,13 @@ class SVGPRegression(Module):
         :param shape: the shape of the random variable(s) (the default shape is
         the same shape as *X* but the last dimension is changed to one.)
         :type shape: tuple or [tuple]
-        :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated if not specified.
+        :param inducing_inputs: the inducing inputs of the sparse GP (optional). This variable will be auto-generated
+        if not specified.
         :type inducing_inputs: Variable
-        :param inducing_num: the number of inducing points of sparse GP (default: 10)
-        :type inducing_num: int
-        :param mean_func: the mean function of Gaussian process.
-        :type mean_func: MXFusionFunction
+        :param num_inducing: the number of inducing points of sparse GP (default: 10)
+        :type num_inducing: int
+        :param mean: the mean of Gaussian process.
+        :type mean: Variable
         :param rand_gen: the random generator (default: MXNetRandomGenerator).
         :type rand_gen: RandomGenerator
         :param dtype: the data type for float point numbers.
@@ -386,8 +438,8 @@ class SVGPRegression(Module):
         """
         gp = SVGPRegression(
             X=X, kernel=kernel, noise_var=noise_var,
-            inducing_inputs=inducing_inputs, inducing_num=inducing_num,
-            mean_func=mean_func, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+            inducing_inputs=inducing_inputs, num_inducing=num_inducing,
+            mean=mean, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp._generate_outputs({'random_variable': shape})
         return gp.random_variable
 
@@ -398,5 +450,5 @@ class SVGPRegression(Module):
         rep = super(SVGPRegression, self).replicate_self(attribute_map)
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
-        rep.mean_func = None if self.mean_func is None else self.mean_func.replicate_self(attribute_map)
+        rep._has_mean = self._has_mean
         return rep

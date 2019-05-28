@@ -85,7 +85,8 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
     """
     Implemented following the [Black Box Variational Inference](https://arxiv.org/abs/1401.0118) paper.
 
-    The addition of Rao-Blackwellization and Control Variates (RBCV) requires that the posterior passed in be of meanfield form (i.e. all posterior variables independent.)
+    The addition of Rao-Blackwellization and Control Variates (RBCV) requires that the posterior passed in be of
+    meanfield form (i.e. all posterior variables independent.)
 
     Terminology:
       Lambda - Posterior parameters
@@ -173,7 +174,6 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
 
         gradient_lambda = F.sum(grad)
 
-
         # Robbins-Monro sequence??
         gradient_log_L = gradient_lambda + gradient_theta
 
@@ -181,10 +181,12 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
 
     def _extract_descendant_blanket_params(self, graph, node):
         """
-        Returns a set of the markov blankets of all of the descendants of the node in the graph, mapped to their parameter form.
+        Returns a set of the markov blankets of all of the descendants of the node in the graph,
+        mapped to their parameter form.
         """
         if node.graph != graph.components_graph:
-            raise InferenceError("Graph of node and graph to find it's descendants in differ. These should match so something went wrong.")
+            raise InferenceError("Graph of node and graph to find it's descendants in differ. "
+                                 "These should match so something went wrong.")
 
         descendants = graph.get_descendants(node)
         varset = [graph.get_markov_blanket(d) for d in descendants]
