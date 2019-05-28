@@ -23,7 +23,7 @@ from mxfusion.inference import GradBasedInference, MAP
 from mxnet.gluon import HybridBlock
 from mxnet.gluon.nn import Dense
 from mxfusion.inference import GradTransferInference
-from mxfusion.inference.pilco_alg import PolicyUpdateGPParametricApprox, PILCOAlgorithm
+from mxfusion.inference.pilco_alg import PILCOAlgorithm
 
 class NNController(HybridBlock):
     def __init__(self, prefix=None, params=None, in_units=100, obs_space_high=3):
@@ -150,7 +150,6 @@ class TestPILCOInference(object):
 
 
     @pytest.mark.parametrize("pilco_alg", [
-        (PolicyUpdateGPParametricApprox),
         (PILCOAlgorithm)])
     def test_pilco_basic_passthrough(self, pilco_alg):
         policy = NNController()
