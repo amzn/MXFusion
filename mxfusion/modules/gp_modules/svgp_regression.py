@@ -14,19 +14,21 @@
 
 
 import numpy as np
-from ..module import Module
-from ...models import Model, Posterior
-from ...components.variables.variable import Variable
+
+from ...runtime.distributions import NormalRuntime
+from ...components.distributions import ConditionalGaussianProcess, GaussianProcess, Normal
 from ...components.variables.var_trans import PositiveTransformation
-from ...components.distributions import GaussianProcess, Normal, ConditionalGaussianProcess
-from ...inference.variational import VariationalInference
+from ...components.variables.variable import Variable
 from ...inference.forward_sampling import ForwardSamplingAlgorithm
 from ...inference.inference_alg import SamplingAlgorithm
+from ...inference.variational import VariationalInference
+from ...models import Model, Posterior
+from ...runtime.distributions.multivariate_normal import MultivariateNormalRuntime
 from ...util.customop import make_diagonal
-from ...util.customop import broadcast_to_w_samples
 from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...components.variables.runtime_variable import broadcast_sample_dimension
 from ...components.functions.operators import broadcast_to
+from ..module import Module
 
 
 class SVGPRegressionLogPdf(VariationalInference):
@@ -137,56 +139,44 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
         """
         has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
-        N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
+        N = X.shape[-2]
         noise_var = variables[self.model.noise_var]
         mu = variables[self.graphs[1].qU_mean]
         S_W = variables[self.graphs[1].qU_cov_W]
         S_diag = variables[self.graphs[1].qU_cov_diag]
-        M = Z.shape[-2]
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
+        if has_mean:
+            kern_params['mean'] = variables[self.model.mean]
+
         S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
 
-        Kuu = kern.K(F, Z, **kern_params)
-        if self.jitter > 0.:
-            Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
+        S = F.expand_dims(S, 1)
+        mu = F.expand_dims(mu, 1)
 
-        L = F.linalg.potrf(Kuu)
-        Ls = F.linalg.potrf(S)
-        LinvLs = F.linalg.trsm(L, Ls)
-        Linvmu = F.linalg.trsm(L, mu)
-        LinvSLinvT = F.linalg.syrk(LinvLs)
-        wv = F.linalg.trsm(L, Linvmu, transpose=True)
+        q_u = MultivariateNormalRuntime(mu[:, :, :, 0], S)
+        n_outputs = mu.shape[-1]
+        q_f = self.model.F.factor.marginalise_conditional_distribution(X, Z, q_u, n_outputs, self.jitter,
+                                                                       self.diagonal_variance, **kern_params)
 
-        Kxt = kern.K(F, Z, X, **kern_params)
-        mu = F.linalg.gemm2(Kxt, wv, True, False)
-        if has_mean:
-            mean = variables[self.model.mean]
-            mu = mu + mean
+        mean = F.transpose(q_f.mean, (0, 2, 1))
 
-        LinvKxt = F.linalg.trsm(L, Kxt)
         if self.diagonal_variance:
-            Ktt = kern.Kdiag(F, X, **kern_params)
-            tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
-            var = Ktt - F.sum(F.square(LinvKxt), axis=-2) + \
-                F.sum(tmp*LinvKxt, axis=-2)
-            var = F.expand_dims(var, axis=-1)
+            var = F.expand_dims(q_f.variance.mean(axis=0), -1)
+
             if not self.noise_free:
                 var = var + noise_var
-        else:
-            Ktt = kern.K(F, X, **kern_params)
-            tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
-            var = Ktt - F.linalg.syrk(LinvKxt, True) + \
-                F.linalg.gemm2(LinvKxt, tmp, True, False)
-            var = F.expand_dims(var, axis=-1)
-            if not self.noise_free:
-                var = var + \
-                    F.reshape(F.eye(N, dtype=X.dtype), shape=(1, N, N, 1)) * \
-                    F.expand_dims(noise_var, axis=-2)
 
-        outcomes = {self.model.Y.uuid: (mu, var)}
+            outcomes = {self.model.Y.uuid: (mean, var)}
+        else:
+            covariance = F.transpose(q_f.covariance, (0, 2, 3, 1))
+            if not self.noise_free:
+                covariance = covariance + \
+                             F.reshape(F.eye(N, dtype=X.dtype), shape=(1, N, N, 1)) * F.expand_dims(noise_var, axis=-2)
+
+            outcomes = {self.model.Y.uuid: (mean, covariance)}
 
         if self.target_variables:
             return tuple(outcomes[v] for v in self.target_variables)
@@ -226,13 +216,12 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
         """
         has_mean = self.model.F.factor.has_mean
         X = variables[self.model.X]
-        N = X.shape[-2]
         Z = variables[self.model.inducing_inputs]
+        N = X.shape[-2]
         noise_var = variables[self.model.noise_var]
         mu = variables[self.graphs[1].qU_mean]
         S_W = variables[self.graphs[1].qU_cov_W]
         S_diag = variables[self.graphs[1].qU_cov_diag]
-        M = Z.shape[-2]
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
@@ -241,48 +230,27 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
 
         S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
 
-        Kuu = kern.K(F, Z, **kern_params)
-        if self.jitter > 0.:
-            Kuu = Kuu + F.eye(M, dtype=Z.dtype) * self.jitter
-
-        L = F.linalg.potrf(Kuu)
-        Ls = F.linalg.potrf(S)
-        LinvLs = F.linalg.trsm(L, Ls)
-        Linvmu = F.linalg.trsm(L, mu)
-        LinvSLinvT = F.linalg.syrk(LinvLs)
-        wv = F.linalg.trsm(L, Linvmu, transpose=True)
-
-        Kxt = kern.K(F, Z, X, **kern_params)
-        mu = F.linalg.gemm2(Kxt, wv, True, False)
         if has_mean:
-            mean = variables[self.model.mean]
-            mu = mu + mean
+            kern_params['mean'] = variables[self.model.mean]
 
-        LinvKxt = F.linalg.trsm(L, Kxt)
-        if self.diagonal_variance:
-            Ktt = kern.Kdiag(F, X, **kern_params)
-            tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
-            var = Ktt - F.sum(F.square(LinvKxt), axis=-2) + \
-                F.sum(tmp*LinvKxt, axis=-2)
-            if not self.noise_free:
-                var += noise_var
-            die = self._rand_gen.sample_normal(shape=(self.num_samples,) + mu.shape[1:],
-                                               dtype=self.model.F.factor.dtype)
-            samples = mu + die * F.sqrt(F.expand_dims(var, axis=-1))
-        else:
-            Ktt = kern.K(F, X, **kern_params)
-            tmp = F.linalg.gemm2(LinvSLinvT, LinvKxt)
-            cov = Ktt - F.linalg.syrk(LinvKxt, True) + \
-                F.linalg.gemm2(LinvKxt, tmp, True, False)
-            if not self.noise_free:
-                cov += F.eye(N, dtype=X.dtype) * noise_var
-            L = F.linalg.potrf(cov)
-            out_shape = (self.num_samples,) + mu.shape[1:]
-            L = broadcast_to_w_samples(F, L, out_shape[:-1] + out_shape[-2:-1])
+        S = F.expand_dims(S, 1)
+        mu = F.expand_dims(mu, 1)
 
-            die = self._rand_gen.sample_normal(shape=out_shape,
-                                               dtype=self.model.F.factor.dtype)
-            samples = mu + F.linalg.trmm(L, die)
+        q_u = MultivariateNormalRuntime(mu[:, :, :, 0], S)
+        n_outputs = mu.shape[-1]
+        q_f = self.model.F.factor.marginalise_conditional_distribution(X, Z, q_u, n_outputs, self.jitter,
+                                                                       self.diagonal_variance, **kern_params)
+
+        if not self.noise_free:
+            if self.diagonal_variance:
+                variance = q_f.variance + noise_var
+                q_f = NormalRuntime(q_f.mean, variance)
+
+            else:
+                covariance = q_f.covariance + F.linalg_makediag(F.ones((1, 1, N), dtype=X.dtype)) * noise_var
+                q_f = MultivariateNormalRuntime(q_f.mean, covariance)
+
+        samples = q_f.draw_samples(self.num_samples)
 
         outcomes = {self.model.Y.uuid: samples}
 
