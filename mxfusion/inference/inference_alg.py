@@ -182,8 +182,6 @@ class InferenceAlgorithm(ABC):
             for v in g.variables.values():
                 if v.type == VariableType.PARAMETER and v.transformation is not None:
                     var_trans[v.uuid] = v.transformation
-                if v.type == VariableType.PARAMETER and v.isInherited:
-                    excluded.add(v.uuid)
                 if v.type == VariableType.RANDVAR:
                     if v.uuid in rv_scaling:
                         v.factor.log_pdf_scaling = rv_scaling[v.uuid]

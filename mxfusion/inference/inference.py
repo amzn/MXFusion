@@ -339,6 +339,7 @@ class TransferInference(Inference):
 
         data_shapes = [kw[v] for v in self.observed_variable_names]
         if not self._initialized:
+            # TODO This function isn't defined anywhere?
             self._initialize_run(self._var_tie, self._inherited_params,
                                  data_shapes)
             self._initialized = True

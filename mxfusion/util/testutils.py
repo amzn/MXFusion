@@ -215,3 +215,18 @@ def plot_bivariate(samples, dist, buffer=0, **kwargs):
     ax.contour(x, y, z, levels=10, linewidth=10)
     ax.scatter(samples[:, 0], samples[:, 1], alpha=0.05)
     plt.show()
+
+
+def make_spd_matrix(dim):
+    """
+    Generate a random symmetric, positive-definite matrix.
+
+    :param dim: The matrix dimension (matrix is square).
+    :type dim: int
+    :return X: The random symmetric, positive-definite matrix.
+    :rtype: array of shape [n_dim, n_dim]
+    """
+    A = np.random.rand(dim, dim)
+    U, s, V = np.linalg.svd(np.dot(A.T, A))
+    X = np.dot(np.dot(U, 1.0 + np.diag(np.random.rand(dim))), V)
+    return X
