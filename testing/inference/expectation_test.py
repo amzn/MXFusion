@@ -57,9 +57,9 @@ class TestExpectationInference(object):
         infr = GradBasedInference(
             ExpectationScoreFunctionAlgorithm(m, observed, num_samples=10, target_variables=target_variables))
 
-        infr.run(max_iter=1, v2=v2, v3=v3, verbose=True)
+        infr.run(max_iter=1, v2=v2, v3=v3)
 
         infr2 = TransferInference(
             ExpectationAlgorithm(m, observed, num_samples=10, target_variables=target_variables), infr_params=infr.params)
 
-        infr2.run(max_iter=1, v2=v2, v3=v3, verbose=True)
+        infr2.run(max_iter=1, v2=v2, v3=v3)

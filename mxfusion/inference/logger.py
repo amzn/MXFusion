@@ -1,0 +1,91 @@
+import os
+import time
+
+from mxboard import SummaryWriter
+
+
+class Logger:
+    """
+    The class for logging the results of optimization.
+
+    :param boolean verbose: whether to print per-iteration messages
+    :param str log_dir: the directory in which to place the tensorboard logs directory. If this is not set then no
+                        tensorboard logs will be written
+    :param str log_name: the directory in which to place tensoreboard logs. If no name is assigned, a timestamp name
+                         will be used.
+    """
+
+    def __init__(self, verbose=True, log_dir=None, log_name=None):
+        self.verbose = verbose
+
+        self._validate_log_args(log_dir, log_name)
+        self.summary_writer = log_dir and self._get_board(log_dir, log_name)
+        self._on_new_line = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    @staticmethod
+    def _validate_log_args(log_dir, log_name):
+        if log_name and log_dir is None:
+            raise ValueError("No log directory provided for MXBoard. Log name given: {}".format(log_name))
+
+    def close(self):
+        """
+        Close logger.
+        """
+        if not self._on_new_line:
+            print()
+        self.summary_writer and self.summary_writer.close()
+
+    @staticmethod
+    def _get_board_path(log_dir, log_name):
+        log_name = log_name or time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
+
+        path = os.path.join(log_dir, log_name)
+
+        i = 1
+        _temp_path = path
+        while os.path.isdir(path):
+            path = '{}_{}'.format(_temp_path, i)
+            i += 1
+
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @staticmethod
+    def _get_board(log_dir, log_name):
+        return SummaryWriter(Logger._get_board_path(log_dir, log_name))
+
+    def log(self, tag, value, step, iterate_name='Iteration', precision=3, newline=False):
+        """
+        Log value.
+
+        :param str tag: name for the logged value
+        :param value: value to log
+        :type value: float, tuple, list, or dict
+        :param int step: step value to log
+        :param str iterate_name: name of the iterate
+        :param int precision: number of decimal places to show
+        :param boolean newline: whether to terminate log with newline
+        """
+        if self.verbose:
+            self._on_new_line = newline
+            print('\r{} {} {}: {:.{precision}f}\t\t\t\t'.format(
+                iterate_name, step, tag, value, precision=precision), end='\n' if newline else '')
+
+        if self.summary_writer is not None:
+            self.summary_writer.add_scalar(tag=tag, value=value, global_step=step)
+
+    def flush(self):
+        """
+        Flushes board writer and adds new line if not already on a new line.
+        """
+        if not self._on_new_line and self.verbose:
+            print()
+        self._on_new_line = True
+        if self.summary_writer:
+            self.summary_writer.flush()

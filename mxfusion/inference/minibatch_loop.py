@@ -15,6 +15,7 @@
 
 import mxnet as mx
 from mxnet.gluon.data import ArrayDataset
+
 from .grad_loop import GradLoop
 
 
@@ -33,6 +34,7 @@ class MinibatchInferenceLoop(GradLoop):
     :param rv_scaling: the scaling factor of random variables
     :type rv_scaling: {Variable: scaling factor}
     """
+
     def __init__(self, batch_size=100, rv_scaling=None):
         super(MinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
@@ -40,7 +42,7 @@ class MinibatchInferenceLoop(GradLoop):
             if rv_scaling is not None else rv_scaling
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, verbose=False, update_shape_constants=None):
+            learning_rate=1e-3, max_iter=1000, verbose=False, update_shape_constants=None, logger=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -56,8 +58,8 @@ class MinibatchInferenceLoop(GradLoop):
         :type learning_rate: float
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
-        :param verbose: whether to print per-iteration messages.
-        :type verbose: boolean
+        :param logger: The logger to send logs to
+        :type logger: :class:`inference.Logger`
         :param update_shape_constants: The callback function to update the shape constants according to the size of minibatch
         :type update_shape_constants: Python function
         """
@@ -68,28 +70,30 @@ class MinibatchInferenceLoop(GradLoop):
             data_loader = mx.gluon.data.DataLoader(
                 ArrayDataset(*data), batch_size=self.batch_size, shuffle=True,
                 last_batch='rollover')
-        trainer = mx.gluon.Trainer(param_dict,
-                                   optimizer=optimizer,
-                                   optimizer_params={'learning_rate':
-                                                     learning_rate})
+        trainer = mx.gluon.Trainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
+
+        total_batches = 0
         for e in range(max_iter):
-            L_e = 0
-            n_batches = 0
-            for i, data_batch in enumerate(data_loader):
-                if not isinstance(data_batch, list or tuple):
+            epoch_loss = batch_number = 0
+
+            for batch_number, data_batch in enumerate(data_loader):
+                if not isinstance(data_batch, (list, tuple)):
                     data_batch = [data_batch]
+
                 if update_shape_constants is not None:
                     update_shape_constants(data_batch)
+
                 with mx.autograd.record():
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                     loss_for_gradient.backward()
-                if verbose:
-                    print('\repoch {} Iteration {} loss: {}\t\t\t'.format(
-                          e + 1, i + 1, loss.asscalar()),
-                          end='')
-                trainer.step(batch_size=self.batch_size,
-                             ignore_stale_grad=True)
-                L_e += loss.asscalar()
-                n_batches += 1
-            if verbose:
-                print('epoch-loss: {} '.format(L_e / n_batches))
+
+                if logger:
+                    logger.log(tag='loss', value=loss.asscalar(), step=batch_number + total_batches + 1)
+
+                trainer.step(batch_size=self.batch_size, ignore_stale_grad=True)
+                epoch_loss += loss.asscalar()
+
+            if logger:
+                logger.log(tag='epoch_loss', value=epoch_loss / batch_number,
+                           step=e + 1, iterate_name="Epoch", newline=True)
+            total_batches += batch_number

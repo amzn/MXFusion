@@ -13,6 +13,7 @@
 # ==============================================================================
 
 import mxnet as mx
+
 from .grad_loop import GradLoop
 
 
@@ -22,7 +23,7 @@ class BatchInferenceLoop(GradLoop):
     """
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, n_prints=10, verbose=False):
+            learning_rate=1e-3, max_iter=1000, n_prints=10, logger=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -40,22 +41,23 @@ class BatchInferenceLoop(GradLoop):
         :type n_prints: int
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
-        :param verbose: whether to print per-iteration messages.
-        :type verbose: boolean
+        :param logger: The logger to send logs to
+        :type logger: :class:`inference.Logger`
         """
         trainer = mx.gluon.Trainer(param_dict,
                                    optimizer=optimizer,
-                                   optimizer_params={'learning_rate':
-                                                     learning_rate})
+                                   optimizer_params={'learning_rate': learning_rate})
         iter_step = max(max_iter // n_prints, 1)
-        for i in range(max_iter):
+        for i in range(1, max_iter + 1):
             with mx.autograd.record():
                 loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
                 loss_for_gradient.backward()
 
-            if verbose:
-                print('\rIteration {} loss: {}\t\t\t\t'.format(i + 1, loss.asscalar()), end='')
-                if ((i+1) % iter_step == 0 and i > 0) or i == max_iter-1:
-                    print()
+            if logger:
+                logger.log("loss", loss.asscalar(), i, newline=not i % iter_step)
+
             trainer.step(batch_size=1, ignore_stale_grad=True)
-        loss = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
+        infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
+
+        if logger:
+            logger.flush()
