@@ -15,3 +15,7 @@ Below is a list of tutorial / example notebooks demonstrating MXFusion's functio
 
 ## Developer Tutorials
 * [Writing your own Distribution](examples/notebooks/writing_a_new_distribution.ipynb)
+
+## FAQ
+
+* [FAQ for MXFusion APIs](examples/notebooks/api_faq.ipynb)
