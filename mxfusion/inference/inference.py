@@ -21,7 +21,7 @@ import mxnet as mx
 import zipfile
 from .inference_parameters import InferenceParameters
 from ..common.config import get_default_device, get_default_dtype
-from ..common.exceptions import InferenceError
+from ..common.exceptions import InferenceError, SerializationError
 from ..util.inference import discover_shape_constants, init_outcomes
 from ..models import FactorGraph, Model, Posterior
 from ..util.serialization import ModelComponentEncoder, make_numpy, load_json_from_zip, load_parameters, \
@@ -61,7 +61,8 @@ class Inference(object):
 
     def print_params(self):
         """
-        Returns a string with the inference parameters nicely formatted for display, showing which model they came from and their name + uuid.
+        Returns a string with the inference parameters nicely formatted for display, showing which model they came from
+        and their name + uuid.
 
         Format:
         > infr.print_params()
@@ -158,8 +159,9 @@ class Inference(object):
         """
         Run the inference method.
 
-        :param **kwargs: The keyword arguments specify the data for inference self. The key of each argument is the name of the corresponding
-            variable in model definition and the value of the argument is the data in numpy array format.
+        :param kwargs: The keyword arguments specify the data for inference self. The key of each argument is the name
+        of the corresponding variable in model definition and the value of the argument is the data in numpy
+        array format.
         :returns: the samples of target variables (if not specified, the samples of all the latent variables)
         :rtype: {UUID: samples}
         """
@@ -232,8 +234,8 @@ class Inference(object):
         using the uuid_map parameter to store the
         correct current observed variables.
 
-        :param config_file: The loaded configuration dictionary
-        :type config_file: str
+        :param configuration: The loaded configuration dictionary
+        :type configuration: dict
         :param uuid_map: A map of previous/loaded model component
          uuids to their current variable in the loaded graph.
         :type uuid_map: { current_model_uuid : loaded_previous_uuid}
@@ -243,10 +245,10 @@ class Inference(object):
 
     def get_serializable(self):
         """
-        Returns the  mimimum set of properties that the object needs to save in order to be
+        Returns the minimum set of properties that the object needs to save in order to be
         serialized down and loaded back in properly.
         :returns: A dictionary of configuration properties needed to serialize and reload this inference method.
-        :rtypes: Dictionary that is JSON serializable.
+        :rtype: Dictionary that is JSON serializable.
         """
         return {'observed': self.observed_variable_UUIDs}
 
@@ -271,8 +273,7 @@ class Inference(object):
         mxnet_parameters, mxnet_constants, variable_constants = self.params.get_serializable()
         configuration = self.get_serializable()
         graphs = [g.as_json()for g in self._graphs]
-        version_dict = {"serialization_version":
-                                  SERIALIZATION_VERSION}
+        version_dict = {"serialization_version": SERIALIZATION_VERSION}
 
         files_to_save = []
         objects = [graphs, mxnet_parameters, mxnet_constants,
@@ -338,6 +339,7 @@ class TransferInference(Inference):
 
         data_shapes = [kw[v] for v in self.observed_variable_names]
         if not self._initialized:
+            # TODO This function isn't defined anywhere?
             self._initialize_run(self._var_tie, self._inherited_params,
                                  data_shapes)
             self._initialized = True

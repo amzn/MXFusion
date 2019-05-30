@@ -25,8 +25,8 @@ def create_Gaussian_meanfield(model, observed, dtype=None):
     """
     Create the Meanfield posterior for Variational Inference.
 
-    :param model_graph: the definition of the probabilistic model
-    :type model_graph: Model
+    :param model: the definition of the probabilistic model
+    :type model: Model
     :param observed: A list of observed variables
     :type observed: [Variable]
     :returns: the resulting posterior representation
