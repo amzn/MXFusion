@@ -44,6 +44,9 @@ class BatchInferenceLoop(GradLoop):
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
+        if logger:
+            logger.open()
+
         trainer = mx.gluon.Trainer(param_dict,
                                    optimizer=optimizer,
                                    optimizer_params={'learning_rate': learning_rate})
@@ -60,4 +63,4 @@ class BatchInferenceLoop(GradLoop):
         infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
 
         if logger:
-            logger.flush()
+            logger.close()

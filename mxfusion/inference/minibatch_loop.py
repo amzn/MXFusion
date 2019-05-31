@@ -64,6 +64,9 @@ class MinibatchInferenceLoop(GradLoop):
         :type update_shape_constants: Python function
         """
 
+        if logger:
+            logger.open()
+
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
@@ -74,7 +77,8 @@ class MinibatchInferenceLoop(GradLoop):
 
         total_batches = 0
         for e in range(max_iter):
-            epoch_loss = batch_number = 0
+            epoch_loss = 0
+            batch_number = 0
 
             for batch_number, data_batch in enumerate(data_loader):
                 if not isinstance(data_batch, (list, tuple)):
@@ -97,3 +101,6 @@ class MinibatchInferenceLoop(GradLoop):
                 logger.log(tag='epoch_loss', value=epoch_loss / batch_number,
                            step=e + 1, iterate_name="Epoch", newline=True)
             total_batches += batch_number
+
+        if logger:
+            logger.close()

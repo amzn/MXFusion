@@ -34,19 +34,23 @@ class Logger:
         self.verbose = verbose
 
         self._validate_log_args(log_dir, log_name)
-        self.summary_writer = log_dir and self._get_board(log_dir, log_name)
+        self.log_dir = log_dir
+        self.log_name = log_name
+
+        self.summary_writer = None
         self._on_new_line = True
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
 
     @staticmethod
     def _validate_log_args(log_dir, log_name):
         if log_name and log_dir is None:
             raise ValueError("No log directory provided for MXBoard. Log name given: {}".format(log_name))
+
+    def open(self):
+        """
+        Open logger.
+        """
+        self.summary_writer = self.log_dir and self._get_board(self.log_dir, self.log_name)
+        self._on_new_line = True
 
     def close(self):
         """
@@ -58,7 +62,7 @@ class Logger:
 
     @staticmethod
     def _get_board_path(log_dir, log_name):
-        log_name = log_name or time.strftime("%Y%m%d-%H:%M:%S", time.localtime())
+        log_name = time.strftime("%Y%m%d-%H:%M:%S", time.localtime()) if log_name is None else log_name
 
         path = os.path.join(log_dir, log_name)
 

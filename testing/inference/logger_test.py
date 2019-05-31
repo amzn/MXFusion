@@ -26,6 +26,7 @@ class LoggerTests(unittest.TestCase):
     """
     Test class that tests the MXFusion.inference.Logger methods.
     """
+
     def setUp(self):
         self.log_dir = 'log_dir'
         self.log_name = 'log_name'
@@ -64,40 +65,54 @@ class LoggerTests(unittest.TestCase):
 
     def test_verbose(self):
         f = io.StringIO()
-        with contextlib.redirect_stdout(f), Logger() as ll:
+        ll = Logger()
+        ll.open()
+        with contextlib.redirect_stdout(f):
             ll.log(self.tag, 404, 2)
+            ll.close()
         s = f.getvalue()
         assert s == '\rIteration 2 tag: 404.000\t\t\t\t\n'
 
     def test_verbose_multi(self):
         f = io.StringIO()
-        with contextlib.redirect_stdout(f), Logger() as ll:
+        ll = Logger()
+        ll.open()
+        with contextlib.redirect_stdout(f):
             ll.log(self.tag, 404, 2)
             ll.log(self.tag, 808, 3)
+            ll.close()
         s = f.getvalue()
         assert s == '\rIteration 2 tag: 404.000\t\t\t\t\rIteration 3 tag: 808.000\t\t\t\t\n'
 
     def test_verbose_multi_newline(self):
         f = io.StringIO()
-        with contextlib.redirect_stdout(f), Logger() as ll:
+        ll = Logger()
+        ll.open()
+        with contextlib.redirect_stdout(f):
             ll.log(self.tag, 404, 2, newline=True)
             ll.log(self.tag, 808, 3)
+            ll.close()
         s = f.getvalue()
         assert s == '\rIteration 2 tag: 404.000\t\t\t\t\n\rIteration 3 tag: 808.000\t\t\t\t\n'
 
     def test_board_log(self):
-        with Logger(verbose=False, log_dir=self.log_dir, log_name=self.log_name) as ll:
-            ll.log(self.tag, 404, 2)
+        ll = Logger(verbose=False, log_dir=self.log_dir, log_name=self.log_name)
+        ll.open()
+        ll.log(self.tag, 404, 2)
+        ll.close()
         path = os.path.join(self.log_dir, self.log_name)
         assert os.path.isdir(path)
         assert len(os.listdir(path)) == 1
 
     def test_flush(self):
         f = io.StringIO()
-        with contextlib.redirect_stdout(f), Logger() as ll:
+        ll = Logger()
+        ll.open()
+        with contextlib.redirect_stdout(f):
             ll._on_new_line = False
             print('\rabc', end='')
             ll.flush()
             print('\r123', end='')
+            ll.close()
         s = f.getvalue()
         assert s == '\rabc\n\r123'

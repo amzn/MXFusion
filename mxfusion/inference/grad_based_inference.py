@@ -37,15 +37,17 @@ class GradBasedInference(Inference):
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
+    :param logger: The logger to send logs to
+    :type logger: :class:`inference.Logger`
     """
 
     def __init__(self, inference_algorithm, grad_loop=None, constants=None,
-                 hybridize=False, dtype=None, context=None):
+                 hybridize=False, dtype=None, context=None, logger=None):
         if grad_loop is None:
             grad_loop = BatchInferenceLoop()
         super(GradBasedInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
-            hybridize=hybridize, dtype=dtype, context=context)
+            hybridize=hybridize, dtype=dtype, context=context, logger=logger)
         self._grad_loop = grad_loop
 
     def create_executor(self):
@@ -66,7 +68,7 @@ class GradBasedInference(Inference):
         return infr
 
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
-            logger=None, **kwargs):
+            **kwargs):
         """
         Run the inference method.
 
@@ -76,8 +78,6 @@ class GradBasedInference(Inference):
         :type learning_rate: float
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
-        :param logger: The logger to send logs to
-        :type logger: :class:`inference.Logger`
         :param kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of
         the corresponding variable in model definition and the value of the argument is the data in numpy array format.
         """
@@ -97,12 +97,12 @@ class GradBasedInference(Inference):
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
                 learning_rate=learning_rate, max_iter=max_iter,
-                update_shape_constants=update_shape_constants, logger=logger)
+                update_shape_constants=update_shape_constants, logger=self._logger)
         else:
             return self._grad_loop.run(
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
-                learning_rate=learning_rate, max_iter=max_iter, logger=logger)
+                learning_rate=learning_rate, max_iter=max_iter, logger=self._logger)
 
 
 class GradTransferInference(GradBasedInference):
