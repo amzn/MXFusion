@@ -42,7 +42,7 @@ class MinibatchInferenceLoop(GradLoop):
             if rv_scaling is not None else rv_scaling
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, verbose=False, update_shape_constants=None, logger=None):
+            learning_rate=1e-3, max_iter=1000, update_shape_constants=None, logger=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
