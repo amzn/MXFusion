@@ -16,8 +16,6 @@
 import os
 import time
 
-from mxboard import SummaryWriter
-
 
 class Logger:
     """
@@ -77,6 +75,9 @@ class Logger:
 
     @staticmethod
     def _get_board(log_dir, log_name):
+        # Only import mxboard if absolutely necessary
+        from mxboard import SummaryWriter
+
         return SummaryWriter(Logger._get_board_path(log_dir, log_name))
 
     def log(self, tag, value, step, iterate_name='Iteration', precision=3, newline=False):
