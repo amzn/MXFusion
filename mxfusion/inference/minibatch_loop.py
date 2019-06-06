@@ -42,7 +42,7 @@ class MinibatchInferenceLoop(GradLoop):
             if rv_scaling is not None else rv_scaling
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, update_shape_constants=None, logger=None):
+            learning_rate=1e-3, max_iter=1000, update_shape_constants=None, verbose=False, logger=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -58,10 +58,12 @@ class MinibatchInferenceLoop(GradLoop):
         :type learning_rate: float
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
-        :param logger: The logger to send logs to
-        :type logger: :class:`inference.Logger`
         :param update_shape_constants: The callback function to update the shape constants according to the size of minibatch
         :type update_shape_constants: Python function
+        :param verbose: whether to print per-iteration messages.
+        :type verbose: boolean
+        :param logger: The logger to send logs to
+        :type logger: :class:`inference.Logger`
         """
 
         if logger:
@@ -92,14 +94,15 @@ class MinibatchInferenceLoop(GradLoop):
                     loss_for_gradient.backward()
 
                 if logger:
-                    logger.log(tag='loss', value=loss.asscalar(), step=batch_number + total_batches + 1)
+                    logger.log(tag='loss', value=loss.asscalar(), step=batch_number + total_batches + 1,
+                               verbose=verbose)
 
                 trainer.step(batch_size=self.batch_size, ignore_stale_grad=True)
                 epoch_loss += loss.asscalar()
 
             if logger:
                 logger.log(tag='epoch_loss', value=epoch_loss / batch_number,
-                           step=e + 1, iterate_name="Epoch", newline=True)
+                           step=e + 1, iterate_name="Epoch", newline=True, verbose=verbose)
             total_batches += batch_number
 
         if logger:

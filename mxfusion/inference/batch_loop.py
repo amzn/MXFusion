@@ -23,7 +23,7 @@ class BatchInferenceLoop(GradLoop):
     """
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, n_prints=10, logger=None):
+            learning_rate=1e-3, max_iter=1000, n_prints=10, verbose=False, logger=None):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -41,6 +41,8 @@ class BatchInferenceLoop(GradLoop):
         :type n_prints: int
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
+        :param verbose: whether to print per-iteration messages.
+        :type verbose: boolean
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
@@ -57,7 +59,7 @@ class BatchInferenceLoop(GradLoop):
                 loss_for_gradient.backward()
 
             if logger:
-                logger.log("loss", loss.asscalar(), i, newline=not i % iter_step)
+                logger.log("loss", loss.asscalar(), i, newline=not i % iter_step, verbose=verbose)
 
             trainer.step(batch_size=1, ignore_stale_grad=True)
         infr_executor(mx.nd.zeros(1, ctx=ctx), *data)

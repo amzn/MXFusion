@@ -68,7 +68,7 @@ class LoggerTests(unittest.TestCase):
         ll = Logger()
         ll.open()
         with contextlib.redirect_stdout(f):
-            ll.log(self.tag, 404, 2)
+            ll.log(self.tag, 404, 2, verbose=True)
             ll.close()
         s = f.getvalue()
         assert s == '\rIteration 2 tag: 404.000\t\t\t\t\n'
@@ -78,8 +78,8 @@ class LoggerTests(unittest.TestCase):
         ll = Logger()
         ll.open()
         with contextlib.redirect_stdout(f):
-            ll.log(self.tag, 404, 2)
-            ll.log(self.tag, 808, 3)
+            ll.log(self.tag, 404, 2, verbose=True)
+            ll.log(self.tag, 808, 3, verbose=True)
             ll.close()
         s = f.getvalue()
         assert s == '\rIteration 2 tag: 404.000\t\t\t\t\rIteration 3 tag: 808.000\t\t\t\t\n'
@@ -89,20 +89,33 @@ class LoggerTests(unittest.TestCase):
         ll = Logger()
         ll.open()
         with contextlib.redirect_stdout(f):
-            ll.log(self.tag, 404, 2, newline=True)
-            ll.log(self.tag, 808, 3)
+            ll.log(self.tag, 404, 2, newline=True, verbose=True)
+            ll.log(self.tag, 808, 3, verbose=True)
             ll.close()
         s = f.getvalue()
         assert s == '\rIteration 2 tag: 404.000\t\t\t\t\n\rIteration 3 tag: 808.000\t\t\t\t\n'
 
     def test_board_log(self):
-        ll = Logger(verbose=False, log_dir=self.log_dir, log_name=self.log_name)
+        ll = Logger(log_dir=self.log_dir, log_name=self.log_name)
         ll.open()
-        ll.log(self.tag, 404, 2)
+        ll.log(self.tag, 404, 2, verbose=False)
         ll.close()
         path = os.path.join(self.log_dir, self.log_name)
         assert os.path.isdir(path)
         assert len(os.listdir(path)) == 1
+
+    def test_flush_verbose(self):
+        f = io.StringIO()
+        ll = Logger()
+        ll.open()
+        with contextlib.redirect_stdout(f):
+            ll._on_new_line = False
+            print('\rabc', end='')
+            ll.flush(verbose=True)
+            print('\r123', end='')
+            ll.close()
+        s = f.getvalue()
+        assert s == '\rabc\n\r123'
 
     def test_flush(self):
         f = io.StringIO()
@@ -111,8 +124,8 @@ class LoggerTests(unittest.TestCase):
         with contextlib.redirect_stdout(f):
             ll._on_new_line = False
             print('\rabc', end='')
-            ll.flush()
+            ll.flush(verbose=False)
             print('\r123', end='')
             ll.close()
         s = f.getvalue()
-        assert s == '\rabc\n\r123'
+        assert s == '\rabc\r123'

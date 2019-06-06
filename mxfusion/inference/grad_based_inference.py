@@ -68,7 +68,7 @@ class GradBasedInference(Inference):
         return infr
 
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
-            **kwargs):
+            verbose=False, **kwargs):
         """
         Run the inference method.
 
@@ -78,6 +78,8 @@ class GradBasedInference(Inference):
         :type learning_rate: float
         :param max_iter: the maximum number of iterations of gradient optimization
         :type max_iter: int
+        :param verbose: whether to print per-iteration messages.
+        :type verbose: boolean
         :param kwargs: The keyword arguments specify the data for inferences. The key of each argument is the name of
         the corresponding variable in model definition and the value of the argument is the data in numpy array format.
         """
@@ -97,12 +99,12 @@ class GradBasedInference(Inference):
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
                 learning_rate=learning_rate, max_iter=max_iter,
-                update_shape_constants=update_shape_constants, logger=self._logger)
+                update_shape_constants=update_shape_constants, verbose=verbose, logger=self._logger)
         else:
             return self._grad_loop.run(
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
-                learning_rate=learning_rate, max_iter=max_iter, logger=self._logger)
+                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
 
 
 class GradTransferInference(GradBasedInference):

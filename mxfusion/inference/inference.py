@@ -22,6 +22,7 @@ import mxnet as mx
 import numpy as np
 
 from .inference_parameters import InferenceParameters
+from .logger import Logger
 from ..common.config import get_default_device, get_default_dtype
 from ..common.exceptions import InferenceError, SerializationError
 from ..models import FactorGraph, Model, Posterior
@@ -62,7 +63,7 @@ class Inference(object):
                                           dtype=self.dtype,
                                           context=self.mxnet_context)
         self._initialized = False
-        self._logger = logger
+        self._logger = Logger() if logger is None else logger
 
     def print_params(self):
         """
