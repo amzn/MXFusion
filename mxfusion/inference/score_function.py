@@ -19,6 +19,7 @@ from mxfusion.common.exceptions import InferenceError
 from .inference_alg import InferenceAlgorithm
 from .variational import StochasticVariationalInference
 from ..components.variables import VariableType
+from ..util.customop import score_func_grad
 
 
 class ScoreFunctionInference(StochasticVariationalInference):
@@ -71,14 +72,9 @@ class ScoreFunctionInference(StochasticVariationalInference):
 
         p_x_z = self.model.log_pdf(F=F, variables=variables)
 
-        difference_nograd = F.stop_gradient(p_x_z - q_z_lambda)
-        gradient_lambda = F.mean(q_z_lambda * difference_nograd, axis=0)
+        bound = mx.nd.mean(score_func_grad(p_x_z, q_z_lambda) - mx.nd.BlockGrad(q_z_lambda))
 
-        gradient_theta = F.mean(p_x_z - F.stop_gradient(q_z_lambda), axis=0)
-
-        gradient_log_L = gradient_lambda + gradient_theta
-
-        return -gradient_theta, -gradient_log_L
+        return -bound
 
 
 class ScoreFunctionRBInference(ScoreFunctionInference):
@@ -157,7 +153,8 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
             # Need to stop the gradient of p_i manually, for some reason it doesn't like
             # being used directly in this computation. Possibly only when p_i == p_x_z but
             # that is unconfirmed.
-            f_i = q_i * (p_i.asscalar() - q_i.asscalar())
+            # f_i = q_i * (p_i.asscalar() - q_i.asscalar())
+            f_i = score_func_grad(p_i, q_i)
 
             # f_i = q_i * F.stop_gradient(p_i - q_i)
             f_list.append(F.expand_dims(f_i, axis=0))
@@ -177,7 +174,7 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
         # Robbins-Monro sequence??
         gradient_log_L = gradient_lambda + gradient_theta
 
-        return -gradient_theta, -gradient_log_L
+        return -gradient_theta
 
     def _extract_descendant_blanket_params(self, graph, node):
         """
