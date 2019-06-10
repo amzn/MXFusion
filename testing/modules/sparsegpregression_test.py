@@ -306,7 +306,7 @@ class TestSparseGPRegressionModule(object):
             inference_algorithm=StochasticVariationalInference(
                 model=m, posterior=q, num_samples=10, observed=[m.Y]))
         infr.run(Y=mx.nd.array(Y, dtype='float64'), max_iter=2,
-                 learning_rate=0.1, verbose=True)
+                 learning_rate=0.1)
 
         infr2 = Inference(ForwardSamplingAlgorithm(
             model=m, observed=[m.X], num_samples=5))
