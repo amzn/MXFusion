@@ -74,7 +74,7 @@ class ScoreFunctionInference(StochasticVariationalInference):
 
         bound = mx.nd.mean(score_func_grad(p_x_z, q_z_lambda) - mx.nd.BlockGrad(q_z_lambda))
 
-        return -bound
+        return -bound, -bound
 
 
 class ScoreFunctionRBInference(ScoreFunctionInference):
@@ -153,8 +153,7 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
             # Need to stop the gradient of p_i manually, for some reason it doesn't like
             # being used directly in this computation. Possibly only when p_i == p_x_z but
             # that is unconfirmed.
-            # f_i = q_i * (p_i.asscalar() - q_i.asscalar())
-            f_i = score_func_grad(p_i, q_i)
+            f_i = q_i * (p_i.asscalar() - q_i.asscalar())
 
             # f_i = q_i * F.stop_gradient(p_i - q_i)
             f_list.append(F.expand_dims(f_i, axis=0))
@@ -174,7 +173,7 @@ class ScoreFunctionRBInference(ScoreFunctionInference):
         # Robbins-Monro sequence??
         gradient_log_L = gradient_lambda + gradient_theta
 
-        return -gradient_theta
+        return -gradient_theta, -gradient_log_L
 
     def _extract_descendant_blanket_params(self, graph, node):
         """
