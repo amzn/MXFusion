@@ -13,7 +13,6 @@
 # ==============================================================================
 
 
-from ...common.config import get_default_MXNet_mode
 from .univariate import UnivariateDistribution
 from ...runtime.distributions import BetaRuntime
 
@@ -37,18 +36,16 @@ class Beta(UnivariateDistribution):
     """
     runtime_dist_class = BetaRuntime
 
-    def __init__(self, alpha, beta, rand_gen=None, dtype=None, ctx=None):
+    def __init__(self, alpha, beta):
         inputs = [('alpha', alpha), ('beta', beta)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(Beta, self).__init__(inputs=inputs, outputs=None,
                                    input_names=input_names,
-                                   output_names=output_names,
-                                   rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+                                   output_names=output_names)
 
     @staticmethod
-    def define_variable(alpha=1., beta=1., shape=None, rand_gen=None,
-                        dtype=None, ctx=None):
+    def define_variable(alpha=1., beta=1., shape=None):
         """
         Creates and returns a random variable drawn from a beta distribution.
 
@@ -65,7 +62,6 @@ class Beta(UnivariateDistribution):
         :returns: the random variables drawn from the beta distribution.
         :rtypes: Variable
         """
-        beta = Beta(alpha=alpha, beta=beta, rand_gen=rand_gen, dtype=dtype,
-                    ctx=ctx)
+        beta = Beta(alpha=alpha, beta=beta)
         beta._generate_outputs(shape=shape)
         return beta.random_variable

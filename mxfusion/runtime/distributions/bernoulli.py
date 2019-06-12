@@ -29,3 +29,11 @@ class BernoulliRuntime(DistributionRuntime):
     def draw_samples(self, num_samples=1):
         out_shape = (num_samples,) + self.prob_true.shape[1:]
         return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.dtype) < self.prob_true
+
+    @property
+    def mean(self):
+        return self.prob_true
+
+    @property
+    def variance(self):
+        return self.prob_true*(1-self.prob_true)

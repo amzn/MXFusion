@@ -13,8 +13,10 @@
 # ==============================================================================
 
 
-from ...common.config import get_default_MXNet_mode
+import mxnet as mx
 from .univariate import UnivariateDistribution
+from ...util.inference import broadcast_samples_dict
+from ...runtime.distributions import GammaRuntime
 
 
 class Gamma(UnivariateDistribution):
@@ -33,49 +35,18 @@ class Gamma(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, alpha, beta, rand_gen=None, dtype=None, ctx=None):
+    runtime_dist_class = GammaRuntime
+
+    def __init__(self, alpha, beta):
         inputs = [('alpha', alpha), ('beta', beta)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(Gamma, self).__init__(inputs=inputs, outputs=None,
                                     input_names=input_names,
-                                    output_names=output_names,
-                                    rand_gen=rand_gen, dtype=dtype, ctx=ctx)
-
-    def log_pdf_impl(self, alpha, beta, random_variable, F=None):
-        """
-        Computes the logarithm of the probability density function (PDF) of the Gamma distribution.
-
-        :param random_variable: the random variable of the Gamma distribution.
-        :type random_variable: MXNet NDArray or MXNet Symbol
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: log pdf of the distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-
-        g_alpha = F.gammaln(alpha)
-        p1 = (alpha - 1.) * F.log(random_variable)
-        return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
-
-    def draw_samples_impl(self, alpha, beta, rv_shape, num_samples=1, F=None):
-        """
-        Draw samples from the Gamma distribution.
-        :param rv_shape: the shape of each sample.
-        :type rv_shape: tuple
-        :param num_samples: the number of drawn samples (default: one).
-        :type num_samples: int
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: a set samples of the Gamma distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype,
-                              ctx=self.ctx)
+                                    output_names=output_names)
 
     @staticmethod
-    def define_variable(alpha=0., beta=1., shape=None, rand_gen=None,
-                        dtype=None, ctx=None):
+    def define_variable(alpha=0., beta=1., shape=None):
         """
         Creates and returns a random variable drawn from a Gamma distribution parameterized with a and b parameters.
 
@@ -94,8 +65,7 @@ class Gamma(UnivariateDistribution):
         :returns: the random variables drawn from the Gamma distribution.
         :rtypes: Variable
         """
-        dist = Gamma(alpha=alpha, beta=beta, rand_gen=rand_gen,
-                     dtype=dtype, ctx=ctx)
+        dist = Gamma(alpha=alpha, beta=beta)
         dist._generate_outputs(shape=shape)
         return dist.random_variable
 
@@ -116,66 +86,27 @@ class GammaMeanVariance(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
+    runtime_dist_class = GammaRuntime
+
+    def __init__(self, mean, variance):
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(GammaMeanVariance, self).__init__(
             inputs=inputs, outputs=None, input_names=input_names,
-            output_names=output_names, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+            output_names=output_names)
 
-    def _get_alpha_beta(self, a, b):
-        """
-        Returns the alpha/beta representation of the input variables.
-        Based on if the variable was parameterized using alpha/beta or with mean/variance.
-        :param a: alpha or mean
-        :type a: mx.ndarray.array or mx.symbol.array
-        :param b: beta or variance
-        :type b: mx.ndarray.array or mx.symbol.array
-        """
-        beta = a / b
-        alpha = a * beta
-        return alpha, beta
-
-    def log_pdf_impl(self, mean, variance, random_variable, F=None):
-        """
-        Computes the logarithm of the probability density function (PDF) of the Gamma distribution.
-
-        :param mean: mean of the Gamma random variable (alpha / beta)
-        :type mean: float
-        :param variance: variance of the Gamma random variable (alpha / beta**2)
-        :type variance: float
-        :param random_variable: the random variable of the Gamma distribution.
-        :type random_variable: MXNet NDArray or MXNet Symbol
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: log pdf of the distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-
-        alpha, beta = self._get_alpha_beta(mean, variance)
-        g_alpha = F.gammaln(alpha)
-        p1 = (alpha - 1.) * F.log(random_variable)
-        return (p1 - beta * random_variable) - (g_alpha - alpha * F.log(beta))
-
-    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1, F=None):
-        """
-        Draw samples from the Gamma distribution.
-        :param rv_shape: the shape of each sample.
-        :type rv_shape: tuple
-        :param num_samples: the number of drawn samples (default: one).
-        :type num_samples: int
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: a set samples of the Gamma distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-        alpha, beta = self._get_alpha_beta(mean, variance)
-        return F.random.gamma(alpha=alpha, beta=beta, dtype=self.dtype,
-                              ctx=self.ctx)
+    def get_runtime_distribution(self, variables):
+        if self.runtime_dist_class is None:
+            raise NotImplementedError
+        kwargs = self.fetch_runtime_inputs(variables)
+        kwargs = broadcast_samples_dict(mx.nd, kwargs)
+        alpha = kwargs['mean']**2 / kwargs['variance']
+        beta = kwargs['mean'] / kwargs['variance']
+        return self.runtime_dist_class(alpha=alpha, beta=beta)
 
     @staticmethod
-    def define_variable(mean=0., variance=1., shape=None, rand_gen=None, dtype=None, ctx=None):
+    def define_variable(mean=0., variance=1., shape=None):
         """
         Creates and returns a random variable drawn from a Gamma distribution parameterized with mean and variance.
 
@@ -190,7 +121,6 @@ class GammaMeanVariance(UnivariateDistribution):
         :returns: the random variables drawn from the Gamma distribution.
         :rtypes: Variable
         """
-        dist = GammaMeanVariance(mean=mean, variance=variance,
-                                 rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+        dist = GammaMeanVariance(mean=mean, variance=variance)
         dist._generate_outputs(shape=shape)
         return dist.random_variable
