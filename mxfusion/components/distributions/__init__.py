@@ -51,3 +51,4 @@ from .beta import Beta
 from .dirichlet import Dirichlet
 from .uniform import Uniform
 from .laplace import Laplace
+from .sigmoid_bernoulli import SigmoidBernoulli

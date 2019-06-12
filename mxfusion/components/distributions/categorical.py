@@ -54,8 +54,6 @@ class Categorical(UnivariateDistribution):
         self.num_classes = num_classes
 
     def get_runtime_distribution(self, variables):
-        if self.runtime_dist_class is None:
-            raise NotImplementedError
         kwargs = self.fetch_runtime_inputs(variables)
         kwargs = broadcast_samples_dict(mx.nd, kwargs)
         return self.runtime_dist_class(axis=self.axis, normalization=self.normalization,

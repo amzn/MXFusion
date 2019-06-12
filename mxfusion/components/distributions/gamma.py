@@ -97,8 +97,6 @@ class GammaMeanVariance(UnivariateDistribution):
             output_names=output_names)
 
     def get_runtime_distribution(self, variables):
-        if self.runtime_dist_class is None:
-            raise NotImplementedError
         kwargs = self.fetch_runtime_inputs(variables)
         kwargs = broadcast_samples_dict(mx.nd, kwargs)
         alpha = kwargs['mean']**2 / kwargs['variance']
