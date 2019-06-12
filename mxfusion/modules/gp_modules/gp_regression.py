@@ -24,7 +24,7 @@ from ...components.distributions.random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape
 from ...inference.variational import VariationalInference
 from ...util.customop import broadcast_to_w_samples
-from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.variables.runtime_variable import broadcast_sample_dimension
 from ...components.functions.operators import broadcast_to
 
 
@@ -49,8 +49,8 @@ class GPRegressionLogPdf(VariationalInference):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, Y, noise_var, kern_params = arrays_as_samples(
-            F, [X, Y, noise_var, kern_params])
+        X, Y, noise_var, kern_params = broadcast_sample_dimension(
+            [X, Y, noise_var, kern_params])
 
         K = kern.K(F, X, **kern_params) + \
             F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
@@ -108,8 +108,8 @@ class GPRegressionSampling(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, noise_var, kern_params = arrays_as_samples(
-            F, [X, noise_var, kern_params])
+        X, noise_var, kern_params = broadcast_sample_dimension(
+            [X, noise_var, kern_params])
 
         K = kern.K(F, X, **kern_params) + \
             F.expand_dims(F.eye(N, dtype=X.dtype), axis=0) * \
@@ -165,8 +165,8 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, noise_var, X_cond, L, LinvY, kern_params = arrays_as_samples(
-            F, [X, noise_var, X_cond, L, LinvY, kern_params])
+        X, noise_var, X_cond, L, LinvY, kern_params = broadcast_sample_dimension(
+            [X, noise_var, X_cond, L, LinvY, kern_params])
 
         Kxt = kern.K(F, X_cond, X, **kern_params)
         LinvKxt = F.linalg.trsm(L, Kxt)
@@ -232,8 +232,8 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, noise_var, X_cond, L, LinvY, kern_params = arrays_as_samples(
-            F, [X, noise_var, X_cond, L, LinvY, kern_params])
+        X, noise_var, X_cond, L, LinvY, kern_params = broadcast_sample_dimension(
+            [X, noise_var, X_cond, L, LinvY, kern_params])
 
         Kxt = kern.K(F, X_cond, X, **kern_params)
         LinvKxt = F.linalg.trsm(L, Kxt)
