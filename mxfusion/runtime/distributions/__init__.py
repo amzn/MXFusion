@@ -12,7 +12,7 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-__all__ = ['distrbution', 'normal', 'bernoulli', 'sigmoid_bernoulli', 'beta', 'gamma', 'categorical']
+__all__ = ['distrbution', 'normal', 'bernoulli', 'sigmoid_bernoulli', 'beta', 'gamma', 'categorical', 'laplace']
 
 from .normal import NormalRuntime
 from .bernoulli import BernoulliRuntime
@@ -20,3 +20,4 @@ from .sigmoid_bernoulli import SigmoidBernoulliRuntime
 from .beta import BetaRuntime
 from .gamma import GammaRuntime
 from .categorical import CategoricalRuntime
+from .laplace import LaplaceRuntime
