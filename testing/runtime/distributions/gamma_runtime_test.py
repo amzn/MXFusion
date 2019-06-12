@@ -46,6 +46,8 @@ class TestGammaRuntimeDistribution(object):
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
 
     def test_draw_samples(self):
+        np.random.seed(0)
+        mx.random.seed(0)
         num_samples = 1000
 
         alpha = mx.nd.array(np.random.rand(1, 2), dtype='float64')
@@ -55,3 +57,12 @@ class TestGammaRuntimeDistribution(object):
         rtol, atol = 1e-1, 1e-1
         assert np.allclose(samples.asnumpy().mean(0), gamma_dist.mean.asnumpy(), rtol=rtol, atol=atol)
         assert np.allclose(samples.asnumpy().var(0), gamma_dist.variance.asnumpy(), rtol=rtol, atol=atol)
+
+    def test_draw_samples_broadcast(self):
+        num_samples = 10
+
+        alpha = mx.nd.array(np.random.rand(num_samples, 2), dtype='float64')
+        beta = mx.nd.array(np.random.rand(num_samples, 2)+0.01, dtype='float64')
+        gamma_dist = GammaRuntime(alpha=alpha, beta=beta)
+        samples = gamma_dist.draw_samples(num_samples)
+        assert samples.shape == (num_samples, 2)

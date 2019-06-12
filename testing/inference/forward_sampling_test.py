@@ -44,7 +44,7 @@ class ForwardSamplingTests(unittest.TestCase):
                 var = broadcast_to(Variable(mx.nd.array([1e6], dtype=dtype)),
                                    v.shape)
                 v.set_prior(mf.components.distributions.Normal(mean=mean, variance=var))
-        m.y = mf.components.distributions.Categorical.define_variable(log_prob=m.r, num_classes=2, normalization=True, one_hot_encoding=False, shape=(m.N, 1), dtype=dtype)
+        m.y = mf.components.distributions.Categorical.define_variable(log_prob=m.r, num_classes=2, normalization=True, one_hot_encoding=False, shape=(m.N, 1))
 
         return m
 

@@ -46,6 +46,8 @@ class TestNormalRuntimeDistribution(object):
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
 
     def test_draw_samples(self):
+        np.random.seed(0)
+        mx.random.seed(0)
         num_samples = 1000
 
         mean = mx.nd.array(np.random.rand(1, 2), dtype='float64')
