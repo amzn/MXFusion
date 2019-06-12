@@ -229,15 +229,6 @@ class MultivariateNormal(Distribution):
         normal._generate_outputs(shape=shape)
         return normal.random_variable
 
-    def _generate_outputs(self, shape):
-        """
-        Set the output variable of the distribution.
-
-        :param shape: the shape of the random distribution.
-        :type shape: tuple
-        """
-        self.outputs = [('random_variable', Variable(value=self, shape=shape))]
-
 
 class NormalMeanPrecision(UnivariateDistribution):
     """

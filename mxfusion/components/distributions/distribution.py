@@ -14,6 +14,7 @@
 
 
 import mxnet as mx
+from ..variables import Variable
 from ..factor import Factor
 from .random_gen import MXNetRandomGenerator
 from ...util.inference import realize_shape, \
@@ -170,3 +171,12 @@ class Distribution(Factor):
         :rtypes: Variable or [Variable]
         """
         raise NotImplementedError
+
+    def _generate_outputs(self, shape):
+        """
+        Set the output variable of the distribution.
+
+        :param shape: the shape of the random distribution.
+        :type shape: tuple
+        """
+        self.outputs = [('random_variable', Variable(value=self, shape=shape))]
