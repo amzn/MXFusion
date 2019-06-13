@@ -344,8 +344,7 @@ class SparseGPRegression(Module):
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
-            dtype=self.dtype, ctx=self.ctx))
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape)))
         graph.kernel = graph.U.factor.kernel
         post = Posterior(graph)
         # The posterior graph here is used as the place holder

@@ -16,6 +16,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
+from mxfusion import Variable
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import Normal, MultivariateNormal
 from mxfusion.util.testutils import numpy_array_reshape, plot_univariate, plot_bivariate
@@ -26,11 +27,7 @@ from mxfusion.util.testutils import MockMXNetRandomGenerator
 class TestNormalDistribution(object):
 
     @pytest.mark.parametrize("dtype, mean, mean_isSamples, var, var_isSamples, rv, rv_isSamples, num_samples", [
-        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, np.random.rand(5,3,2), True, 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(3,2), False, 1),
-        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5)
         ])
     def test_log_pdf(self, dtype, mean, mean_isSamples, var, var_isSamples,
                      rv, rv_isSamples, num_samples):
@@ -43,7 +40,7 @@ class TestNormalDistribution(object):
         var_np = numpy_array_reshape(var, var_isSamples, n_dim)
         rv_np = numpy_array_reshape(rv, rv_isSamples, n_dim)
         log_pdf_np = norm.logpdf(rv_np, mean_np, np.sqrt(var_np))
-        normal = Normal.define_variable(shape=rv_shape, dtype=dtype).factor
+        normal = Normal.define_variable(shape=rv_shape, mean=Variable(), variance=Variable()).factor
         mean_mx = mx.nd.array(mean, dtype=dtype)
         if not mean_isSamples:
             mean_mx = add_sample_dimension(mx.nd, mean_mx)
@@ -65,74 +62,6 @@ class TestNormalDistribution(object):
         else:
             rtol, atol = 1e-4, 1e-5
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
-
-
-    @pytest.mark.parametrize(
-        "dtype, mean, mean_isSamples, var, var_isSamples, rv_shape, num_samples",[
-        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, (3,2), 5),
-        (np.float64, np.random.rand(5,3,2), True, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
-        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
-        ])
-    def test_draw_samples(self, dtype, mean, mean_isSamples, var,
-                          var_isSamples, rv_shape, num_samples):
-        n_dim = 1 + len(rv_shape)
-        mean_np = numpy_array_reshape(mean, mean_isSamples, n_dim)
-        var_np = numpy_array_reshape(var, var_isSamples, n_dim)
-
-        rand = np.random.randn(num_samples, *rv_shape)
-        rv_samples_np = mean_np + rand * np.sqrt(var_np)
-
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        normal = Normal.define_variable(shape=rv_shape, dtype=dtype,
-                                        rand_gen=rand_gen).factor
-        mean_mx = mx.nd.array(mean, dtype=dtype)
-        if not mean_isSamples:
-            mean_mx = add_sample_dimension(mx.nd, mean_mx)
-        var_mx = mx.nd.array(var, dtype=dtype)
-        if not var_isSamples:
-            var_mx = add_sample_dimension(mx.nd, var_mx)
-        variables = {normal.mean.uuid: mean_mx, normal.variance.uuid: var_mx}
-        rv_samples_rt = normal.draw_samples(
-            F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, rv_samples_rt)
-        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
-
-    def test_draw_samples_non_mock(self, plot=False):
-        # Also make sure the non-mock sampler works
-        dtype = np.float32
-        num_samples = 100000
-
-        mean = np.array([0.5])
-        variance = np.array([2])
-
-        rv_shape = (1,)
-
-        mean_mx = add_sample_dimension(mx.nd, mx.nd.array(mean, dtype=dtype))
-        variance_mx = add_sample_dimension(mx.nd, mx.nd.array(variance, dtype=dtype))
-
-        rand_gen = None
-        var = Normal.define_variable(shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
-        variables = {var.mean.uuid: mean_mx, var.variance.uuid: variance_mx}
-        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert array_has_samples(mx.nd, rv_samples_rt)
-        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
-        assert rv_samples_rt.dtype == dtype
-
-        from scipy.stats import norm
-        if plot:
-            plot_univariate(samples=rv_samples_rt, dist=norm, loc=mean[0], scale=np.sqrt(variance[0]))
-
-        mean_est, scale_est = norm.fit(rv_samples_rt.asnumpy().ravel())
-        mean_tol = 1e-1
-        variance_tol = 1e-1
-        assert np.abs(mean[0] - mean_est) < mean_tol
-        assert np.abs(variance[0] - scale_est ** 2) < variance_tol
 
 
 def make_symmetric(array):

@@ -18,6 +18,7 @@ import mxnet as mx
 import numpy as np
 from scipy.stats import norm, multivariate_normal
 
+from mxfusion import Variable
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.components.distributions import NormalMeanPrecision, MultivariateNormalMeanPrecision
 from mxfusion.util.testutils import numpy_array_reshape
@@ -29,11 +30,7 @@ class TestNormalPrecisionDistribution(object):
 
     @pytest.mark.parametrize(
         "dtype, mean, mean_is_samples, precision, precision_is_samples, rv, rv_is_samples, num_samples", [
-        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, np.random.rand(5,3,2), True, 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, np.random.rand(3,2), False, 1),
-        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5),
+        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, np.random.rand(5,3,2), True, 5)
         ])
     def test_log_pdf(self, dtype, mean, mean_is_samples, precision, precision_is_samples,
                      rv, rv_is_samples, num_samples):
@@ -45,7 +42,7 @@ class TestNormalPrecisionDistribution(object):
         rv_np = numpy_array_reshape(rv, rv_is_samples, n_dim)
         log_pdf_np = norm.logpdf(rv_np, mean_np, np.power(precision_np, -0.5))
 
-        var = NormalMeanPrecision.define_variable(shape=rv_shape, dtype=dtype).factor
+        var = NormalMeanPrecision.define_variable(shape=rv_shape, mean=Variable(), precision=Variable()).factor
         mean_mx = mx.nd.array(mean, dtype=dtype)
         if not mean_is_samples:
             mean_mx = add_sample_dimension(mx.nd, mean_mx)
@@ -67,47 +64,6 @@ class TestNormalPrecisionDistribution(object):
         else:
             rtol, atol = 1e-4, 1e-5
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
-
-    @pytest.mark.parametrize(
-        "dtype, mean, mean_is_samples, precision, precision_is_samples, rv_shape, num_samples", [
-        (np.float64, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
-        (np.float64, np.random.rand(3,2), False, np.random.rand(3,2)+0.1, False, (3,2), 5),
-        (np.float64, np.random.rand(5,3,2), True, np.random.rand(5,3,2)+0.1, True, (3,2), 5),
-        (np.float32, np.random.rand(5,3,2), True, np.random.rand(3,2)+0.1, False, (3,2), 5),
-        ])
-    def test_draw_samples(self, dtype, mean, mean_is_samples, precision,
-                          precision_is_samples, rv_shape, num_samples):
-        n_dim = 1 + len(rv_shape)
-        mean_np = numpy_array_reshape(mean, mean_is_samples, n_dim)
-        precision_np = numpy_array_reshape(precision, precision_is_samples, n_dim)
-
-        rand = np.random.randn(num_samples, *rv_shape)
-        rv_samples_np = mean_np + rand * np.power(precision_np, -0.5)
-
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        var = NormalMeanPrecision.define_variable(shape=rv_shape, dtype=dtype,
-                                                  rand_gen=rand_gen).factor
-        mean_mx = mx.nd.array(mean, dtype=dtype)
-        if not mean_is_samples:
-            mean_mx = add_sample_dimension(mx.nd, mean_mx)
-        precision_mx = mx.nd.array(precision, dtype=dtype)
-        if not precision_is_samples:
-            precision_mx = add_sample_dimension(mx.nd, precision_mx)
-        variables = {var.mean.uuid: mean_mx, var.precision.uuid: precision_mx}
-        rv_samples_rt = var.draw_samples(
-            F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert np.issubdtype(rv_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, rv_samples_rt)
-        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
-
-        if np.issubdtype(dtype, np.float64):
-            rtol, atol = 1e-7, 1e-10
-        else:
-            rtol, atol = 1e-4, 1e-5
-        assert np.allclose(rv_samples_np, rv_samples_rt.asnumpy(), rtol=rtol, atol=atol)
 
 
 def make_symmetric(array):

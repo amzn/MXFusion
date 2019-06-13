@@ -107,7 +107,7 @@ class TestMXFusionGluonFunctionTests(object):
         func_wrapper = MXFusionGluonFunction(dot, 1, dtype=dtype,
                                              broadcastable=broadcastable)
         from mxfusion.components.distributions.normal import Normal
-        rand_var = Normal.define_variable(shape=(1,))
+        rand_var = Normal.define_variable(shape=(1,), mean=Variable(), variance=Variable())
         out = func_wrapper(Variable(shape=(3, 4)), Variable(shape=(4, 5)), dot_const=rand_var)
 
         return out.factor

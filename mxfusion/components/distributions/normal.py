@@ -22,6 +22,7 @@ from ..variables import Variable
 from .distribution import Distribution
 from .univariate import UnivariateDistribution
 from ...runtime.distributions import NormalRuntime
+from ...util.inference import broadcast_samples_dict
 
 
 class Normal(UnivariateDistribution):
@@ -34,69 +35,19 @@ class Normal(UnivariateDistribution):
     :type mean: Variable
     :param variance: Variance of the normal distribution.
     :type variance: Variable
-    :param rand_gen: the random generator (default: MXNetRandomGenerator).
-    :type rand_gen: RandomGenerator
-    :param dtype: the data type for float point numbers.
-    :type dtype: numpy.float32 or numpy.float64
-    :param ctx: the mxnet context (default: None/current context).
-    :type ctx: None or mxnet.cpu or mxnet.gpu
     """
     runtime_dist_class = NormalRuntime
 
-    def __init__(self, mean, variance, rand_gen=None, dtype=None, ctx=None):
+    def __init__(self, mean, variance):
         inputs = [('mean', mean), ('variance', variance)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(Normal, self).__init__(inputs=inputs, outputs=None,
                                      input_names=input_names,
-                                     output_names=output_names,
-                                     rand_gen=rand_gen, dtype=dtype, ctx=ctx)
-
-    def log_pdf_impl(self, mean, variance, random_variable, F=None):
-        """
-        Computes the logarithm of the probability density function (PDF) of the normal distribution.
-
-        :param mean: the mean of the normal distribution.
-        :type mean: MXNet NDArray or MXNet Symbol
-        :param variance: the variance of the normal distributions.
-        :type variance: MXNet NDArray or MXNet Symbol
-        :param random_variable: the random variable of the normal distribution.
-        :type random_variable: MXNet NDArray or MXNet Symbol
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: log pdf of the distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-        logvar = np.log(2 * np.pi) / -2 + F.log(variance) / -2
-        logL = F.broadcast_add(logvar, F.broadcast_div(F.square(
-            F.broadcast_minus(random_variable, mean)), -2 * variance)) * self.log_pdf_scaling
-        return logL
-
-    def draw_samples_impl(self, mean, variance, rv_shape, num_samples=1, F=None):
-        """
-        Draw samples from the normal distribution.
-
-        :param mean: the mean of the normal distribution.
-        :type mean: MXNet NDArray or MXNet Symbol
-        :param variance: the variance of the normal distributions.
-        :type variance: MXNet NDArray or MXNet Symbol
-        :param rv_shape: the shape of each sample.
-        :type rv_shape: tuple
-        :param num_samples: the number of drawn samples (default: one).
-        :type num_samples: int
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: a set samples of the normal distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-        out_shape = (num_samples,) + rv_shape
-        return F.broadcast_add(F.broadcast_mul(self._rand_gen.sample_normal(
-            shape=out_shape, dtype=self.dtype, ctx=self.ctx),
-            F.sqrt(variance)), mean)
+                                     output_names=output_names)
 
     @staticmethod
-    def define_variable(mean=0., variance=1., shape=None, rand_gen=None,
-                        dtype=None, ctx=None):
+    def define_variable(mean, variance, shape=None):
         """
         Creates and returns a random variable drawn from a normal distribution.
 
@@ -113,8 +64,9 @@ class Normal(UnivariateDistribution):
         :returns: the random variables drawn from the normal distribution.
         :rtypes: Variable
         """
-        normal = Normal(mean=mean, variance=variance, rand_gen=rand_gen,
-                        dtype=dtype, ctx=ctx)
+        if shape is None:
+            shape = mean.shape
+        normal = Normal(mean=mean, variance=variance)
         normal._generate_outputs(shape=shape)
         return normal.random_variable
 
@@ -248,60 +200,25 @@ class NormalMeanPrecision(UnivariateDistribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
-    def __init__(self, mean, precision, rand_gen=None, dtype=None, ctx=None):
+    runtime_dist_class = NormalRuntime
+    
+    def __init__(self, mean, precision):
         inputs = [('mean', mean), ('precision', precision)]
         input_names = [k for k, _ in inputs]
         output_names = ['random_variable']
         super(NormalMeanPrecision, self).__init__(inputs=inputs, outputs=None,
                                                   input_names=input_names,
-                                                  output_names=output_names,
-                                                  rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+                                                  output_names=output_names)
 
-    def log_pdf_impl(self, mean, precision, random_variable, F=None):
-        """
-        Computes the logarithm of the probability density function (PDF) of the normal distribution.
-
-        :param mean: the mean of the normal distribution.
-        :type mean: MXNet NDArray or MXNet Symbol
-        :param precision: the precision of the normal distributions.
-        :type precision: MXNet NDArray or MXNet Symbol
-        :param random_variable: the random variable of the normal distribution.
-        :type random_variable: MXNet NDArray or MXNet Symbol
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: log pdf of the distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-        logvar = (F.log(precision) - np.log(2 * np.pi)) / 2
-        logL = F.broadcast_add(logvar, F.broadcast_mul(F.square(
-            F.broadcast_minus(random_variable, mean)), -precision / 2)) * self.log_pdf_scaling
-        return logL
-
-    def draw_samples_impl(self, mean, precision, rv_shape, num_samples=1, F=None):
-        """
-        Draw samples from the normal distribution.
-
-        :param mean: the mean of the normal distribution.
-        :type mean: MXNet NDArray or MXNet Symbol
-        :param precision: the precision of the normal distributions.
-        :type precision: MXNet NDArray or MXNet Symbol
-        :param rv_shape: the shape of each sample.
-        :type rv_shape: tuple
-        :param num_samples: the number of drawn samples (default: one).
-        :type num_samples: int
-        :param F: the MXNet computation mode (mxnet.symbol or mxnet.ndarray).
-        :returns: a set samples of the normal distribution.
-        :rtypes: MXNet NDArray or MXNet Symbol
-        """
-        F = get_default_MXNet_mode() if F is None else F
-        out_shape = (num_samples,) + rv_shape
-        return F.broadcast_add(F.broadcast_div(self._rand_gen.sample_normal(
-            shape=out_shape, dtype=self.dtype, ctx=self.ctx),
-            F.sqrt(precision)), mean)
+    def get_runtime_distribution(self, variables):
+        kwargs = self.fetch_runtime_inputs(variables)
+        kwargs = broadcast_samples_dict(mx.nd, kwargs)
+        mean = kwargs['mean']
+        variance = 1/kwargs['precision']
+        return self.runtime_dist_class(mean=mean, variance=variance)
 
     @staticmethod
-    def define_variable(mean=0., precision=1., shape=None, rand_gen=None,
-                        dtype=None, ctx=None):
+    def define_variable(mean, precision, shape=None):
         """
         Creates and returns a random variable drawn from a normal distribution.
 
@@ -318,7 +235,9 @@ class NormalMeanPrecision(UnivariateDistribution):
         :returns: the random variables drawn from the normal distribution.
         :rtypes: Variable
         """
-        normal = NormalMeanPrecision(mean=mean, precision=precision, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
+        if shape is None:
+            shape = mean.shape
+        normal = NormalMeanPrecision(mean=mean, precision=precision)
         normal._generate_outputs(shape=shape)
         return normal.random_variable
 
