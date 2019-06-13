@@ -13,7 +13,7 @@
 # ==============================================================================
 
 __all__ = ['distrbution', 'normal', 'bernoulli', 'sigmoid_bernoulli', 'beta', 'gamma', 'categorical', 'laplace',
-           'dirichlet', 'wishart', 'pointmass']
+           'dirichlet', 'wishart', 'pointmass', 'multivariate_normal']
 
 from .normal import NormalRuntime
 from .bernoulli import BernoulliRuntime
@@ -25,3 +25,4 @@ from .laplace import LaplaceRuntime
 from .dirichlet import DirichletRuntime
 from .wishart import WishartRuntime
 from .pointmass import PointMassRuntime
+from .multivariate_normal import MultivariateNormalRuntime
