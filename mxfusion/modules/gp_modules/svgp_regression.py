@@ -224,8 +224,8 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, Z, noise_var, mu, S_W, S_diag, kern_params = arrays_as_samples(
-            F, [X, Z, noise_var, mu, S_W, S_diag, kern_params])
+        X, Z, noise_var, mu, S_W, S_diag, kern_params = broadcast_sample_dimension(
+             [X, Z, noise_var, mu, S_W, S_diag, kern_params])
 
         S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
 
