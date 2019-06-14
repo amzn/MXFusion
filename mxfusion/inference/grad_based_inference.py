@@ -13,10 +13,10 @@
 # ==============================================================================
 
 
-from .inference import Inference
 from .batch_loop import BatchInferenceLoop
-from ..util.inference import discover_shape_constants, init_outcomes
+from .inference import Inference
 from .minibatch_loop import MinibatchInferenceLoop
+from ..util.inference import discover_shape_constants, init_outcomes
 
 
 class GradBasedInference(Inference):
@@ -37,14 +37,17 @@ class GradBasedInference(Inference):
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
+    :param logger: The logger to send logs to
+    :type logger: :class:`inference.Logger`
     """
+
     def __init__(self, inference_algorithm, grad_loop=None, constants=None,
-                 hybridize=False, dtype=None, context=None):
+                 hybridize=False, dtype=None, context=None, logger=None):
         if grad_loop is None:
             grad_loop = BatchInferenceLoop()
         super(GradBasedInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
-            hybridize=hybridize, dtype=dtype, context=context)
+            hybridize=hybridize, dtype=dtype, context=context, logger=logger)
         self._grad_loop = grad_loop
 
     def create_executor(self):
@@ -95,13 +98,14 @@ class GradBasedInference(Inference):
             return self._grad_loop.run(
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
-                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose,
-                update_shape_constants=update_shape_constants)
+                learning_rate=learning_rate, max_iter=max_iter,
+                update_shape_constants=update_shape_constants, verbose=verbose, logger=self._logger)
         else:
             return self._grad_loop.run(
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
-                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose)
+                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
+
 
 class GradTransferInference(GradBasedInference):
     """

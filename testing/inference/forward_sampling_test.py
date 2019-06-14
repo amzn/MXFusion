@@ -79,7 +79,6 @@ class ForwardSamplingTests(unittest.TestCase):
         alg = StochasticVariationalInference(num_samples=3, model=m, posterior=q, observed=observed)
         infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoop())
         infr.initialize(y=y_nd, x=x_nd)
-        infr._verbose = True
         infr.run(max_iter=2, learning_rate=1e-2, y=y_nd, x=x_nd)
 
         infr2 = VariationalPosteriorForwardSampling(10, [m.x], infr, [m.r])
