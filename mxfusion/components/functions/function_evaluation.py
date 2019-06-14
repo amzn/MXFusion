@@ -58,17 +58,19 @@ class FunctionEvaluation(Factor):
         :returns: the outcome of the function evaluation
         :rtypes: MXNet NDArray or MXNet Symbol or [MXNet NDArray or MXNet Symbol]
         """
-        kwargs = {name: variables[var.uuid] for name, var in self.inputs
-                  if not var.isInherited or var.type == VariableType.RANDVAR}
+
         if self.broadcastable:
             # If some of the inputs are samples and the function is
             # broadcastable, evaluate the function with the inputs that are
             # broadcasted to the right shape.
+            kwargs = {name: variables[var.uuid] for name, var in self.inputs if not var.isInherited}
             kwargs = broadcast_samples_dict(F, kwargs)
+            kwargs.update({name: variables[var.uuid][0] for name, var in self.inputs if var.isInherited})
             results = self.eval_impl(F=F, **kwargs)
             results = results if isinstance(results, (list, tuple)) \
                 else [results]
         else:
+            kwargs = {name: variables[var.uuid] for name, var in self.inputs}
             # If some of the inputs are samples and the function is *not*
             # broadcastable, evaluate the function with each set of samples
             # and concatenate the output variables.

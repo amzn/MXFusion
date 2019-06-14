@@ -41,7 +41,8 @@ class FactorTests(unittest.TestCase):
         self.D = 10
         self.net = nn.HybridSequential()
         with self.net.name_scope():
-            self.net.add(nn.Dense(self.D, activation="relu"))
+            self.net.add(nn.Dense(self.D, in_units=1, activation="relu"))
+        self.net.initialize()
 
         m = mf.models.Model(verbose=False)
         f = MXFusionGluonFunction(self.net, num_outputs=1)

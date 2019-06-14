@@ -118,7 +118,7 @@ class TestScoreFunction(object):
 
         infr = GradBasedInference(inference_algorithm=alg,  grad_loop=BatchInferenceLoop())
         infr.initialize(x=mx.nd.array(x_train, dtype=dtype))
-        infr.run(max_iter=1, learning_rate=1e-2, x=mx.nd.array(x_train, dtype=dtype), verbose=False)
+        infr.run(max_iter=1, learning_rate=1e-2, x=mx.nd.array(x_train, dtype=dtype))
         return infr, q.post_mean
 
     def test_score_function_batch(self):

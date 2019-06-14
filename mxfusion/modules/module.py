@@ -358,7 +358,7 @@ class Module(Factor):
         :returns: the sum of the log probability of all the target variables.
         :rtype: mxnet NDArray or mxnet Symbol
         """
-        alg = self._get_algorithm_for_target_conditional_pair(self._prediction_algorithms, targets, variables)
+        alg = self._get_algorithm_for_target_conditional_pair(self._prediction_algorithms, targets, variables, exact_match=True)
         alg.num_samples = num_samples
         alg.target_variables = targets
         return alg.compute(F, variables)
@@ -410,8 +410,6 @@ class Module(Factor):
             for v in g.variables.values():
                 if v.type == VariableType.PARAMETER and v.transformation is not None:
                     var_trans[v.uuid] = v.transformation
-                if v.type == VariableType.PARAMETER and v.isInherited:
-                    excluded.add(v.uuid)
                 if v.type == VariableType.RANDVAR:
                     if v.uuid in rv_scaling:
                         v.factor.log_pdf_scaling = rv_scaling[v.uuid]

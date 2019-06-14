@@ -13,19 +13,22 @@
 # ==============================================================================
 
 
-import warnings
 import io
 import json
-import numpy as np
-import mxnet as mx
+import warnings
 import zipfile
+
+import mxnet as mx
+import numpy as np
+
 from .inference_parameters import InferenceParameters
+from .logger import Logger
 from ..common.config import get_default_device, get_default_dtype
 from ..common.exceptions import InferenceError, SerializationError
-from ..util.inference import discover_shape_constants, init_outcomes
 from ..models import FactorGraph, Model, Posterior
+from ..util.inference import discover_shape_constants, init_outcomes
 from ..util.serialization import ModelComponentEncoder, make_numpy, load_json_from_zip, load_parameters, \
-                                 FILENAMES, DEFAULT_ZIP, ENCODINGS, SERIALIZATION_VERSION
+    FILENAMES, DEFAULT_ZIP, ENCODINGS, SERIALIZATION_VERSION
 
 
 class Inference(object):
@@ -45,10 +48,12 @@ class Inference(object):
     :type dtype: {numpy.float64, numpy.float32, 'float64', 'float32'}
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
+    :param logger: The logger to send logs to
+    :type logger: :class:`inference.Logger`
     """
 
     def __init__(self, inference_algorithm, constants=None,
-                 hybridize=False, dtype=None, context=None):
+                 hybridize=False, dtype=None, context=None, logger=None):
         self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._hybridize = hybridize
@@ -58,6 +63,7 @@ class Inference(object):
                                           dtype=self.dtype,
                                           context=self.mxnet_context)
         self._initialized = False
+        self._logger = Logger() if logger is None else logger
 
     def print_params(self):
         """
@@ -68,6 +74,7 @@ class Inference(object):
         > infr.print_params()
         Variable(1ab23)(name=y) - (Model/Posterior(123ge2)) - (first mxnet values/shape)
         """
+
         def get_class_name(graph):
             if isinstance(graph, Model):
                 return "Model"
@@ -75,9 +82,10 @@ class Inference(object):
                 return "Posterior"
             else:
                 return "FactorGraph"
+
         string = ""
         for param_uuid, param in self.params.param_dict.items():
-            temp = [(graph,graph[param_uuid]) for i,graph in enumerate(self._graphs) if param_uuid in graph]
+            temp = [(graph, graph[param_uuid]) for i, graph in enumerate(self._graphs) if param_uuid in graph]
             graph, var_param = temp[0]
             string += "{} in {}({}) : {} \n\n".format(var_param, get_class_name(graph), graph._uuid[:5], param.data())
         return string
@@ -205,7 +213,7 @@ class Inference(object):
         # Load graphs
         from ..util.serialization import ModelComponentDecoder
         graphs_list = load_json_from_zip(zip_filename, FILENAMES['graphs'],
-                                           decoder=ModelComponentDecoder)
+                                         decoder=ModelComponentDecoder)
         graphs = FactorGraph.load_graphs(graphs_list)
         primary_model = graphs[0]
         secondary_graphs = graphs[1:]
@@ -272,7 +280,7 @@ class Inference(object):
         # Retrieve dictionary representations of things to save
         mxnet_parameters, mxnet_constants, variable_constants = self.params.get_serializable()
         configuration = self.get_serializable()
-        graphs = [g.as_json()for g in self._graphs]
+        graphs = [g.as_json() for g in self._graphs]
         version_dict = {"serialization_version": SERIALIZATION_VERSION}
 
         files_to_save = []
@@ -281,7 +289,7 @@ class Inference(object):
         ordered_filenames = [FILENAMES['graphs'], FILENAMES['mxnet_params'], FILENAMES['mxnet_constants'],
                              FILENAMES['variable_constants'], FILENAMES['configuration'], FILENAMES['version_file']]
         encodings = [ENCODINGS['json'], ENCODINGS['numpy'], ENCODINGS['numpy'],
-                             ENCODINGS['json'], ENCODINGS['json'], ENCODINGS['json']]
+                     ENCODINGS['json'], ENCODINGS['json'], ENCODINGS['json']]
 
         # Form each individual file buffer.
         for filename, obj, encoding in zip(ordered_filenames, objects, encodings):
@@ -327,6 +335,7 @@ class TransferInference(Inference):
     :param context: The MXNet context
     :type context: {mxnet.cpu or mxnet.gpu}
     """
+
     def __init__(self, inference_algorithm, infr_params, var_tie=None,
                  constants=None, hybridize=False, dtype=None, context=None):
         self._var_tie = var_tie if var_tie is not None else {}
@@ -339,6 +348,7 @@ class TransferInference(Inference):
 
         data_shapes = [kw[v] for v in self.observed_variable_names]
         if not self._initialized:
+            # TODO This function isn't defined anywhere?
             self._initialize_run(self._var_tie, self._inherited_params,
                                  data_shapes)
             self._initialized = True
