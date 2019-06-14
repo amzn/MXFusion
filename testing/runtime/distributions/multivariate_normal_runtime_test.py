@@ -16,7 +16,7 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.runtime.distributions import MultivariateNormalRuntime
+from mxfusion.runtime.distributions import MultivariateNormalRuntime, MultivariateNormalMeanPrecisionRuntime
 from mxfusion.common.exceptions import InferenceError
 np.random.seed(0)
 mx.random.seed(0)
@@ -162,3 +162,80 @@ def test_kl_inconsistent_shapes():
 
     with pytest.raises(InferenceError):
         mvn_1.kl_divergence(mvn_2)
+
+
+@pytest.mark.usefixtures("set_seed")
+class TestMultivariateNormalMeanPrecisionRuntimeDistribution(object):
+
+    @pytest.mark.parametrize("dtype, mean, cov, rv", [
+        (np.float64, np.random.rand(1,3), np.random.rand(1,3,3), np.random.rand(1,3)),
+        (np.float64, np.random.rand(4,3), np.random.rand(4,3,3), np.random.rand(4,3)),
+        (np.float64, np.random.rand(4,3), np.random.rand(4,3,3), np.random.rand(1,3)),
+        (np.float32, np.random.rand(4,3), np.random.rand(4,3,3), np.random.rand(4,3))
+        ])
+    def test_log_pdf(self, dtype, mean, cov, rv):
+        cov = (np.expand_dims(cov, -2)*np.expand_dims(cov, -3)).sum(-1)
+
+        from scipy.stats import multivariate_normal
+        from scipy.linalg import cholesky
+        from scipy.linalg.lapack import dpotri
+        prec = np.array([dpotri(cholesky(cov[i], lower=True), lower=True)[0] for i in range(cov.shape[0])])
+        if mean.ndim > 1:
+            if rv.shape[0]<mean.shape[0]:
+                rv_r = np.repeat(rv, mean.shape[0], 0)
+            else:
+                rv_r = rv
+            log_pdf_np = np.array([multivariate_normal.logpdf(rv_r[i], mean[i], cov[i]) for i in range(mean.shape[0])])
+        else:
+            log_pdf_np = multivariate_normal.logpdf(rv, mean, cov)
+
+        mean_mx = mx.nd.array(mean, dtype=dtype)
+        prec_mx = mx.nd.array(prec, dtype=dtype)
+        rv_mx = mx.nd.array(rv, dtype=dtype)
+        mvn_dist = MultivariateNormalMeanPrecisionRuntime(mean=mean_mx, precision=prec_mx)
+        log_pdf_rt = mvn_dist.log_pdf(rv_mx)
+
+        assert np.issubdtype(log_pdf_rt.dtype, dtype)
+        if np.issubdtype(dtype, np.float64):
+            rtol, atol = 1e-7, 1e-10
+        else:
+            rtol, atol = 1e-3, 1e-4
+        assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
+
+    def test_draw_samples(self):
+        from scipy.linalg import cholesky
+        from scipy.linalg.lapack import dpotri
+
+        np.random.seed(0)
+        mx.random.seed(0)
+        num_samples = 1000
+
+        mean_mx = mx.nd.array(np.random.rand(1,2), dtype='float64')
+        cov = np.random.rand(1,2,2)
+        cov = (np.expand_dims(cov, -2)*np.expand_dims(cov, -3)).sum(-1)
+        prec = np.array([dpotri(cholesky(cov[i], lower=True), lower=True)[0] for i in range(cov.shape[0])])
+        prec_mx = mx.nd.array(prec, dtype='float64')
+        mvn_dist = MultivariateNormalMeanPrecisionRuntime(mean=mean_mx, precision=prec_mx)
+        samples = mvn_dist.draw_samples(num_samples).asnumpy()
+        mean = samples.mean(0)
+        cov = samples.T.dot(samples)/num_samples - mean[:, None]*mean[None, :]
+        rtol, atol = 1e-1, 1e-1
+        assert np.allclose(mean, mvn_dist.mean.asnumpy(), rtol=rtol, atol=atol)
+        assert np.allclose(samples.var(0), mvn_dist.variance.asnumpy(), rtol=rtol, atol=atol)
+        assert np.allclose(cov, mvn_dist.covariance.asnumpy(), rtol=rtol, atol=atol)
+
+    def test_draw_samples_broadcast(self):
+        from scipy.linalg import cholesky
+        from scipy.linalg.lapack import dpotri
+        np.random.seed(0)
+        mx.random.seed(0)
+        num_samples = 10
+
+        mean_mx = mx.nd.array(np.random.rand(num_samples,2), dtype='float64')
+        cov = np.random.rand(num_samples,2,2)
+        cov = (np.expand_dims(cov, -2)*np.expand_dims(cov, -3)).sum(-1)
+        prec = np.array([dpotri(cholesky(cov[i], lower=True), lower=True)[0] for i in range(cov.shape[0])])
+        prec_mx = mx.nd.array(prec, dtype='float64')
+        mvn_dist = MultivariateNormalMeanPrecisionRuntime(mean=mean_mx, precision=prec_mx)
+        samples = mvn_dist.draw_samples(num_samples).asnumpy()
+        assert samples.shape == (num_samples, 2)

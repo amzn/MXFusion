@@ -14,7 +14,7 @@
 
 
 from .distribution import Distribution
-from ...runtime.distributions import MultivariateNormalRuntime
+from ...runtime.distributions import MultivariateNormalRuntime, MultivariateNormalMeanPrecisionRuntime
 
 
 class MultivariateNormal(Distribution):
@@ -49,5 +49,53 @@ class MultivariateNormal(Distribution):
         :rtypes: Variable
         """
         normal = MultivariateNormal(mean=mean, covariance=covariance)
+        normal._generate_outputs(shape=shape)
+        return normal.random_variable
+
+
+class MultivariateNormalMeanPrecision(Distribution):
+    """
+    The multi-dimensional normal distribution parameterized by mean and precision rather than mean and variance.
+
+    :param mean: Mean of the normal distribution.
+    :type mean: Variable
+    :param precision: Precision matrix of the distribution.
+    :type precision: Variable
+    :param rand_gen: the random generator (default: MXNetRandomGenerator).
+    :type rand_gen: RandomGenerator
+    :param dtype: the data type for float point numbers.
+    :type dtype: numpy.float32 or numpy.float64
+    :param ctx: the mxnet context (default: None/current context).
+    :type ctx: None or mxnet.cpu or mxnet.gpu
+    """
+    runtime_dist_class = MultivariateNormalMeanPrecisionRuntime
+
+    def __init__(self, mean, precision):
+        inputs = [('mean', mean), ('precision', precision)]
+        input_names = ['mean', 'precision']
+        output_names = ['random_variable']
+        super(MultivariateNormalMeanPrecision, self).__init__(
+            inputs=inputs, outputs=None, input_names=input_names,
+            output_names=output_names)
+
+    @staticmethod
+    def define_variable(shape, mean=0., precision=None):
+        """
+        Creates and returns a random variable drawn from a normal distribution.
+
+        :param mean: Mean of the distribution.
+        :param precision: Precision of the distribution.
+        :param shape: the shape of the random variable(s).
+        :type shape: tuple or [tuple]
+        :param rand_gen: the random generator (default: MXNetRandomGenerator).
+        :type rand_gen: RandomGenerator
+        :param dtype: the data type for float point numbers.
+        :type dtype: numpy.float32 or numpy.float64
+        :param ctx: the mxnet context (default: None/current context).
+        :type ctx: None or mxnet.cpu or mxnet.gpu
+        :returns: the random variables drawn from the normal distribution.
+        :rtypes: Variable
+        """
+        normal = MultivariateNormalMeanPrecision(mean=mean, precision=precision)
         normal._generate_outputs(shape=shape)
         return normal.random_variable

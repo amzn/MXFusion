@@ -25,4 +25,4 @@ from .laplace import LaplaceRuntime
 from .dirichlet import DirichletRuntime
 from .wishart import WishartRuntime
 from .pointmass import PointMassRuntime
-from .multivariate_normal import MultivariateNormalRuntime
+from .multivariate_normal import MultivariateNormalRuntime, MultivariateNormalMeanPrecisionRuntime

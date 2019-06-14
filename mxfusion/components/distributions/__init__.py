@@ -41,7 +41,7 @@ __all__ = ['bernoulli', 'categorical', 'distribution', 'normal', 'gamma', 'point
            'univariate', 'gp', 'wishart', 'beta', 'laplace', 'uniform', 'dirichlet', 'multivariate_normal']
 
 from .distribution import Distribution
-from .normal import Normal, NormalMeanPrecision, MultivariateNormalMeanPrecision
+from .normal import Normal, NormalMeanPrecision
 from .gamma import Gamma, GammaMeanVariance
 from .pointmass import PointMass
 from .bernoulli import Bernoulli
@@ -53,4 +53,4 @@ from .dirichlet import Dirichlet
 from .uniform import Uniform
 from .laplace import Laplace
 from .sigmoid_bernoulli import SigmoidBernoulli
-from .multivariate_normal import MultivariateNormal
+from .multivariate_normal import MultivariateNormal, MultivariateNormalMeanPrecision
