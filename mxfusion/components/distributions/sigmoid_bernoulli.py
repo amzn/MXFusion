@@ -14,7 +14,7 @@
 
 
 from .univariate import UnivariateDistribution
-from ...runtime import distributions
+from ...runtime.distributions import SigmoidBernoulliRuntime
 
 
 class SigmoidBernoulli(UnivariateDistribution):
@@ -24,7 +24,7 @@ class SigmoidBernoulli(UnivariateDistribution):
     :param prob_true: the probability of being true.
     :type prob_true: Variable
     """
-    runtime_dist_class = distributions.sigmoid_bernoulli.SigmoidBernoulli
+    runtime_dist_class = SigmoidBernoulliRuntime
 
     def __init__(self, prob_true):
         inputs = [('prob_true', prob_true)]
@@ -34,24 +34,6 @@ class SigmoidBernoulli(UnivariateDistribution):
             inputs=inputs, outputs=None,
             input_names=input_names,
             output_names=output_names)
-
-    def replicate_self(self, attribute_map=None):
-        """
-        This functions as a copy constructor for the object.
-        In order to do a copy constructor we first call ``__new__`` on the class which creates a blank object.
-        We then initialize that object using the methods standard init procedures, and do any extra copying of
-        attributes.
-
-        Replicates this Factor, using new inputs, outputs, and a new uuid.
-        Used during model replication to functionally replicate a factor into a new graph.
-
-        :param inputs: new input variables of the factor.
-        :type inputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
-        :param outputs: new output variables of the factor.
-        :type outputs: List of tuples of name to node e.g. [('random_variable': Variable y)] or None
-        """
-        replicant = super(SigmoidBernoulli, self).replicate_self(attribute_map=attribute_map)
-        return replicant
 
     @staticmethod
     def define_variable(prob_true, shape=None):

@@ -19,7 +19,7 @@ import numpy as np
 from scipy.stats import bernoulli
 
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, get_num_samples
-from mxfusion.components.distributions import Bernoulli
+from mxfusion.components.distributions import SigmoidBernoulli
 from mxfusion.util.testutils import numpy_array_reshape
 
 
@@ -39,9 +39,9 @@ class TestBernoulliDistribution(object):
         rv_full_shape = (num_samples,)+rv_shape
         rv_np = np.broadcast_to(rv_np, rv_full_shape)
 
-        log_pdf_np = bernoulli.logpmf(k=rv_np, p=prob_true_np)
+        log_pdf_np = bernoulli.logpmf(k=rv_np, p=1./(1.+np.exp(-prob_true_np)))
 
-        var = Bernoulli.define_variable(0, shape=rv_shape).factor
+        var = SigmoidBernoulli.define_variable(0, shape=rv_shape).factor
         prob_true_mx = mx.nd.array(prob_true, dtype=dtype)
         if not prob_true_is_samples:
             prob_true_mx = add_sample_dimension(mx.nd, prob_true_mx)

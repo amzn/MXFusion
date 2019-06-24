@@ -12,28 +12,29 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-import mxnet as mx
+from mxnet.ndarray import zeros_like, broadcast_axis
 from .distribution import DistributionRuntime
 
 
-class BernoulliRuntime(DistributionRuntime):
+class PointMassRuntime(DistributionRuntime):
 
-    def __init__(self, prob_true):
-        super(BernoulliRuntime, self).__init__()
-        self.prob_true = prob_true
+    def __init__(self, location):
+        super(PointMassRuntime, self).__init__()
+        self.location = location
 
     def log_pdf(self, random_variable):
-        logL = random_variable * mx.nd.log(self.prob_true) + (1 - random_variable) * mx.nd.log(1 - self.prob_true)
-        return logL
+        return zeros_like(random_variable)
 
     def draw_samples(self, num_samples=1):
-        out_shape = (num_samples,) + self.prob_true.shape[1:]
-        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.dtype, ctx=self.prob_true.context) < self.prob_true
+        if num_samples != self.location.shape[0]:
+            return broadcast_axis(self.location, axis=0, size=num_samples)
+        else:
+            return self.location
 
     @property
     def mean(self):
-        return self.prob_true
+        return self.location
 
     @property
     def variance(self):
-        return self.prob_true*(1-self.prob_true)
+        return zeros_like(self.location)

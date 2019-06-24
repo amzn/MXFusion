@@ -28,4 +28,13 @@ class SigmoidBernoulliRuntime(DistributionRuntime):
     def draw_samples(self, num_samples=1):
         out_shape = (num_samples,) + self.prob_true.shape[1:]
         p = mx.nd.Activation(self.prob_true, act_type='sigmoid')
-        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.shape) > p
+        return mx.random.uniform(low=0, high=1, shape=out_shape, dtype=self.prob_true.dtype, ctx=self.prob_true.context) < p
+
+    @property
+    def mean(self):
+        return mx.nd.Activation(self.prob_true, act_type='sigmoid')
+
+    @property
+    def variance(self):
+        p = mx.nd.Activation(self.prob_true, act_type='sigmoid')
+        return p*(1-p)

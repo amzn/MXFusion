@@ -33,6 +33,3 @@ class NormalRuntime(DistributionRuntime):
     def draw_samples(self, num_samples=1):
         out_shape = (num_samples,) + self.mean.shape[1:]
         return mx.nd.broadcast_add(mx.nd.broadcast_mul(mx.nd.random.normal(shape=out_shape, dtype=self.mean.dtype, ctx=self.mean.context), mx.nd.sqrt(self.variance)), self.mean)
-
-    def kl_divergence(self, other_dist):
-        raise NotImplementedError

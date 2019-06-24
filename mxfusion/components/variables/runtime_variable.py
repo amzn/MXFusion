@@ -13,6 +13,7 @@
 # ==============================================================================
 
 
+import mxnet as mx
 from mxnet.ndarray.ndarray import NDArray
 from mxnet.symbol.symbol import Symbol
 
@@ -110,7 +111,7 @@ def as_samples(F, array, num_samples):
         return F.broadcast_axis(array, axis=0, size=num_samples)
 
 
-def arrays_as_samples(F, arrays):
+def broadcast_sample_dimension(arrays):
     """
     Broadcast the dimension of samples for a list of variables. If the number of samples of at least one of the variables is larger than one, all the variables in the list are broadcasted to have the same number of samples.
 
@@ -121,6 +122,7 @@ def arrays_as_samples(F, arrays):
     :returns: the list of variables after broadcasting
     :rtypes: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
     """
+    F = mx.nd
     num_samples = [max([get_num_samples(F, v) for v in a.values()]) if isinstance(a, dict) else get_num_samples(F, a) for a in arrays]
     max_num_samples = max(num_samples)
     if max_num_samples > 1:

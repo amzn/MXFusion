@@ -18,6 +18,7 @@ import mxnet as mx
 import numpy as np
 from scipy.stats import wishart, chi2
 
+from mxfusion import Variable
 from mxfusion.components.distributions import Wishart
 from mxfusion.components.variables.runtime_variable import add_sample_dimension, array_has_samples, get_num_samples
 from mxfusion.util.testutils import MockMXNetRandomGenerator, numpy_array_reshape, plot_univariate, make_spd_matrix
@@ -46,7 +47,7 @@ class TestWishartDistribution(object):
     @pytest.mark.parametrize("dtype_dof, dtype, degrees_of_freedom, random_seed, scale_is_samples, "
                              "rv_is_samples, num_data_points, num_samples, broadcast",
                              [
-                                 (np.int32, np.float32, 2, 0, True, True, 3, 6, False),
+                                 (np.float32, np.float32, 2, 0, True, True, 3, 6, False),
                              ])
     def test_log_pdf(self, dtype_dof, dtype, degrees_of_freedom, random_seed,
                      scale_is_samples, rv_is_samples, num_data_points, num_samples, broadcast):
@@ -59,7 +60,8 @@ class TestWishartDistribution(object):
             scale = make_spd_matrices_4d(num_samples, num_data_points, degrees_of_freedom, random_seed=random_seed)
 
         degrees_of_freedom_mx = mx.nd.array([degrees_of_freedom], dtype=dtype_dof)
-        degrees_of_freedom = degrees_of_freedom_mx.asnumpy()[0]  # ensures the correct dtype
+        degrees_of_freedom = degrees_of_freedom_mx.asnumpy()[0]
+        degrees_of_freedom_mx = mx.nd.broadcast_to(degrees_of_freedom_mx.reshape(1,1,1), shape=(6,3,1))
 
         scale_mx = mx.nd.array(scale, dtype=dtype)
         if not scale_is_samples:
@@ -89,7 +91,10 @@ class TestWishartDistribution(object):
             r.append(a)
         log_pdf_np = np.array(r)
 
-        var = Wishart.define_variable(shape=rv.shape[1:], dtype=dtype, rand_gen=None).factor
+        df = Variable()
+        scale = Variable()
+
+        var = Wishart.define_variable(shape=rv.shape[1:], degrees_of_freedom=df, scale=scale).factor
         variables = {var.degrees_of_freedom.uuid: degrees_of_freedom_mx, var.scale.uuid: scale_mx,
                      var.random_variable.uuid: rv_mx}
         log_pdf_rt = var.log_pdf(F=mx.nd, variables=variables)
@@ -99,60 +104,3 @@ class TestWishartDistribution(object):
         if is_samples_any:
             assert get_num_samples(mx.nd, log_pdf_rt) == num_samples, (get_num_samples(mx.nd, log_pdf_rt), num_samples)
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy())
-
-    @pytest.mark.parametrize(
-        "dtype_dof, dtype, degrees_of_freedom, scale, scale_is_samples, rv_shape, num_samples", [
-            (np.int64, np.float64, 3, make_spd_matrix(3), False, (3, 3), 5),
-            (np.int64, np.float64, 3, make_spd_matrices_4d(5, 5, 3, 0), True, (5, 3, 3), 5),
-        ])
-    def test_draw_samples_no_broadcast(self, dtype_dof, dtype, degrees_of_freedom, scale,
-                                       scale_is_samples, rv_shape, num_samples):
-        degrees_of_freedom_mx = mx.nd.array([degrees_of_freedom], dtype=dtype_dof)
-        scale_mx = mx.nd.array(scale, dtype=dtype)
-        if not scale_is_samples:
-            scale_mx = add_sample_dimension(mx.nd, scale_mx)
-
-        rand = np.random.rand(num_samples, *rv_shape)
-        rand_gen = MockMXNetRandomGenerator(mx.nd.array(rand.flatten(), dtype=dtype))
-
-        var = Wishart.define_variable(shape=rv_shape, dtype=dtype, rand_gen=rand_gen).factor
-        variables = {var.degrees_of_freedom.uuid: degrees_of_freedom_mx, var.scale.uuid: scale_mx}
-        draw_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert np.issubdtype(draw_samples_rt.dtype, dtype)
-        assert array_has_samples(mx.nd, draw_samples_rt)
-        assert get_num_samples(mx.nd, draw_samples_rt) == num_samples, (get_num_samples(mx.nd, draw_samples_rt),
-                                                                        num_samples)
-
-    @pytest.mark.usefixtures("set_seed")
-    def test_draw_samples_1d(self, plot=False):
-        # Also make sure the non-mock sampler works by drawing 1D samples (should collapse to chi^2)
-        dtype = np.float32
-        dtype_dof = np.int32
-        num_samples = 20000
-
-        dof = 3
-        scale = np.array([[1]])
-
-        rv_shape = scale.shape
-
-        dof_mx = mx.nd.array([dof], dtype=dtype_dof)
-        scale_mx = add_sample_dimension(mx.nd, mx.nd.array(scale, dtype=dtype))
-
-        rand_gen = None
-        var = Wishart.define_variable(shape=rv_shape, rand_gen=rand_gen, dtype=dtype).factor
-        variables = {var.degrees_of_freedom.uuid: dof_mx, var.scale.uuid: scale_mx}
-        rv_samples_rt = var.draw_samples(F=mx.nd, variables=variables, num_samples=num_samples)
-
-        assert array_has_samples(mx.nd, rv_samples_rt)
-        assert get_num_samples(mx.nd, rv_samples_rt) == num_samples
-        assert rv_samples_rt.dtype == dtype
-
-        if plot:
-            plot_univariate(samples=rv_samples_rt, dist=chi2, df=dof)
-
-        # Note that the chi-squared fitting doesn't do a great job, so we have a slack tolerance
-        dof_est, _, _ = chi2.fit(rv_samples_rt.asnumpy().ravel())
-        dof_tol = 1.5
-
-        assert np.abs(dof - dof_est) < dof_tol

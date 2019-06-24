@@ -25,7 +25,7 @@ from ...inference.inference_alg import SamplingAlgorithm
 from ...util.customop import make_diagonal
 from ...util.customop import broadcast_to_w_samples
 from ...components.distributions.random_gen import MXNetRandomGenerator
-from ...components.variables.runtime_variable import arrays_as_samples
+from ...components.variables.runtime_variable import broadcast_sample_dimension
 from ...components.functions.operators import broadcast_to
 
 
@@ -55,8 +55,8 @@ class SVGPRegressionLogPdf(VariationalInference):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, Y, Z, noise_var, mu, S_W, S_diag, kern_params = arrays_as_samples(
-            F, [X, Y, Z, noise_var, mu, S_W, S_diag, kern_params])
+        X, Y, Z, noise_var, mu, S_W, S_diag, kern_params = broadcast_sample_dimension(
+            [X, Y, Z, noise_var, mu, S_W, S_diag, kern_params])
 
         if noise_var.ndim == 2:  # it is heteroscedastic noise, when ndim == 3
             noise_var = F.expand_dims(noise_var, axis=-2)
@@ -224,8 +224,8 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
         kern = self.model.kernel
         kern_params = kern.fetch_parameters(variables)
 
-        X, Z, noise_var, mu, S_W, S_diag, kern_params = arrays_as_samples(
-            F, [X, Z, noise_var, mu, S_W, S_diag, kern_params])
+        X, Z, noise_var, mu, S_W, S_diag, kern_params = broadcast_sample_dimension(
+             [X, Z, noise_var, mu, S_W, S_diag, kern_params])
 
         S = F.linalg.syrk(S_W) + make_diagonal(F, S_diag)
 
@@ -371,8 +371,7 @@ class SVGPRegression(Module):
             rand_gen=self._rand_gen, dtype=self.dtype, ctx=self.ctx)
         graph.Y = Y.replicate_self()
         graph.Y.set_prior(Normal(
-            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape), rand_gen=self._rand_gen,
-            dtype=self.dtype, ctx=self.ctx))
+            mean=graph.F, variance=broadcast_to(graph.noise_var, graph.Y.shape)))
         graph.kernel = graph.U.factor.kernel
         post = Posterior(graph)
         post.qU_cov_diag = Variable(shape=(M,), transformation=PositiveTransformation())
