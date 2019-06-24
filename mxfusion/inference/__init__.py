@@ -32,19 +32,20 @@ Submodules
     meanfield
     minibatch_loop
     variational
+    logger
 """
 
-
-from .map import MAP
 from .batch_loop import BatchInferenceLoop
-from .inference import Inference, TransferInference
-from .minibatch_loop import MinibatchInferenceLoop
-from .meanfield import create_Gaussian_meanfield
+from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
 from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampling, ForwardSamplingAlgorithm
 from .grad_based_inference import GradBasedInference, GradTransferInference
-from .variational import StochasticVariationalInference
+from .inference import Inference, TransferInference
 from .inference_parameters import InferenceParameters
-from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
-from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
-from .prediction import ModulePredictionAlgorithm
+from .logger import Logger
+from .map import MAP
+from .meanfield import create_Gaussian_meanfield
+from .minibatch_loop import MinibatchInferenceLoop
 from .pilco_alg import PILCOAlgorithm
+from .prediction import ModulePredictionAlgorithm
+from .score_function import ScoreFunctionInference, ScoreFunctionRBInference
+from .variational import StochasticVariationalInference

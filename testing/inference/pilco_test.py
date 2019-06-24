@@ -86,7 +86,7 @@ class TestPILCOInference(object):
         return X, Y
 
 
-    def fit_model(self, state_list, action_list, win_in, verbose=True, max_iter=1000):
+    def fit_model(self, state_list, action_list, win_in, max_iter=1000):
         """
         Fits a Gaussian Process model to the state / action pairs passed in.
         This creates a model of the environment which is used during
@@ -112,14 +112,14 @@ class TestPILCOInference(object):
             inference_algorithm=MAP(model=m, observed=[m.X, m.Y]))
         infr.run(X=mx.nd.array(X),
                  Y=mx.nd.array(Y),
-                 max_iter=max_iter, learning_rate=0.1, verbose=verbose)
+                 max_iter=max_iter, learning_rate=0.1)
         return m, infr, X, Y
 
     def optimize_policy(self, alg, policy, cost_func, model, infr,
                         model_data_X, model_data_Y,
                         initial_state_generator, num_grad_steps,
                         learning_rate=1e-2, num_time_steps=100,
-                        num_samples=10, verbose=True):
+                        num_samples=10):
         """
         Takes as primary inputs a policy, cost function, and trained model.
         Optimizes the policy for num_grad_steps number of iterations.
@@ -137,7 +137,7 @@ class TestPILCOInference(object):
             max_iter=num_grad_steps,
             X=mx.nd.array(model_data_X),
             Y=mx.nd.array(model_data_Y),
-            verbose=verbose, learning_rate=learning_rate)
+            learning_rate=learning_rate)
         return policy
 
     def initial_state_generator(self, num_initial_states, obs_space_shape=3):
@@ -173,7 +173,7 @@ class TestPILCOInference(object):
 
             # Fit a model.
             model, infr, model_data_X, model_data_Y = self.fit_model(
-                all_states, all_actions, win_in=1, verbose=True, max_iter=5)
+                all_states, all_actions, win_in=1, max_iter=5)
 
             # Optimize the policy.
             policy = self.optimize_policy(pilco_alg,
