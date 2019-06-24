@@ -26,10 +26,12 @@ class MultivariateNormalRuntime(DistributionRuntime):
     """
     def __init__(self, mean, covariance=None, cholesky_factor=None):
         """
-        :param mean: Mean of the normal distribution. Shape: (n_samples, n_outputs, n_dim)
+        :param mean: Mean of the normal distribution
         :type mean: MXNet NDArray
-        :param covariance: Covariance matrix of the distribution. Shape: (n_samples, n_outputs, n_dim, n_dim)
+        :param covariance: Covariance matrix of the distribution
         :type covariance: MXNet NDArray
+        :param cholesky_factor: The Cholesky factor of the covariance matrix of the distribution
+        :type cholesky_factor: MXNet NDArray
         """
         super(MultivariateNormalRuntime, self).__init__()
 
@@ -147,19 +149,21 @@ class MultivariateNormalMeanPrecisionRuntime(DistributionRuntime):
     """
     def __init__(self, mean, precision=None, cholesky_factor=None):
         """
-        :param mean: Mean of the normal distribution. Shape: (n_samples, n_outputs, n_dim)
+        :param mean: Mean of the normal distribution
         :type mean: MXNet NDArray
-        :param covariance: Covariance matrix of the distribution. Shape: (n_samples, n_outputs, n_dim, n_dim)
-        :type covariance: MXNet NDArray
+        :param precision: Precision matrix of the distribution
+        :type precision: MXNet NDArray
+        :param cholesky_factor: Cholesky factor of the precision matrix of the distribution
+        :type cholesky_factor: MXNet NDArray
         """
         super(MultivariateNormalMeanPrecisionRuntime, self).__init__()
 
         if precision is None or mean.shape != precision.shape[:-1] or precision.shape[-2]!=precision.shape[-1]:
-            raise InferenceError('Mean and covariance shapes inconsistent. Mean shape: {}. Covariance shape: {}'.format(
+            raise InferenceError('Mean and precision shapes inconsistent. Mean shape: {}. Precision shape: {}'.format(
                 mean.shape, precision.shape))
 
         if precision is None and cholesky_factor is None:
-            raise InferenceError('Either covariance or cholesky_factor needs to be specified.')
+            raise InferenceError('Either precision or cholesky_factor needs to be specified.')
 
         self.mean = mean
         self._precision = precision
