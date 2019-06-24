@@ -148,9 +148,9 @@ def broadcast_to_w_samples(F, data, shape, isSamples=True):
                         isSamples=isSamples, shape=shape)
 
 
-class ScoreFuncGradlOp(mx.operator.CustomOp):
+class ScoreFuncGradOp(mx.operator.CustomOp):
     def __init__(self, **kwargs):
-        super(ScoreFuncGradlOp, self).__init__(**kwargs)
+        super(ScoreFuncGradOp, self).__init__(**kwargs)
 
     def forward(self, is_train, req, in_data, out_data, aux):
         self.assign(out_data[0], req[0], in_data[0])
@@ -161,9 +161,9 @@ class ScoreFuncGradlOp(mx.operator.CustomOp):
 
 
 @mx.operator.register("score_func_grad")
-class ScoreFuncGradlOpProp(mx.operator.CustomOpProp):
+class ScoreFuncGradOpProp(mx.operator.CustomOpProp):
     def __init__(self):
-        super(ScoreFuncGradlOpProp, self).__init__(need_top_grad=True)
+        super(ScoreFuncGradOpProp, self).__init__(need_top_grad=True)
 
     def list_arguments(self):
         return ['p', 'q']
@@ -175,7 +175,7 @@ class ScoreFuncGradlOpProp(mx.operator.CustomOpProp):
         return in_shape, (in_shape[0],), ()
 
     def create_operator(self, ctx, shapes, dtypes, **kwargs):
-        return ScoreFuncGradlOp(**kwargs)
+        return ScoreFuncGradOp(**kwargs)
 
 
 def score_func_grad(p, q, name="score_func_grad"):
