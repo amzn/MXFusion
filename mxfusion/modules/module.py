@@ -427,9 +427,9 @@ class Module(Factor):
                 graphs_index = {g: i for i,g in enumerate(self._extra_graphs)}
                 extra_graphs = [replicant._extra_graphs[graphs_index[graph]] for graph in algorithm.graphs
                                 if graph in graphs_index]
-                algs[conditionals] = (targets,
+                algs[conditionals] = [(targets,
                                       algorithm.replicate_self(replicant._module_graph, extra_graphs),
-                                      alg_name)
+                                      alg_name)]
         return algs
 
     def reconcile_with_module(self, previous_module):
