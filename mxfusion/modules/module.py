@@ -424,6 +424,7 @@ class Module(Factor):
         algs = {}
         for conditionals, algorithms in algorithms.items():
             for targets, algorithm, alg_name in algorithms:
+                alg_name = replicant._set_algorithm_name(alg_name, algorithm)
                 graphs_index = {g: i for i,g in enumerate(self._extra_graphs)}
                 extra_graphs = [replicant._extra_graphs[graphs_index[graph]] for graph in algorithm.graphs
                                 if graph in graphs_index]
