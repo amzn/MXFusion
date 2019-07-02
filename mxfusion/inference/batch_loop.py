@@ -104,20 +104,16 @@ class BatchInferenceLoopScipy(GradLoop):
         x0 = dict_to_array.extract_parameter_values_as_array()
 
         # Create function for optimizer that takes in "x" as only argument
-        func = lambda x: self._f_df(x, infr_executor, data, ctx, dict_to_array)
+        def f_df(x):
+            dict_to_array.set_values_from_array(x)
+            with mx.autograd.record():
+                loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
+                loss_for_gradient.backward()
+            return loss.asnumpy().astype('float64'), dict_to_array.extract_parameter_gradients_as_array().astype(
+                'float64')
 
         # Run optimization
-        x_opt, f_opt, _ = fmin_l_bfgs_b(func, x0=x0, maxiter=max_iter, disp=int(verbose))
-
-    def _f_df(self, x, infr_executor, data, ctx, dict_to_array):
-        """
-        Objective function for optimization. Returns function value and gradient
-        """
-        dict_to_array.set_values_from_array(x)
-        with mx.autograd.record():
-            loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
-            loss_for_gradient.backward()
-        return loss.asnumpy().astype('float64'), dict_to_array.extract_parameter_gradients_as_array().astype('float64')
+        x_opt, f_opt, _ = fmin_l_bfgs_b(f_df, x0=x0, maxiter=max_iter, disp=int(verbose))
 
 
 class ParameterToArrayConverter:
