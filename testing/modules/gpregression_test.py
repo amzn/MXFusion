@@ -449,3 +449,43 @@ class TestGPRegressionModule(object):
         samples_cloned = res[0].asnumpy()
 
         assert np.allclose(samples, samples_cloned)
+
+    def test_module_clone_prediction_w_mean(self):
+        D, X, Y, noise_var, lengthscale, variance = self.gen_data()
+        dtype = 'float64'
+
+        # Predict from original model
+        m, net = self.gen_mxfusion_model_w_mean(dtype, D, noise_var, lengthscale, variance)
+
+        observed = [m.X, m.Y]
+        infr = Inference(MAP(model=m, observed=observed), dtype=dtype)
+
+        loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype), max_iter=1)
+
+        infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]),
+                                  infr_params=infr.params, dtype=np.float64)
+        infr2.inference_algorithm.model.Y.factor.gp_predict.diagonal_variance = False
+        infr2.inference_algorithm.model.Y.factor.gp_predict.noise_free = False
+        res = infr2.run(X=mx.nd.array(X, dtype=dtype))[0]
+        mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
+
+        # Clone model
+        cloned_model = m.clone()
+
+        # Predict from cloned model
+        observed = [cloned_model.X, cloned_model.Y]
+        infr = Inference(MAP(model=cloned_model, observed=observed), dtype=dtype)
+
+        loss, _ = infr.run(X=mx.nd.array(X, dtype=dtype), Y=mx.nd.array(Y, dtype=dtype), max_iter=1)
+
+        infr2_clone = TransferInference(ModulePredictionAlgorithm(cloned_model, observed=[cloned_model.X],
+                                                                  target_variables=[cloned_model.Y]),
+                                        infr_params=infr.params, dtype=np.float64)
+
+        infr2_clone.inference_algorithm.model.Y.factor.gp_predict.diagonal_variance = False
+        infr2_clone.inference_algorithm.model.Y.factor.gp_predict.noise_free = False
+        res = infr2_clone.run(X=mx.nd.array(X, dtype=dtype))[0]
+        mu_mf_clone, var_mf_clone = res[0].asnumpy()[0], res[1].asnumpy()[0]
+
+        assert np.allclose(mu_mf, mu_mf_clone)
+        assert np.allclose(var_mf, var_mf_clone)
