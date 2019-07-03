@@ -449,5 +449,5 @@ class GPRegression(Module):
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
         rep._has_mean = self._has_mean
-        rep._module_graph.kernel = rep.kernel
+        rep._module_graph.kernel = rep.kernel  # TODO: put this into factor graph clone method
         return rep
