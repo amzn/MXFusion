@@ -6,7 +6,7 @@ import numpy as np
 from mxfusion.common.config import get_default_dtype
 from mxfusion.components.variables.var_trans import PositiveTransformation
 from mxfusion.inference import GradBasedInference
-from mxfusion.inference.batch_loop import BatchInferenceLoopScipy
+from mxfusion.inference import BatchInferenceLoopLBFGS
 from mxfusion.inference.map import MAP
 
 
@@ -34,7 +34,7 @@ class LBFGSTests(unittest.TestCase):
         dtype = get_default_dtype()
         observed = [self.m.y]
         alg = MAP(model=self.m, observed=observed)
-        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoopScipy())
+        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoopLBFGS())
 
         infr.initialize(y=mx.nd.array(np.random.rand(10), dtype=dtype))
         original_value = infr.params[self.m.x.factor.mean].copy()
@@ -50,14 +50,14 @@ class LBFGSTests(unittest.TestCase):
 
         # First check the parameter varies if it isn't fixed
         alg = MAP(model=self.m, observed=observed)
-        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoopScipy())
+        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoopLBFGS())
         infr.initialize(y=mx.nd.array(np.random.rand(N)))
         infr.run(y=mx.nd.array(np.random.rand(N), dtype=dtype), max_iter=10)
         assert infr.params[self.m.x.factor.mean] != mx.nd.ones(1)
 
         # Now fix parameter and check it does not change
         alg = MAP(model=self.m, observed=observed)
-        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoopScipy())
+        infr = GradBasedInference(inference_algorithm=alg, grad_loop=BatchInferenceLoopLBFGS())
         infr.initialize(y=mx.nd.array(np.random.rand(N)))
         infr.params.fix_variable(self.m.x.factor.mean, mx.nd.ones(1))
         infr.run(y=mx.nd.array(np.random.rand(N), dtype=dtype), max_iter=10)
