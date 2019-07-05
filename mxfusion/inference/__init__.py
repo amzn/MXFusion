@@ -21,6 +21,7 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
+    batch_inference_loop_lbfgs.py
     batch_loop
     forward_sampling
     grad_based_inference
