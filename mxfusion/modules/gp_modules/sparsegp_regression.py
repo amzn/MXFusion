@@ -107,6 +107,11 @@ class SparseGPRegressionLogPdf(VariationalInference):
 
         return logL
 
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.jitter = self.jitter
+        return rep
+
 
 class SparseGPRegressionMeanVariancePrediction(SamplingAlgorithm):
     def __init__(self, model, posterior, observed, target_variables=None,
@@ -172,6 +177,12 @@ class SparseGPRegressionMeanVariancePrediction(SamplingAlgorithm):
             return tuple(outcomes[v] for v in self.target_variables)
         else:
             return outcomes
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.diagonal_variance = self.diagonal_variance
+        rep.noise_free = self.noise_free
+        return rep
 
 
 class SparseGPRegressionSamplingPrediction(SamplingAlgorithm):
@@ -253,6 +264,14 @@ class SparseGPRegressionSamplingPrediction(SamplingAlgorithm):
             return tuple(outcomes[v] for v in self.target_variables)
         else:
             return outcomes
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.noise_free = self.noise_free
+        rep._rand_gen = self._rand_gen
+        rep.diagonal_variance = self.diagonal_variance
+        rep.jitter = self.jitter
+        return rep
 
 
 class SparseGPRegression(Module):
@@ -427,4 +446,5 @@ class SparseGPRegression(Module):
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
         rep._has_mean = self._has_mean
+        rep._module_graph.kernel = rep.kernel
         return rep
