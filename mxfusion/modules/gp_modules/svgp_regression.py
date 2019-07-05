@@ -108,6 +108,11 @@ class SVGPRegressionLogPdf(VariationalInference):
         logL = self.log_pdf_scaling*logL + KL_u
         return logL
 
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.jitter = self.jitter
+        return rep
+
 
 class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
     def __init__(self, model, posterior, observed, noise_free=True,
@@ -187,6 +192,13 @@ class SVGPRegressionMeanVariancePrediction(SamplingAlgorithm):
             return tuple(outcomes[v] for v in self.target_variables)
         else:
             return outcomes
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.jitter = self.jitter
+        rep.noise_free = self.noise_free
+        rep.diagonal_variance = self.diagonal_variance
+        return rep
 
 
 class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
@@ -278,6 +290,14 @@ class SVGPRegressionSamplingPrediction(SamplingAlgorithm):
             return tuple(outcomes[v] for v in self.target_variables)
         else:
             return outcomes
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.jitter = self.jitter
+        rep.noise_free = self.noise_free
+        rep.diagonal_variance = self.diagonal_variance
+        rep._rand_gen = self._rand_gen
+        return rep
 
 
 class SVGPRegression(Module):
@@ -454,4 +474,5 @@ class SVGPRegression(Module):
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
         rep._has_mean = self._has_mean
+        rep._module_graph.kernel = rep.kernel
         return rep
