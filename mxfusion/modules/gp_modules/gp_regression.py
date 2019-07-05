@@ -75,6 +75,11 @@ class GPRegressionLogPdf(VariationalInference):
             self.set_parameter(variables, self.posterior.LinvY, LinvY[0])
         return logL
 
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.jitter = self.jitter
+        return rep
+
 
 class GPRegressionSampling(SamplingAlgorithm):
     """
@@ -133,6 +138,11 @@ class GPRegressionSampling(SamplingAlgorithm):
             return tuple(samples[v] for v in self.target_variables)
         else:
             return samples
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep._rand_gen = self._rand_gen
+        return rep
 
 
 class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
@@ -194,6 +204,12 @@ class GPRegressionMeanVariancePrediction(SamplingAlgorithm):
             return tuple(outcomes[v] for v in self.target_variables)
         else:
             return outcomes
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep.diagonal_variance = self.diagonal_variance
+        rep.noise_free = self.noise_free
+        return rep
 
 
 class GPRegressionSamplingPrediction(SamplingAlgorithm):
@@ -273,6 +289,14 @@ class GPRegressionSamplingPrediction(SamplingAlgorithm):
             return tuple(outcomes[v] for v in self.target_variables)
         else:
             return outcomes
+
+    def replicate_self(self, model, extra_graphs=None):
+        rep = super().replicate_self(model, extra_graphs)
+        rep._rand_gen = self._rand_gen
+        rep.diagonal_variance = self.diagonal_variance
+        rep.jitter = self.jitter
+        rep.noise_free = self.noise_free
+        return rep
 
 
 class GPRegression(Module):
@@ -425,4 +449,5 @@ class GPRegression(Module):
 
         rep.kernel = self.kernel.replicate_self(attribute_map)
         rep._has_mean = self._has_mean
+        rep._module_graph.kernel = rep.kernel  # TODO: put this into factor graph clone method
         return rep

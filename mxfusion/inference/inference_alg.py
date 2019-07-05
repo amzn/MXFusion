@@ -106,6 +106,7 @@ class InferenceAlgorithm(ABC):
         replicant._observed = set(observed)
         replicant._observed_uuid = variables_to_UUID(observed)
         replicant._observed_names = [v.name for v in observed]
+        replicant._graphs = self._graphs
         return replicant
 
     def __init__(self, model, observed, extra_graphs=None):
