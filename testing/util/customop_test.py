@@ -16,7 +16,8 @@
 import pytest
 import mxnet as mx
 import numpy as np
-from mxfusion.util.customop import broadcast_to_w_samples
+from mxfusion.util.customop import broadcast_to_w_samples, score_func_grad
+
 
 @pytest.mark.usefixtures("set_seed")
 class TestBroadcastToWithSamplesOp(object):
@@ -80,3 +81,26 @@ class TestBroadcastToWithSamplesOp(object):
             grad_np = w.reshape(*((-1,) + data.shape)).sum(0)
         assert data_grad.shape == data.shape
         assert np.allclose(data_grad, grad_np)
+
+
+@pytest.mark.usefixtures("set_seed")
+class TestScoreFuncGradOp(object):
+    """
+    Tests the custom operator score_func_grad
+    """
+
+    def test_forward_and_backward(self):
+        p = mx.nd.array(np.random.rand(3, 4))
+        q = mx.nd.array(np.random.rand(3, 4))
+        a = mx.nd.array(np.random.rand(3, 4))
+
+        p.attach_grad()
+        q.attach_grad()
+        with mx.autograd.record():
+            l = score_func_grad(p, q)
+            obj = mx.nd.sum(a * l)
+            obj.backward()
+
+        assert np.allclose(l.asnumpy(), p.asnumpy())
+        assert np.allclose(p.grad.asnumpy(), a.asnumpy())
+        assert np.allclose(q.grad.asnumpy(), (a*p).asnumpy())

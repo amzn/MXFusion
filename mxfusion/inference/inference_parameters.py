@@ -140,6 +140,35 @@ class InferenceParameters(object):
         for p in self.param_dict.values():
             p.grad_req = 'null'
 
+    def fix_variable(self, variable, value=None):
+        """
+        Fixes a variable so that it isn't changed by the inference algorithm. Optionally a value can be specified to
+        which to variable's value will be fixed. If a value is not specified, the variable will be fixed to it's current
+        value
+
+        :param variable: The variable to be fixed
+        :type variable: MXFusion Variable
+        :param value: (Optional) Value to which the variable will be fixed
+        :type value: MXNet NDArray
+        """
+
+        if value is not None:
+            self[variable] = value
+
+        parameter = self.param_dict[variable.uuid]
+        parameter.grad_req = 'null'
+
+    def unfix_variable(self, variable):
+        """
+        Allows a variable to be changed by the inference algorithm if it has been previously fixed
+
+        :param variable: The variable to be unfixed
+        :type variable: MXFusion Variable
+        """
+
+        parameter = self.param_dict[variable.uuid]
+        parameter.grad_req = 'write'
+
     @property
     def param_dict(self):
         return self._params
