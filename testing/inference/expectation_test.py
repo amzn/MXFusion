@@ -44,6 +44,7 @@ class TestExpectationInference(object):
         m.v5 = v5(m.v2, m.v3, m.v4, m.v1)
         return m
 
+    @pytest.mark.skip(reason='Sampling from gamma currently fails on linux builds')
     @pytest.mark.parametrize("v2, v3", [
         (mx.nd.random.uniform(1,100) * 2, mx.nd.random.uniform(1,100) * 0.5),
         ])
