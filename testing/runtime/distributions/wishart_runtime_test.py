@@ -63,7 +63,7 @@ class TestDirichletRuntimeDistribution(object):
             rtol, atol = 1e-3, 1e-4
         assert np.allclose(log_pdf_np, log_pdf_rt.asnumpy(), rtol=rtol, atol=atol)
 
-    @pytest.mark.skip(reason='Sampling from gamma currently fails on linux builds')
+    @pytest.mark.skip(reason='TODO Sampling from gamma currently fails on linux builds with the MXNet pre release build required for certain functionality in the runtime distribution changes')
     def test_draw_samples(self):
         np.random.seed(0)
         mx.random.seed(0)
@@ -79,7 +79,7 @@ class TestDirichletRuntimeDistribution(object):
         assert np.allclose(samples.mean(0), wishart_dist.mean.asnumpy(), rtol=rtol, atol=atol)
         assert np.allclose(samples.var(0), wishart_dist.variance.asnumpy(), rtol=rtol, atol=atol)
 
-    @pytest.mark.skip(reason='Sampling from gamma currently fails on linux builds')
+    @pytest.mark.skip(reason='TODO Sampling from gamma currently fails on linux builds with the MXNet pre release build required for certain functionality in the runtime distribution changes')
     def test_draw_samples_broadcast(self):
         np.random.seed(0)
         mx.random.seed(0)
