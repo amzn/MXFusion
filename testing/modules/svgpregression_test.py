@@ -209,9 +209,10 @@ class TestSVGPRegressionModule(object):
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
+        assert var_gpy.shape == var_mf.shape
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
         assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
-        assert var_gpy.shape == var_mf.shape
+
 
         m.Y.factor.svgp_predict.jitter = 1e-8
 
@@ -224,9 +225,9 @@ class TestSVGPRegressionModule(object):
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
+        assert var_gpy.shape == var_mf.shape
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
         assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
-        assert var_gpy.shape == var_mf.shape
 
         # noisy, full_cov
         mu_gpy, var_gpy = m_gpy.predict(Xt, full_cov=True)
@@ -237,9 +238,9 @@ class TestSVGPRegressionModule(object):
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
 
+        assert var_gpy.shape == var_mf.shape
         assert np.allclose(mu_gpy, mu_mf), (mu_gpy, mu_mf)
         assert np.allclose(var_gpy, var_mf), (var_gpy, var_mf)
-        assert var_gpy.shape == var_mf.shape
 
     def test_draw_samples(self):
         D, X, Y, Z, noise_var, lengthscale, variance, qU_mean, \
@@ -284,6 +285,9 @@ class TestSVGPRegressionModule(object):
         infr2 = TransferInference(ModulePredictionAlgorithm(m, observed=[m.X], target_variables=[m.Y]), infr_params=infr.params, dtype=np.float64)
         res = infr2.run(X=mx.nd.array(Xt, dtype=dtype))[0]
         mu_mf, var_mf = res[0].asnumpy()[0], res[1].asnumpy()[0]
+
+        assert mu_gpy.shape == mu_mf.shape
+        assert var_gpy.shape == var_mf.shape
 
         assert np.allclose(mu_gpy, mu_mf, rtol=1e-04, atol=1e-05), (mu_gpy, mu_mf)
         assert np.allclose(var_gpy, var_mf, rtol=1e-04, atol=1e-05), (var_gpy, var_mf)
