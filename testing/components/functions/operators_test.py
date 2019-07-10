@@ -136,6 +136,7 @@ class TestOperators(object):
         (reshape),
         ])
     def test_empty_operator(self, mxf_operator):
-        with pytest.raises(ModelSpecificationError, message="Operator should fail if not passed the correct arguments.") as excinfo:
+        with pytest.raises(ModelSpecificationError) as excinfo:
             mxf_result = mxf_operator()
+            pytest.fail("Operator should fail if not passed the correct arguments.")
         assert excinfo.value is not None
