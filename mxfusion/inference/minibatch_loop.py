@@ -16,7 +16,7 @@
 import mxnet as mx
 from mxnet.gluon.data import ArrayDataset
 from .grad_loop import GradLoop
-
+import warnings
 
 class MinibatchInferenceLoop(GradLoop):
     """
@@ -62,12 +62,22 @@ class MinibatchInferenceLoop(GradLoop):
         :type update_shape_constants: Python function
         """
 
+
+
+
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
-            data_loader = mx.gluon.data.DataLoader(
-                ArrayDataset(*data), batch_size=self.batch_size, shuffle=True,
-                last_batch='rollover')
+            if(self.batch_size > len(data)):
+                warnings.warn("'batch_size' set to default=100. 'batch_size' must be less than dataset size!", category= UserWarning)
+                load_batch_size = 100
+            else:
+                load_batch_size = self.batch_size
+
+        data_loader = mx.gluon.data.DataLoader(
+                    ArrayDataset(*data), batch_size=load_batch_size, shuffle=True,
+                    last_batch='rollover')
+
         trainer = mx.gluon.Trainer(param_dict,
                                    optimizer=optimizer,
                                    optimizer_params={'learning_rate':
