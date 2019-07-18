@@ -14,6 +14,7 @@
 
 
 import mxnet as mx
+import warnings
 from mxnet.gluon.data import ArrayDataset
 
 from .grad_loop import GradLoop
@@ -72,10 +73,19 @@ class MinibatchInferenceLoop(GradLoop):
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
+            if (self.batch_size > len(data)):
+                warnings.warn(
+                    "'batch_size' set to default=100. 'batch_size' cannot be greater than observed variables.",
+                    category=UserWarning)
+                load_batch_size = 100
+            else:
+                load_batch_size = self.batch_size
+
             data_loader = mx.gluon.data.DataLoader(
-                ArrayDataset(*data), batch_size=self.batch_size, shuffle=True,
+                ArrayDataset(*data), batch_size=load_batch_size, shuffle=True,
                 last_batch='rollover')
-        trainer = mx.gluon.Trainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
+
+            trainer = mx.gluon.Trainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
 
         total_batches = 0
         for e in range(max_iter):
@@ -99,6 +109,7 @@ class MinibatchInferenceLoop(GradLoop):
 
                 trainer.step(batch_size=self.batch_size, ignore_stale_grad=True)
                 epoch_loss += loss.asscalar()
+                batch_number += 1
 
             if logger:
                 logger.log(tag='epoch_loss', value=epoch_loss / batch_number,
