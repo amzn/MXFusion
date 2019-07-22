@@ -73,11 +73,11 @@ class MinibatchInferenceLoop(GradLoop):
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
-            if (self.batch_size > len(data)):
+            if (self.batch_size > len(ArrayDataset(*data))):
                 warnings.warn(
-                    "'batch_size' set to default=100. 'batch_size' cannot be greater than observed variables.",
+                    "The requested batch_size is more than the length of the data passed in. Using batch_size as the size of the data instead.",
                     category=UserWarning)
-                load_batch_size = 100
+                load_batch_size = len(ArrayDataset(*data))
             else:
                 load_batch_size = self.batch_size
 
@@ -92,7 +92,7 @@ class MinibatchInferenceLoop(GradLoop):
             epoch_loss = 0
             batch_number = 0
 
-            for batch_number, data_batch in enumerate(data_loader):
+            for batch_number, data_batch in enumerate(data_loader,1):
                 if not isinstance(data_batch, (list, tuple)):
                     data_batch = [data_batch]
 
@@ -109,7 +109,6 @@ class MinibatchInferenceLoop(GradLoop):
 
                 trainer.step(batch_size=self.batch_size, ignore_stale_grad=True)
                 epoch_loss += loss.asscalar()
-                batch_number += 1
 
             if logger:
                 logger.log(tag='epoch_loss', value=epoch_loss / batch_number,
