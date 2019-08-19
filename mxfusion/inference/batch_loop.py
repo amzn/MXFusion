@@ -13,9 +13,10 @@
 # ==============================================================================
 
 import mxnet as mx
-
+import horovod.mxnet as hvd
+from mxnet import gluon, autograd
 from .grad_loop import GradLoop
-
+import time
 
 class BatchInferenceLoop(GradLoop):
     """
@@ -23,7 +24,7 @@ class BatchInferenceLoop(GradLoop):
     """
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
-            learning_rate=1e-3, max_iter=1000, n_prints=10, verbose=False, logger=None):
+            learning_rate=1e-3, max_iter=1000, n_prints=10, verbose=False, logger=None, multi_processor=False):
         """
         :param infr_executor: The MXNet function that computes the training objective.
         :type infr_executor: MXNet Gluon Block
@@ -49,19 +50,40 @@ class BatchInferenceLoop(GradLoop):
         if logger:
             logger.open()
 
-        trainer = mx.gluon.Trainer(param_dict,
-                                   optimizer=optimizer,
-                                   optimizer_params={'learning_rate': learning_rate})
+
+
+        if multi_processor:
+
+            trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,optimizer_params={'learning_rate': learning_rate * hvd.size()})
+
+            temporaryData = []
+
+            for i, subdata in enumerate(data):
+                tempData = mx.nd.split(data=subdata,num_outputs=hvd.size(),axis=0)
+                tempData = mx.nd.array(tempData[hvd.rank()],dtype='float64')
+                temporaryData.append(tempData)
+
+            data = temporaryData
+
+
+
+
+        else:
+            trainer = mx.gluon.Trainer(param_dict,
+                                       optimizer=optimizer,
+                                       optimizer_params={'learning_rate': learning_rate})
+
         iter_step = max(max_iter // n_prints, 1)
         for i in range(1, max_iter + 1):
-            with mx.autograd.record():
-                loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
-                loss_for_gradient.backward()
+            with autograd.record():
+                loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx, dtype='float32'), *data)
+            loss_for_gradient.backward()
+            trainer.step(batch_size=1, ignore_stale_grad=True)
 
             if logger:
                 logger.log("loss", loss.asscalar(), i, newline=not i % iter_step, verbose=verbose)
 
-            trainer.step(batch_size=1, ignore_stale_grad=True)
+
         infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
 
         if logger:

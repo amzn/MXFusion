@@ -68,7 +68,7 @@ class GradBasedInference(Inference):
         return infr
 
     def run(self, optimizer='adam', learning_rate=1e-3, max_iter=2000,
-            verbose=False, **kwargs):
+            verbose=False, multi_processor=None, **kwargs):
         """
         Run the inference method.
 
@@ -99,12 +99,12 @@ class GradBasedInference(Inference):
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
                 learning_rate=learning_rate, max_iter=max_iter,
-                update_shape_constants=update_shape_constants, verbose=verbose, logger=self._logger)
+                update_shape_constants=update_shape_constants, verbose=verbose, logger=self._logger, multi_processor=multi_processor)
         else:
             return self._grad_loop.run(
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
-                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
+                learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger, multi_processor=multi_processor)
 
 
 class GradTransferInference(GradBasedInference):
