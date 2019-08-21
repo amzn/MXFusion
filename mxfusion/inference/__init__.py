@@ -21,6 +21,7 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
+    batch_inference_loop_lbfgs.py
     batch_loop
     forward_sampling
     grad_based_inference
@@ -36,6 +37,7 @@ Submodules
 """
 
 from .batch_loop import BatchInferenceLoop
+from .batch_inference_loop_lbfgs import BatchInferenceLoopLBFGS
 from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
 from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampling, ForwardSamplingAlgorithm
 from .grad_based_inference import GradBasedInference, GradTransferInference
