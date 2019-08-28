@@ -18,9 +18,10 @@ import warnings
 from mxnet.gluon.data import ArrayDataset
 
 from .grad_loop import GradLoop
+import horovod.mxnet as hvd
 
 
-class MinibatchInferenceLoop(GradLoop):
+class DistributedMinibatchInferenceLoop(GradLoop):
     """
     The class for the main loop for minibatch gradient-based optimization. The
     *batch_size* specifies the size of mini-batch is used in mini-batch
@@ -37,7 +38,7 @@ class MinibatchInferenceLoop(GradLoop):
     """
 
     def __init__(self, batch_size=100, rv_scaling=None):
-        super(MinibatchInferenceLoop, self).__init__()
+        super(DistributedMinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
         self.rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
             if rv_scaling is not None else rv_scaling
@@ -86,7 +87,19 @@ class MinibatchInferenceLoop(GradLoop):
                 ArrayDataset(*data), batch_size=load_batch_size, shuffle=True,
                 last_batch='rollover')
 
-            trainer = mx.gluon.Trainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
+            trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,
+                                                 optimizer_params={'learning_rate': learning_rate})
+
+            if hvd.size() > 1:
+                temporaryData = []
+
+                for i, subdata in enumerate(data_loader):
+                    tempData = mx.nd.split(data=subdata, num_outputs=hvd.size(), axis=0)
+                    tempData = mx.nd.array(tempData[hvd.rank()], dtype='float64')
+                    temporaryData.append(tempData)
+
+                data_loader = temporaryData
+
 
 
         total_batches = 0
@@ -103,6 +116,7 @@ class MinibatchInferenceLoop(GradLoop):
 
                 with mx.autograd.record():
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
+                    loss_for_gradient = loss_for_gradient * hvd.size()
                 loss_for_gradient.backward()
 
                 if logger:

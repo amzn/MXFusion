@@ -13,15 +13,15 @@
 # ==============================================================================
 
 
-from .batch_loop import BatchInferenceLoop
+from .dist_batch_loop import DistributedBatchInferenceLoop
 from .inference import Inference
-from .minibatch_loop import MinibatchInferenceLoop
+from .dist_minibatch_loop import DistributedMinibatchInferenceLoop
 from ..util.inference import discover_shape_constants, init_outcomes
 
 
-class GradBasedInference(Inference):
+class DistributedGradBasedInference(Inference):
     """
-    The abstract class for gradient-based inference methods.
+    The abstract class for distributed gradient-based inference methods.
     An inference method consists of a few components: the applied inference algorithm, the model definition
     (optionally a definition of posterior approximation), the inference parameters.
 
@@ -44,8 +44,8 @@ class GradBasedInference(Inference):
     def __init__(self, inference_algorithm, grad_loop=None, constants=None,
                  hybridize=False, dtype=None, context=None, logger=None):
         if grad_loop is None:
-            grad_loop = BatchInferenceLoop()
-        super(GradBasedInference, self).__init__(
+            grad_loop = DistributedBatchInferenceLoop()
+        super(DistributedGradBasedInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
             hybridize=hybridize, dtype=dtype, context=context, logger=logger)
         self._grad_loop = grad_loop
@@ -54,14 +54,24 @@ class GradBasedInference(Inference):
         """
         Return a MXNet Gluon block responsible for the execution of the inference method.
         """
-        from .minibatch_loop import MinibatchInferenceLoop
-        if isinstance(self._grad_loop, MinibatchInferenceLoop):
-            rv_scaling = self._grad_loop.rv_scaling
-        else:
-            rv_scaling = None
+        from mxfusion.inference import StochasticVariationalInference
+
+        if isinstance(self.inference_algorithm, StochasticVariationalInference):
+            import horovod.mxnet as hvd
+
+            rv_scaling = {self.inference_algorithm.model.mu : 1/hvd.size(), self.inference_algorithm.model.s_hat : 1/hvd.size()}
+            rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
+                if rv_scaling is not None else rv_scaling
+
+        if isinstance(self._grad_loop, DistributedMinibatchInferenceLoop):
+            # rv_scaling = self._grad_loop.rv_scaling
+            if(self._grad_loop.rv_scaling is not None):
+                rv_scaling.update(self._grad_loop.rv_scaling)
+
         infr = self._inference_algorithm.create_executor(
             data_def=self.observed_variable_UUIDs, params=self.params,
             var_ties=self.params.var_ties, rv_scaling=rv_scaling)
+
         if self._hybridize:
             infr.hybridize()
         infr.initialize(ctx=self.mxnet_context)
@@ -88,7 +98,7 @@ class GradBasedInference(Inference):
 
         infr = self.create_executor()
 
-        if isinstance(self._grad_loop, MinibatchInferenceLoop):
+        if isinstance(self._grad_loop, DistributedMinibatchInferenceLoop):
             def update_shape_constants(data_batch):
                 data_shapes = {i: d.shape for i, d in zip(self.observed_variable_UUIDs,
                                                           data_batch)}
@@ -107,7 +117,7 @@ class GradBasedInference(Inference):
                 learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
 
 
-class GradTransferInference(GradBasedInference):
+class GradTransferInference(DistributedGradBasedInference):
     """
     The abstract Inference method for transferring the outcome of one inference
     method to another.

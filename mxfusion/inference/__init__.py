@@ -25,6 +25,7 @@ Submodules
     batch_loop
     forward_sampling
     grad_based_inference
+    dist_grad_based_inference
     grad_loop
     inference_alg
     inference_parameters
@@ -37,16 +38,19 @@ Submodules
 """
 
 from .batch_loop import BatchInferenceLoop
+from .dist_batch_loop import DistributedBatchInferenceLoop
 from .batch_inference_loop_lbfgs import BatchInferenceLoopLBFGS
 from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
 from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampling, ForwardSamplingAlgorithm
 from .grad_based_inference import GradBasedInference, GradTransferInference
+from .dist_grad_based_inference import DistributedGradBasedInference, GradTransferInference
 from .inference import Inference, TransferInference
 from .inference_parameters import InferenceParameters
 from .logger import Logger
 from .map import MAP
 from .meanfield import create_Gaussian_meanfield
 from .minibatch_loop import MinibatchInferenceLoop
+from .dist_minibatch_loop import DistributedMinibatchInferenceLoop
 from .pilco_alg import PILCOAlgorithm
 from .prediction import ModulePredictionAlgorithm
 from .score_function import ScoreFunctionInference, ScoreFunctionRBInference

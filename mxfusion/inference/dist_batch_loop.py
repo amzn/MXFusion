@@ -13,11 +13,12 @@
 # ==============================================================================
 
 import mxnet as mx
+import horovod.mxnet as hvd
 from mxnet import gluon, autograd
 from .grad_loop import GradLoop
 import time
 
-class BatchInferenceLoop(GradLoop):
+class DistributedBatchInferenceLoop(GradLoop):
     """
     The class for the main loop for batch gradient-based optimization.
     """
@@ -50,14 +51,27 @@ class BatchInferenceLoop(GradLoop):
             logger.open()
 
 
-        trainer = mx.gluon.Trainer(param_dict,
-                                       optimizer=optimizer,
-                                       optimizer_params={'learning_rate': learning_rate})
+
+        trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,optimizer_params={'learning_rate': learning_rate})
+
+
+        if hvd.size() > 1:
+            temporaryData = []
+
+            for i, subdata in enumerate(data):
+                tempData = mx.nd.split(data=subdata,num_outputs=hvd.size(),axis=0)
+                tempData = mx.nd.array(tempData[hvd.rank()],dtype='float64')
+                temporaryData.append(tempData)
+
+                data = temporaryData
+
 
         iter_step = max(max_iter // n_prints, 1)
         for i in range(1, max_iter + 1):
             with autograd.record():
                 loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx, dtype='float64'), *data)
+                # stepping up the learning rate for distributed training
+                loss_for_gradient = loss_for_gradient * hvd.size()
             loss_for_gradient.backward()
 
 

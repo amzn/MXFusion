@@ -145,7 +145,6 @@ class Inference(object):
                 if not all(isinstance(d, type(d)) for d in data):
                     raise InferenceError("All items in the keywords must be of the same type. "
                                          "Either all shapes or all data objects.")
-
                 if isinstance(data[0], (tuple, list)):
                     data_shapes = {i: d for i, d in zip(self.observed_variable_UUIDs, data)}
                 elif isinstance(data[0], mx.nd.ndarray.NDArray):
