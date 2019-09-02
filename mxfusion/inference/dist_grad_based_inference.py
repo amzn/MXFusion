@@ -56,10 +56,17 @@ class DistributedGradBasedInference(Inference):
         """
         from mxfusion.inference import StochasticVariationalInference
 
+        rv_scaling = {}
         if isinstance(self.inference_algorithm, StochasticVariationalInference):
             import horovod.mxnet as hvd
 
-            rv_scaling = {self.inference_algorithm.model.mu : 1/hvd.size(), self.inference_algorithm.model.s_hat : 1/hvd.size()}
+            for _, variable in enumerate(self.inference_algorithm.model.get_latent_variables(self.inference_algorithm.observed)):
+                rv_scaling[variable] = 1/hvd.size()
+            print(rv_scaling)
+
+            if rv_scaling == {}:
+                rv_scaling = None
+
             rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
                 if rv_scaling is not None else rv_scaling
 

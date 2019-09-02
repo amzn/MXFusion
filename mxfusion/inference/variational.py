@@ -86,6 +86,7 @@ class StochasticVariationalInference(VariationalInference):
     def __init__(self, num_samples, model, posterior, observed):
         super(StochasticVariationalInference, self).__init__(
             model=model, posterior=posterior, observed=observed)
+        self.observed = observed
         self.num_samples = num_samples
 
     def compute(self, F, variables):

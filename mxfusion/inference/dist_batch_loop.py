@@ -50,10 +50,7 @@ class DistributedBatchInferenceLoop(GradLoop):
         if logger:
             logger.open()
 
-
-
         trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,optimizer_params={'learning_rate': learning_rate})
-
 
         if hvd.size() > 1:
             temporaryData = []
@@ -65,7 +62,6 @@ class DistributedBatchInferenceLoop(GradLoop):
 
                 data = temporaryData
 
-
         iter_step = max(max_iter // n_prints, 1)
         for i in range(1, max_iter + 1):
             with autograd.record():
@@ -73,7 +69,6 @@ class DistributedBatchInferenceLoop(GradLoop):
                 # stepping up the learning rate for distributed training
                 loss_for_gradient = loss_for_gradient * hvd.size()
             loss_for_gradient.backward()
-
 
             if logger:
                 logger.log("loss", loss.asscalar(), i, newline=not i % iter_step, verbose=verbose)
