@@ -15,7 +15,6 @@
 import mxnet as mx
 from mxnet import gluon, autograd
 from .grad_loop import GradLoop
-import time
 
 class BatchInferenceLoop(GradLoop):
     """
@@ -48,7 +47,6 @@ class BatchInferenceLoop(GradLoop):
         """
         if logger:
             logger.open()
-
 
         trainer = mx.gluon.Trainer(param_dict,
                                        optimizer=optimizer,

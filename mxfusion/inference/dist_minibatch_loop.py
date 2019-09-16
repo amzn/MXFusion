@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
 
 
 import mxnet as mx
+import horovod.mxnet as hvd
 import warnings
 from mxnet.gluon.data import ArrayDataset
-
-from .grad_loop import GradLoop
-import horovod.mxnet as hvd
+from .dist_grad_loop import DistributedGradLoop
 
 
-class DistributedMinibatchInferenceLoop(GradLoop):
+class DistributedMinibatchInferenceLoop(DistributedGradLoop):
     """
     The class for the main loop for minibatch gradient-based optimization. The
     *batch_size* specifies the size of mini-batch is used in mini-batch
@@ -33,15 +32,12 @@ class DistributedMinibatchInferenceLoop(GradLoop):
 
     :param batch_size: the size of minibatch for optimization
     :type batch_size: int
-    :param rv_scaling: the scaling factor of random variables
-    :type rv_scaling: {Variable: scaling factor}
     """
 
-    def __init__(self, batch_size=100, rv_scaling=None):
+    def __init__(self, batch_size=100):
         super(DistributedMinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
-        self.rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
-            if rv_scaling is not None else rv_scaling
+
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
             learning_rate=1e-3, max_iter=1000, update_shape_constants=None, verbose=False, logger=None):
@@ -71,10 +67,11 @@ class DistributedMinibatchInferenceLoop(GradLoop):
         if logger:
             logger.open()
 
-
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
+            data = self.split_data(data=data)
+
             if (self.batch_size > len(ArrayDataset(*data))):
                 warnings.warn(
                     "The requested batch_size is more than the length of the data passed in. Using batch_size as the size of the data instead.",
@@ -87,19 +84,7 @@ class DistributedMinibatchInferenceLoop(GradLoop):
                 ArrayDataset(*data), batch_size=load_batch_size, shuffle=True,
                 last_batch='rollover')
 
-            trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,
-                                                 optimizer_params={'learning_rate': learning_rate})
-
-            if hvd.size() > 1:
-                temporaryData = []
-
-                for i, subdata in enumerate(data_loader):
-                    tempData = mx.nd.split(data=subdata, num_outputs=hvd.size(), axis=0)
-                    tempData = mx.nd.array(tempData[hvd.rank()], dtype='float64')
-                    temporaryData.append(tempData)
-
-                data_loader = temporaryData
-
+            trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
 
 
         total_batches = 0
@@ -133,4 +118,3 @@ class DistributedMinibatchInferenceLoop(GradLoop):
 
         if logger:
             logger.close()
-

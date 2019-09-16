@@ -39,26 +39,26 @@ class GradBasedInference(Inference):
     :type context: {mxnet.cpu or mxnet.gpu}
     :param logger: The logger to send logs to
     :type logger: :class:`inference.Logger`
+    :param rv_scaling: the scaling factor of random variables
+    :type rv_scaling: {Variable: scaling factor}
     """
 
     def __init__(self, inference_algorithm, grad_loop=None, constants=None,
-                 hybridize=False, dtype=None, context=None, logger=None):
+                 hybridize=False, dtype=None, context=None, logger=None, rv_scaling=None):
         if grad_loop is None:
             grad_loop = BatchInferenceLoop()
         super(GradBasedInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
             hybridize=hybridize, dtype=dtype, context=context, logger=logger)
         self._grad_loop = grad_loop
+        self.rv_scaling = rv_scaling
 
     def create_executor(self):
         """
         Return a MXNet Gluon block responsible for the execution of the inference method.
         """
         from .minibatch_loop import MinibatchInferenceLoop
-        if isinstance(self._grad_loop, MinibatchInferenceLoop):
-            rv_scaling = self._grad_loop.rv_scaling
-        else:
-            rv_scaling = None
+        rv_scaling = self.scale_if_minibatch(self._grad_loop)
         infr = self._inference_algorithm.create_executor(
             data_def=self.observed_variable_UUIDs, params=self.params,
             var_ties=self.params.var_ties, rv_scaling=rv_scaling)

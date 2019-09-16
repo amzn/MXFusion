@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ from .dist_batch_loop import DistributedBatchInferenceLoop
 from .inference import Inference
 from .dist_minibatch_loop import DistributedMinibatchInferenceLoop
 from ..util.inference import discover_shape_constants, init_outcomes
-
+from .dist_grad_loop import DistributedGradLoop
 
 class DistributedGradBasedInference(Inference):
     """
@@ -39,48 +39,50 @@ class DistributedGradBasedInference(Inference):
     :type context: {mxnet.cpu or mxnet.gpu}
     :param logger: The logger to send logs to
     :type logger: :class:`inference.Logger`
+    :param rv_scaling: the scaling factor of random variables
+    :type rv_scaling: {Variable: scaling factor}
     """
 
     def __init__(self, inference_algorithm, grad_loop=None, constants=None,
-                 hybridize=False, dtype=None, context=None, logger=None):
+                 hybridize=False, dtype=None, context=None, logger=None, rv_scaling=None):
         if grad_loop is None:
             grad_loop = DistributedBatchInferenceLoop()
+        if not (isinstance(grad_loop, DistributedGradLoop)):
+            raise TypeError("grad_loop must be a type of DistributedGradLoop.")
+
         super(DistributedGradBasedInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
             hybridize=hybridize, dtype=dtype, context=context, logger=logger)
         self._grad_loop = grad_loop
+        self.rv_scaling = rv_scaling
+
+    def rescale(self, rv_scaling):
+        """
+        Return the rescaled scaling factor of random variables for SVI.
+        """
+        import horovod.mxnet as hvd
+        for _, variable in enumerate(
+                self.inference_algorithm.model.get_latent_variables(self.inference_algorithm.observed)):
+            if variable not in rv_scaling:
+                rv_scaling[variable.uuid] = 1 / hvd.size()
+
+        return rv_scaling
 
     def create_executor(self):
         """
         Return a MXNet Gluon block responsible for the execution of the inference method.
         """
         from mxfusion.inference import StochasticVariationalInference
-
-        rv_scaling = {}
+        rv_scaling = self.scale_if_minibatch(self._grad_loop)
         if isinstance(self.inference_algorithm, StochasticVariationalInference):
-            import horovod.mxnet as hvd
-
-            for _, variable in enumerate(self.inference_algorithm.model.get_latent_variables(self.inference_algorithm.observed)):
-                rv_scaling[variable] = 1/hvd.size()
-            print(rv_scaling)
-
-            if rv_scaling == {}:
-                rv_scaling = None
-
-            rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
-                if rv_scaling is not None else rv_scaling
-
-        if isinstance(self._grad_loop, DistributedMinibatchInferenceLoop):
-            # rv_scaling = self._grad_loop.rv_scaling
-            if(self._grad_loop.rv_scaling is not None):
-                rv_scaling.update(self._grad_loop.rv_scaling)
+            rv_scaling = self.rescale(rv_scaling=rv_scaling)
 
         infr = self._inference_algorithm.create_executor(
             data_def=self.observed_variable_UUIDs, params=self.params,
             var_ties=self.params.var_ties, rv_scaling=rv_scaling)
-
         if self._hybridize:
             infr.hybridize()
+        print("fake ", self.mxnet_context)
         infr.initialize(ctx=self.mxnet_context)
         return infr
 

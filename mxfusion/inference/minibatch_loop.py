@@ -32,15 +32,12 @@ class MinibatchInferenceLoop(GradLoop):
 
     :param batch_size: the size of minibatch for optimization
     :type batch_size: int
-    :param rv_scaling: the scaling factor of random variables
-    :type rv_scaling: {Variable: scaling factor}
     """
 
-    def __init__(self, batch_size=100, rv_scaling=None):
+    def __init__(self, batch_size=100):
         super(MinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
-        self.rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
-            if rv_scaling is not None else rv_scaling
+
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
             learning_rate=1e-3, max_iter=1000, update_shape_constants=None, verbose=False, logger=None):
@@ -69,7 +66,6 @@ class MinibatchInferenceLoop(GradLoop):
 
         if logger:
             logger.open()
-
 
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data

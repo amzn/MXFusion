@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -15,10 +15,9 @@
 import mxnet as mx
 import horovod.mxnet as hvd
 from mxnet import gluon, autograd
-from .grad_loop import GradLoop
-import time
+from .dist_grad_loop import DistributedGradLoop
 
-class DistributedBatchInferenceLoop(GradLoop):
+class DistributedBatchInferenceLoop(DistributedGradLoop):
     """
     The class for the main loop for batch gradient-based optimization.
     """
@@ -51,16 +50,7 @@ class DistributedBatchInferenceLoop(GradLoop):
             logger.open()
 
         trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,optimizer_params={'learning_rate': learning_rate})
-
-        if hvd.size() > 1:
-            temporaryData = []
-
-            for i, subdata in enumerate(data):
-                tempData = mx.nd.split(data=subdata,num_outputs=hvd.size(),axis=0)
-                tempData = mx.nd.array(tempData[hvd.rank()],dtype='float64')
-                temporaryData.append(tempData)
-
-                data = temporaryData
+        data = self.split_data(data=data)
 
         iter_step = max(max_iter // n_prints, 1)
         for i in range(1, max_iter + 1):

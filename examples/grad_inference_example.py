@@ -1,21 +1,18 @@
 import warnings
 warnings.filterwarnings('ignore')
 import numpy as np
+import mxnet as mx
 from mxfusion import Variable, Model
 from mxfusion.components.variables import PositiveTransformation
 from mxfusion.components.distributions import Normal
 
-from mxfusion.inference import GradBasedInference, MAP
-import mxnet as mx
-
+from mxfusion.inference import MAP
 
 from mxfusion.common import config
 config.DEFAULT_DTYPE = 'float64'
-
 import horovod.mxnet as hvd
-
 hvd.init()
-
+context = mx.gpu(hvd.local_rank())
 np.random.seed(0)
 mean_groundtruth = 3.
 variance_groundtruth = 5.
@@ -23,28 +20,26 @@ N = 100
 
 data = np.random.randn(N)*np.sqrt(variance_groundtruth) + mean_groundtruth
 
+from mxfusion.inference import DistributedGradBasedInference
 
-# m = Model()
-# m.mu = Variable()
-# m.s = Variable(transformation=PositiveTransformation())
-# m.Y = Normal.define_variable(mean=m.mu, variance=m.s, shape=(N,))
-# infr = GradBasedInference(inference_algorithm=MAP(model=m, observed=[m.Y]))
-# infr.run(Y=mx.nd.array(data, dtype='float64'), learning_rate=0.1, max_iter=2000, verbose=True, multi_processor=True)
-# mean_estimated = infr.params[m.mu].asnumpy()
-# variance_estimated = infr.params[m.s].asnumpy()
-# print('The estimated mean and variance: %f, %f.' % (mean_estimated, variance_estimated))
-# print('The true mean and variance: %f, %f.' % (mean_groundtruth, variance_groundtruth))
-#
+m = Model()
+m.mu = Variable()
+m.s = Variable(transformation=PositiveTransformation())
+m.Y = Normal.define_variable(mean=m.mu, variance=m.s, shape=(N,))
+
+infr = DistributedGradBasedInference(inference_algorithm=MAP(model=m, observed=[m.Y]),context=context)
+infr.run(Y=mx.nd.array(data, context, dtype='float64'), learning_rate=0.1, max_iter=3000, verbose=True, multi_processor=True)
+mean_estimated = infr.params[m.mu].asnumpy()
+variance_estimated = infr.params[m.s].asnumpy()
+print('The estimated mean and variance: %f, %f.' % (mean_estimated, variance_estimated))
+print('The true mean and variance: %f, %f.' % (mean_groundtruth, variance_groundtruth))
+
 m = Model()
 
 m.mu = Normal.define_variable(mean=mx.nd.array([0], dtype='float64'),
                               variance=mx.nd.array([100], dtype='float64'), shape=(1,))
 
 dtype='float64'
-
-# The mean and standard deviation of the mean parameter is 3.119226(0.222088).
-# The 15th, 50th and 85th percentile of the variance parameter is 4.602657, 5.309384 and 6.018709.
-
 
 from mxfusion.components.functions import MXFusionGluonFunction
 
@@ -64,9 +59,9 @@ from mxfusion.inference import StochasticVariationalInference
 
 data = np.random.randn(N)*np.sqrt(variance_groundtruth) + mean_groundtruth
 
-infr = GradBasedInference(inference_algorithm=StochasticVariationalInference(
-    model=m, posterior=q, num_samples=10, observed=[m.Y]))
-infr.run(Y=mx.nd.array(data, dtype='float64'), learning_rate=0.1, verbose=True, multi_processor=True,max_iter=2000)
+infr = DistributedGradBasedInference(inference_algorithm=StochasticVariationalInference(
+    model=m, posterior=q, num_samples=10, observed=[m.Y]),context=context)
+infr.run(Y=mx.nd.array(data, context, dtype='float64'), learning_rate=0.1, verbose=True,max_iter=3000)
 
 mu_mean = infr.params[q.mu.factor.mean].asscalar()
 mu_std = np.sqrt(infr.params[q.mu.factor.variance].asscalar())

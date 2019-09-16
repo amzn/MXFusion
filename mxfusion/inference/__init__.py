@@ -27,6 +27,7 @@ Submodules
     grad_based_inference
     dist_grad_based_inference
     grad_loop
+    dist_grad_loop
     inference_alg
     inference_parameters
     inference
@@ -39,6 +40,7 @@ Submodules
 
 from .batch_loop import BatchInferenceLoop
 from .dist_batch_loop import DistributedBatchInferenceLoop
+from .dist_grad_loop import DistributedGradLoop
 from .batch_inference_loop_lbfgs import BatchInferenceLoopLBFGS
 from .expectation import ExpectationAlgorithm, ExpectationScoreFunctionAlgorithm
 from .forward_sampling import ForwardSampling, VariationalPosteriorForwardSampling, ForwardSamplingAlgorithm
