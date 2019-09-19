@@ -82,7 +82,6 @@ class DistributedGradBasedInference(Inference):
             var_ties=self.params.var_ties, rv_scaling=rv_scaling)
         if self._hybridize:
             infr.hybridize()
-        print("fake ", self.mxnet_context)
         infr.initialize(ctx=self.mxnet_context)
         return infr
 

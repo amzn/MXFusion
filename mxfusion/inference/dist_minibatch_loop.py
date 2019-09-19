@@ -71,7 +71,7 @@ class DistributedMinibatchInferenceLoop(DistributedGradLoop):
             data_loader = data
         else:
             data = self.split_data(data=data)
-
+            
             if (self.batch_size > len(ArrayDataset(*data))):
                 warnings.warn(
                     "The requested batch_size is more than the length of the data passed in. Using batch_size as the size of the data instead.",
@@ -86,7 +86,6 @@ class DistributedMinibatchInferenceLoop(DistributedGradLoop):
 
             trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
 
-
         total_batches = 0
         for e in range(max_iter):
             epoch_loss = 0
@@ -98,7 +97,7 @@ class DistributedMinibatchInferenceLoop(DistributedGradLoop):
 
                 if update_shape_constants is not None:
                     update_shape_constants(data_batch)
-
+                
                 with mx.autograd.record():
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                     loss_for_gradient = loss_for_gradient * hvd.size()

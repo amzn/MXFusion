@@ -47,6 +47,8 @@ class TestDistributedMAP(object):
     def make_inference_MAP(self, model, data, distributed=True, minibatch=False, num_iter=2000, learning_rate=1e-1, batch_size=100):
         from mxfusion.inference import GradBasedInference, MAP, DistributedGradBasedInference, BatchInferenceLoop, MinibatchInferenceLoop, DistributedBatchInferenceLoop, DistributedMinibatchInferenceLoop
 
+        mx.context.Context.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
+      
         if distributed:
             infr = DistributedGradBasedInference(inference_algorithm=MAP(model=model, observed=[model.Y]), grad_loop=DistributedMinibatchInferenceLoop(batch_size=batch_size)) if minibatch else DistributedGradBasedInference(inference_algorithm=MAP(model=model, observed=[model.Y]), grad_loop=DistributedBatchInferenceLoop())
         else:
@@ -58,7 +60,7 @@ class TestDistributedMAP(object):
 
 
     @pytest.mark.parametrize("mean_groundtruth, variance_groundtruth, N, max_iter, learning_rate", [
-        (3, 5, 100, 10, 1e-1),
+        (3, 5, 100, 100, 1e-1),
         ])
     def test_MAP(self, mean_groundtruth, variance_groundtruth, N, max_iter, learning_rate):
         """
@@ -85,12 +87,11 @@ class TestDistributedMAP(object):
         else:
             rtol, atol = 1e-4, 1e-5
 
-        print(mean_estimated_single, mean_estimated_double)
         assert np.allclose(mean_estimated_single, mean_estimated_double, rtol=rtol, atol=atol)
         assert np.allclose(variance_estimated_single, variance_estimated_double, rtol=rtol, atol=atol)
 
     @pytest.mark.parametrize("mean_groundtruth, variance_groundtruth, N, max_iter, learning_rate, batch_size", [
-        (3, 5, 100, 10, 1e-1, 50),
+        (3, 5, 100, 100, 1e-1, 50),
         ])
     def test_MAP_minibatch(self, mean_groundtruth, variance_groundtruth, N, max_iter, learning_rate, batch_size):
         """

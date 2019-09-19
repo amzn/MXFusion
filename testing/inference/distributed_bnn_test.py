@@ -1,4 +1,4 @@
-# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliaeontext.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -31,10 +31,10 @@ class TestDistributedBNN(object):
     hvd.init()
 
     from mxfusion.common import config
-    config.DEFAULT_DTYPE = 'float64'
+    config.DEFAULT_DTYPE = 'float32'
+    mx.context.Context.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
 
     def make_neural_BNN(self, input, output, rand_num_scale):
-
         net = nn.HybridSequential(prefix='nn_')
         with net.name_scope():
             net.add(nn.Dense(input, activation="tanh", in_units=1))
@@ -45,7 +45,6 @@ class TestDistributedBNN(object):
         return net
 
     def make_model_BNN(self, net):
-
         from mxfusion import Variable, Model
         from mxfusion.components.functions import MXFusionGluonFunction
         from mxfusion.components.variables import PositiveTransformation
@@ -61,8 +60,8 @@ class TestDistributedBNN(object):
         from mxfusion.components.functions.operators import broadcast_to
 
         for v in m.r.factor.parameters.values():
-            v.set_prior(Normal(mean=broadcast_to(mx.nd.array([0], dtype=np.float64), v.shape),
-                               variance=broadcast_to(mx.nd.array([1.], dtype=np.float64), v.shape)))
+            v.set_prior(Normal(mean=broadcast_to(mx.nd.array([0], dtype=np.float32), v.shape),
+                               variance=broadcast_to(mx.nd.array([1.], dtype=np.float32), v.shape)))
         return m
 
     def split_tuple_shape(self, tuple_var):
@@ -73,9 +72,8 @@ class TestDistributedBNN(object):
         return t
 
     def make_inference_BNN(self, model, net, x, y, num_samples=1000, distributed=False, minibatch=False, num_iter=2000, learning_rate=1e-1, batch_size=100):
-
         from mxfusion.inference import BatchInferenceLoop, MinibatchInferenceLoop, DistributedBatchInferenceLoop, DistributedMinibatchInferenceLoop, create_Gaussian_meanfield, GradBasedInference, StochasticVariationalInference, DistributedGradBasedInference
-
+        dtype='float32'
         observed = [model.y, model.x]
         posterior = create_Gaussian_meanfield(model=model, observed=observed)
 
@@ -94,12 +92,12 @@ class TestDistributedBNN(object):
             shape_y = self.split_tuple_shape(shape_y)
 
         infr.initialize(y=shape_y,x=shape_x)
-
+       
         for v_name, v in model.r.factor.parameters.items():
             infr.params[posterior[v].factor.mean] = net.collect_params()[v_name].data()
             infr.params[posterior[v].factor.variance] = mx.nd.ones_like(infr.params[posterior[v].factor.variance]) * 1e-6
 
-        infr.run(max_iter=num_iter, learning_rate=learning_rate, y=mx.nd.array(y, dtype=np.float64), x=mx.nd.array(x, dtype=np.float64), verbose=True)
+        infr.run(max_iter=num_iter, learning_rate=learning_rate, y=mx.nd.array(y, dtype=dtype), x=mx.nd.array(x, dtype=dtype), verbose=True)
 
         return infr
 
@@ -107,7 +105,7 @@ class TestDistributedBNN(object):
 
         from mxfusion.inference import VariationalPosteriorForwardSampling
         infr = VariationalPosteriorForwardSampling(10, [model.x], infr, [model.r])
-        res = infr.run(x=mx.nd.array(xt, dtype=np.float64))
+        res = infr.run(x=mx.nd.array(xt, dtype='float32'))
         yt = res[0].asnumpy()
 
         return yt
@@ -203,19 +201,19 @@ class TestDistributedBNN(object):
             rtol, atol = 10, 10
         else:
             rtol, atol = 1e-4, 1e-5
-
         assert np.allclose(prediction_single_mean, prediction_multi_mean, rtol=rtol, atol=atol)
         assert np.allclose(prediction_single_std, prediction_multi_std, rtol=rtol, atol=atol)
-
-    @pytest.mark.parametrize("N, num_samples, max_iter, learning_rate, bnn_input, bnn_output, bnn_rand_num_scale", [
-        (1000, 3, 10, 1e-2, 50, 1, 3)
+    
+    @pytest.mark.parametrize("N, num_samples, max_iter, learning_rate, bnn_input, bnn_output, bnn_rand_num_scale, batch_size", [
+        (200, 5, 10, 1e-1, 10, 2, 1, 50)
         ])
-    def test_BNN_regression(self, N, num_samples, max_iter, learning_rate, bnn_input, bnn_output, bnn_rand_num_scale):
+    def test_BNN_regression(self, N, num_samples, max_iter, learning_rate, bnn_input, bnn_output, bnn_rand_num_scale, batch_size):
         """
             Test the accuracy of distributing training of BNN regression with comparison to non-distributing training.
             This unit test specifically tests on Batch loop with SVI Inference for gradient optimisation.
             Parameters used for comparisons are mean and standard deviation of predicted BNN of the inferences.
         """
+        dtype = 'float32'
 
         k = GPy.kern.RBF(1, lengthscale=0.1)
         x = np.random.rand(N, 1)
@@ -260,8 +258,7 @@ class TestDistributedBNN(object):
         ])
     def test_BNN_regression_minibatch(self, N, num_samples, max_iter, learning_rate, bnn_input, bnn_output, bnn_rand_num_scale, batch_size):
         """
-            Test the accuracy of distributing training of BNN regression with comparison to non-distributing training.
-            This unit test specifically tests on Minibatch loop with SVI Inference for gradient optimisation.
+            Test the accuracy of distributing training of BNN regression with comparison to non-distributing training. Source and target must have the same data type when copying across device
             Parameters used for comparisons are mean and standard deviation of predicted BNN of the inferences.
         """
 

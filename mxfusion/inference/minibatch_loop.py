@@ -38,7 +38,6 @@ class MinibatchInferenceLoop(GradLoop):
         super(MinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
 
-
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
             learning_rate=1e-3, max_iter=1000, update_shape_constants=None, verbose=False, logger=None):
         """
@@ -63,10 +62,10 @@ class MinibatchInferenceLoop(GradLoop):
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
-
+          
         if logger:
             logger.open()
-
+        
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
@@ -77,13 +76,11 @@ class MinibatchInferenceLoop(GradLoop):
                 load_batch_size = len(ArrayDataset(*data))
             else:
                 load_batch_size = self.batch_size
-
+      
             data_loader = mx.gluon.data.DataLoader(
                 ArrayDataset(*data), batch_size=load_batch_size, shuffle=True,
                 last_batch='rollover')
-
             trainer = mx.gluon.Trainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
-
 
         total_batches = 0
         for e in range(max_iter):
@@ -91,12 +88,13 @@ class MinibatchInferenceLoop(GradLoop):
             batch_number = 0
 
             for batch_number, data_batch in enumerate(data_loader,1):
+                
                 if not isinstance(data_batch, (list, tuple)):
                     data_batch = [data_batch]
-
+                
                 if update_shape_constants is not None:
-                    update_shape_constants(data_batch)
-
+                    update_shape_constants(data_batch)        
+   
                 with mx.autograd.record():
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
                 loss_for_gradient.backward()

@@ -30,20 +30,21 @@ class TestDistributedSVI(object):
     hvd.init()
 
     from mxfusion.common import config
-    config.DEFAULT_DTYPE = 'float64'
+    config.DEFAULT_DTYPE = 'float32'
+    mx.context.Context.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
 
     def make_model_SVI(self):
         from mxfusion.components.distributions import Normal
         from mxfusion import Model, Variable
         from mxfusion.components.functions import MXFusionGluonFunction
-
+        dtype='float32'
         m = Model()
-        m.mu = Normal.define_variable(mean=mx.nd.array([0], dtype=np.float64),
-                                      variance=mx.nd.array([100], dtype=np.float64), shape=(1,))
+        m.mu = Normal.define_variable(mean=mx.nd.array([0]),
+                                      variance=mx.nd.array([100]), shape=(1,))
 
-        m.s_hat = Normal.define_variable(mean=mx.nd.array([5], dtype=np.float64),
-                                         variance=mx.nd.array([100], dtype=np.float64),
-                                         shape=(1,), dtype=np.float64)
+        m.s_hat = Normal.define_variable(mean=mx.nd.array([5], dtype=dtype),
+                                         variance=mx.nd.array([100], dtype=dtype),
+                                         shape=(1,), dtype=dtype)
 
         trans_mxnet = mx.gluon.nn.HybridLambda(lambda F, x: F.Activation(x, act_type='softrelu'))
 
@@ -51,13 +52,12 @@ class TestDistributedSVI(object):
         m.s = m.trans(m.s_hat)
         m.X = Variable()
 
-        m.Y = Normal.define_variable(mean=m.mu, variance=m.s, shape=(m.X,), dtype=np.float64)
+        m.Y = Normal.define_variable(mean=m.mu, variance=m.s, shape=(m.X,), dtype=dtype)
 
         return m
 
 
     def make_inference_SVI(self, model, data, posterior, num_samples=1000, distributed=False, minibatch=False, num_iter=2000, learning_rate=1e-1, batch_size=100):
-
         from mxfusion.inference import GradBasedInference, DistributedGradBasedInference, BatchInferenceLoop, MinibatchInferenceLoop, DistributedBatchInferenceLoop, DistributedMinibatchInferenceLoop, StochasticVariationalInference
 
         if distributed:
@@ -65,7 +65,7 @@ class TestDistributedSVI(object):
         else:
             infr = GradBasedInference(inference_algorithm=StochasticVariationalInference(model=model, posterior=posterior,num_samples=num_samples, observed=[model.Y]), grad_loop=MinibatchInferenceLoop(batch_size=batch_size)) if minibatch else GradBasedInference(inference_algorithm=StochasticVariationalInference(model=model, posterior=posterior,num_samples=num_samples, observed=[model.Y]), grad_loop=BatchInferenceLoop())
 
-        infr.run(Y=mx.nd.array(data, dtype=np.float64), learning_rate=learning_rate, verbose=True, max_iter=num_iter)
+        infr.run(Y=mx.nd.array(data, dtype='float32'), learning_rate=learning_rate, verbose=True, max_iter=num_iter)
 
         return infr
 

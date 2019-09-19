@@ -53,12 +53,12 @@ class BatchInferenceLoop(GradLoop):
                                        optimizer_params={'learning_rate': learning_rate})
 
         iter_step = max(max_iter // n_prints, 1)
+         
         for i in range(1, max_iter + 1):
             with autograd.record():
                 loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx, dtype='float64'), *data)
             loss_for_gradient.backward()
-
-
+            
             if logger:
                 logger.log("loss", loss.asscalar(), i, newline=not i % iter_step, verbose=verbose)
 
