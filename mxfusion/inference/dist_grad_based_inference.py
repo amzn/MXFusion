@@ -12,7 +12,6 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-
 from .dist_batch_loop import DistributedBatchInferenceLoop
 from .inference import Inference
 from .dist_minibatch_loop import DistributedMinibatchInferenceLoop

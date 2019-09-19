@@ -12,13 +12,11 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-
 import mxnet as mx
 import horovod.mxnet as hvd
 import warnings
 from mxnet.gluon.data import ArrayDataset
 from .dist_grad_loop import DistributedGradLoop
-
 
 class DistributedMinibatchInferenceLoop(DistributedGradLoop):
     """
@@ -37,7 +35,6 @@ class DistributedMinibatchInferenceLoop(DistributedGradLoop):
     def __init__(self, batch_size=100):
         super(DistributedMinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
-
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
             learning_rate=1e-3, max_iter=1000, update_shape_constants=None, verbose=False, logger=None):

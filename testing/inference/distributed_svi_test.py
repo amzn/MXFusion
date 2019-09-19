@@ -17,7 +17,6 @@ warnings.filterwarnings('ignore')
 import numpy as np
 import pytest
 import horovod.mxnet as hvd
-
 import mxnet as mx
 
 @pytest.mark.usefixtures("set_seed")

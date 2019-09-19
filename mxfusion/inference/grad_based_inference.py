@@ -12,12 +12,10 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-
 from .batch_loop import BatchInferenceLoop
 from .inference import Inference
 from .minibatch_loop import MinibatchInferenceLoop
 from ..util.inference import discover_shape_constants, init_outcomes
-
 
 class GradBasedInference(Inference):
     """
@@ -105,7 +103,6 @@ class GradBasedInference(Inference):
                 infr_executor=infr, data=data, param_dict=self.params.param_dict,
                 ctx=self.mxnet_context, optimizer=optimizer,
                 learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
-
 
 class GradTransferInference(GradBasedInference):
     """

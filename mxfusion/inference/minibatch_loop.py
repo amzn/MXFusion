@@ -12,13 +12,10 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-
 import mxnet as mx
 import warnings
 from mxnet.gluon.data import ArrayDataset
-
 from .grad_loop import GradLoop
-
 
 class MinibatchInferenceLoop(GradLoop):
     """
@@ -113,4 +110,3 @@ class MinibatchInferenceLoop(GradLoop):
 
         if logger:
             logger.close()
-
