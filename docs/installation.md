@@ -24,3 +24,4 @@ To allow distributed training of MXFusion using Horovod, install through pip (No
 ```
 pip install horovod==0.16.4
 ```
+More information about Horovod and detailed instructions about its installation can be found on [Horovod Site](https://github.com/horovod/horovod). 
