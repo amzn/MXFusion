@@ -213,7 +213,6 @@ class TestDistributedBNN(object):
             This unit test specifically tests on Batch loop with SVI Inference for gradient optimisation.
             Parameters used for comparisons are mean and standard deviation of predicted BNN of the inferences.
         """
-        dtype = 'float32'
 
         k = GPy.kern.RBF(1, lengthscale=0.1)
         x = np.random.rand(N, 1)

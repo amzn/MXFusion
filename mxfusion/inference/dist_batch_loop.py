@@ -55,7 +55,7 @@ class DistributedBatchInferenceLoop(DistributedGradLoop):
         iter_step = max(max_iter // n_prints, 1)
         for i in range(1, max_iter + 1):
             with autograd.record():
-                loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx, dtype='float64'), *data)
+                loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
                 # stepping up the learning rate for distributed training
                 loss_for_gradient = loss_for_gradient * hvd.size()
             loss_for_gradient.backward()

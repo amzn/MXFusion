@@ -30,6 +30,7 @@ class TestDistributedMAP(object):
     hvd.init()
     from mxfusion.common import config
     config.DEFAULT_DTYPE = 'float64'
+    mx.context.Context.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
 
     def make_model_MAP(self):
         from mxfusion.components.distributions import Normal
@@ -46,8 +47,6 @@ class TestDistributedMAP(object):
 
     def make_inference_MAP(self, model, data, distributed=True, minibatch=False, num_iter=2000, learning_rate=1e-1, batch_size=100):
         from mxfusion.inference import GradBasedInference, MAP, DistributedGradBasedInference, BatchInferenceLoop, MinibatchInferenceLoop, DistributedBatchInferenceLoop, DistributedMinibatchInferenceLoop
-
-        mx.context.Context.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
       
         if distributed:
             infr = DistributedGradBasedInference(inference_algorithm=MAP(model=model, observed=[model.Y]), grad_loop=DistributedMinibatchInferenceLoop(batch_size=batch_size)) if minibatch else DistributedGradBasedInference(inference_algorithm=MAP(model=model, observed=[model.Y]), grad_loop=DistributedBatchInferenceLoop())

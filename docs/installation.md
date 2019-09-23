@@ -18,3 +18,9 @@ To install MXFusion from source, after cloning the repository run the following 
 ```
 pip install .
 ```
+
+## Distributed Training
+To allow distributed training of MXFusion using Horovod, install through pip (Note that MXFusion only support Horovod version below 0.18):
+```
+pip install horovod==0.16.4
+```
