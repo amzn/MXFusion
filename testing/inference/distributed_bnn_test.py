@@ -15,9 +15,9 @@
 import warnings
 warnings.filterwarnings('ignore')
 import numpy as np
-import horovod.mxnet as hvd
 import mxnet.gluon.nn as nn
 import pytest
+hvd = pytest.importorskip("horovod.mxnet")
 import mxnet as mx
 import GPy
 
