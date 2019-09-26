@@ -25,7 +25,8 @@ import GPy
 class TestDistributedBNN(object):
     """
         Test class that tests MXFusion Bayesian Neuran Network distributedly using Horovod with Stochastic Variational Inference (SVI).
-        Run test with command "horovodrun -np {number_of_processors} -H localhost:4 pytest -v distributed_bnn_test.py"
+        Run test with command "horovodrun -np {number_of_processors} -H localhost:4 pytest -v distributed_bnn_test.py".
+        If run normally with pytest, the distributed training functionality won't be tested.
     """
 
     hvd.init()

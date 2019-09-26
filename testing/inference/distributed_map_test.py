@@ -24,7 +24,8 @@ import mxnet as mx
 class TestDistributedMAP(object):
     """
         Test class that tests MXFusion MAP Inference distributedly using Horovod.
-        Run test with command "horovodrun -np {number_of_processors} -H localhost:4 pytest -s distributed_map_test.py"
+        Run test with command "horovodrun -np {number_of_processors} -H localhost:4 pytest -s distributed_map_test.py".
+        If run normally with pytest, the distributed training functionality won't be tested.
     """
 
     hvd.init()

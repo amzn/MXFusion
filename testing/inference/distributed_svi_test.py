@@ -23,7 +23,8 @@ import mxnet as mx
 class TestDistributedSVI(object):
     """
         Test class that tests MXFusion MAP Inference distributedly using Horovod.
-        Run test with command "horovodrun -np {number_of_processors} -H localhost:4 pytest distributed_svi_test.py"
+        Run test with command "horovodrun -np {number_of_processors} -H localhost:4 pytest distributed_svi_test.py".
+        If run normally with pytest, the distributed training functionality won't be tested.
     """
 
     hvd.init()
@@ -80,8 +81,6 @@ class TestDistributedSVI(object):
 
         model_single = self.make_model_SVI()
         model_multi = self.make_model_SVI()
-
-        import time
 
         from mxfusion.inference import create_Gaussian_meanfield
 

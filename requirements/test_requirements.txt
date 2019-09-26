@@ -1,6 +1,7 @@
 coverage>=4.5.1
 codecov>=2.0.15
 flake8>=3.5.0
+horovod==0.16.4 # Also requires an MPI installation
 pytest>=3.5.1
 pytest-cov>=2.5.1
 scipy>=1.1.0
