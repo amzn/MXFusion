@@ -13,7 +13,6 @@
 # ==============================================================================
 
 import mxnet as mx
-import horovod.mxnet as hvd
 from mxnet import gluon, autograd
 from .dist_grad_loop import DistributedGradLoop
 
@@ -46,6 +45,8 @@ class DistributedBatchInferenceLoop(DistributedGradLoop):
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
+        import horovod.mxnet as hvd
+
         if logger:
             logger.open()
 

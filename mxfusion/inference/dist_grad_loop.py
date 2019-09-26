@@ -12,7 +12,6 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-import horovod.mxnet as hvd
 import mxnet as mx
 from .grad_loop import GradLoop
 
@@ -25,6 +24,8 @@ class DistributedGradLoop(GradLoop):
     """
 
     def split_data(self, data):
+        import horovod.mxnet as hvd
+
         if hvd.size() > 1:
             temporaryData = []
 

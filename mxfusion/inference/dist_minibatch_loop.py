@@ -13,7 +13,6 @@
 # ==============================================================================
 
 import mxnet as mx
-import horovod.mxnet as hvd
 import warnings
 from mxnet.gluon.data import ArrayDataset
 from .dist_grad_loop import DistributedGradLoop
@@ -60,6 +59,8 @@ class DistributedMinibatchInferenceLoop(DistributedGradLoop):
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
+
+        import horovod.mxnet as hvd
 
         if logger:
             logger.open()
