@@ -124,9 +124,9 @@ class DistributedGradBasedInference(Inference):
                 learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
 
 
-class GradTransferInference(DistributedGradBasedInference):
+class DistributedGradTransferInference(DistributedGradBasedInference):
     """
-    The abstract Inference method for transferring the outcome of one inference
+    The Inference method for transferring the outcome of one inference
     method to another.
 
     :param inference_algorithm: The applied inference algorithm
@@ -149,7 +149,7 @@ class GradTransferInference(DistributedGradBasedInference):
         self._var_tie = var_tie if var_tie is not None else {}
         self._inherited_params = infr_params
         self.train_params = train_params
-        super(GradTransferInference, self).__init__(
+        super(DistributedGradTransferInference, self).__init__(
             inference_algorithm=inference_algorithm,
             grad_loop=grad_loop, constants=constants,
             hybridize=hybridize, dtype=dtype, context=context)
