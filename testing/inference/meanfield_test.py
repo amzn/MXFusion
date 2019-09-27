@@ -99,7 +99,7 @@ class MeanFieldInferenceTests(unittest.TestCase):
         observed = [m.y, m.x]
         q = create_Gaussian_meanfield(model=m, observed=observed)
         alg = StochasticVariationalInference(num_samples=3, model=m, observed=observed, posterior=q)
-        infr = GradBasedInference(inference_algorithm=alg, grad_loop=MinibatchInferenceLoop(batch_size=100, rv_scaling={m.y: 10}))
+        infr = GradBasedInference(inference_algorithm=alg, rv_scaling={m.y: 10}, grad_loop=MinibatchInferenceLoop(batch_size=100))
 
         infr.initialize(y=(100, 1), x=(100, 1))
         infr.run(max_iter=1, learning_rate=1e-2, y=y_nd, x=x_nd)

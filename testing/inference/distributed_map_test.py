@@ -29,7 +29,7 @@ class TestDistributedMAP(object):
 
     hvd.init()
     from mxfusion.common import config
-    config.DEFAULT_DTYPE = 'float64'
+    config.DEFAULT_DTYPE = 'float32'
     mx.context.Context.default_ctx = mx.gpu(hvd.local_rank()) if mx.test_utils.list_gpus() else mx.cpu()
 
     def make_model_MAP(self):
@@ -39,8 +39,8 @@ class TestDistributedMAP(object):
 
         m = Model()
         m.N = Variable()
-        m.mu = Variable(initial_value=mx.nd.array([0.1], dtype=np.float64))
-        m.s = Variable(transformation=PositiveTransformation(), initial_value=mx.nd.array([1.1], dtype=np.float64))
+        m.mu = Variable(initial_value=mx.nd.array([0.1]))
+        m.s = Variable(transformation=PositiveTransformation(), initial_value=mx.nd.array([1.1]))
         m.Y = Normal.define_variable(mean=m.mu, variance=m.s, shape=(m.N,))
 
         return m
@@ -53,7 +53,7 @@ class TestDistributedMAP(object):
         else:
             infr = GradBasedInference(inference_algorithm=MAP(model=model, observed=[model.Y]), grad_loop=MinibatchInferenceLoop(batch_size=batch_size)) if minibatch else GradBasedInference(inference_algorithm=MAP(model=model, observed=[model.Y]), grad_loop=BatchInferenceLoop())
 
-        infr.run(Y=mx.nd.array(data, dtype=np.float64), learning_rate=learning_rate, max_iter=num_iter, verbose=True)
+        infr.run(Y=mx.nd.array(data), learning_rate=learning_rate, max_iter=num_iter, verbose=True)
 
         return infr
 
