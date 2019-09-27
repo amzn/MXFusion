@@ -13,6 +13,13 @@ Below is a list of tutorial / example notebooks demonstrating MXFusion's functio
 * [Gaussian Process Regression](examples/notebooks/gp_regression.ipynb)
 * [Stochastic Variational Gaussian Process Regression](examples/notebooks/svgp_regression.ipynb)
 
+## Distributed Training
+* [Overview](examples/notebooks/overview-distributed.ipynb)
+* [Getting Started](examples/notebooks/getting_started-distributed.ipynb)
+* [Bayesian Neural Network Classification](examples/notebooks/bnn_classification-distributed.ipynb)
+* [Bayesian Neural Network Regression](examples/notebooks/bnn_regression-distributed.ipynb)
+* [F.A.Q and Troubleshooting](examples/notebooks/troubleshooting-distributed.ipynb)
+
 ## Developer Tutorials
 * [Writing your own Distribution](examples/notebooks/writing_a_new_distribution.ipynb)
 

@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 import mxnet as mx
 import warnings
 from mxnet.gluon.data import ArrayDataset
-from .grad_loop import GradLoop
+from .dist_grad_loop import DistributedGradLoop
 
-class MinibatchInferenceLoop(GradLoop):
+class DistributedMinibatchInferenceLoop(DistributedGradLoop):
     """
     The class for the main loop for minibatch gradient-based optimization. The
     *batch_size* specifies the size of mini-batch is used in mini-batch
@@ -32,7 +32,7 @@ class MinibatchInferenceLoop(GradLoop):
     """
 
     def __init__(self, batch_size=100):
-        super(MinibatchInferenceLoop, self).__init__()
+        super(DistributedMinibatchInferenceLoop, self).__init__()
         self.batch_size = batch_size
 
     def run(self, infr_executor, data, param_dict, ctx, optimizer='adam',
@@ -59,13 +59,17 @@ class MinibatchInferenceLoop(GradLoop):
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
-          
+
+        import horovod.mxnet as hvd
+
         if logger:
             logger.open()
-        
+
         if isinstance(data, mx.gluon.data.DataLoader):
             data_loader = data
         else:
+            data = self.split_data(data=data)
+            
             if (self.batch_size > len(ArrayDataset(*data))):
                 warnings.warn(
                     "The requested batch_size is more than the length of the data passed in. Using batch_size as the size of the data instead.",
@@ -73,11 +77,12 @@ class MinibatchInferenceLoop(GradLoop):
                 load_batch_size = len(ArrayDataset(*data))
             else:
                 load_batch_size = self.batch_size
-      
+
             data_loader = mx.gluon.data.DataLoader(
                 ArrayDataset(*data), batch_size=load_batch_size, shuffle=True,
                 last_batch='rollover')
-            trainer = mx.gluon.Trainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
+
+            trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer, optimizer_params={'learning_rate': learning_rate})
 
         total_batches = 0
         for e in range(max_iter):
@@ -85,15 +90,15 @@ class MinibatchInferenceLoop(GradLoop):
             batch_number = 0
 
             for batch_number, data_batch in enumerate(data_loader,1):
-                
                 if not isinstance(data_batch, (list, tuple)):
                     data_batch = [data_batch]
-                
+
                 if update_shape_constants is not None:
-                    update_shape_constants(data_batch)        
-   
+                    update_shape_constants(data_batch)
+                
                 with mx.autograd.record():
                     loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data_batch)
+                    loss_for_gradient = loss_for_gradient * hvd.size()
                 loss_for_gradient.backward()
 
                 if logger:

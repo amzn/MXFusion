@@ -22,6 +22,8 @@ import mxnet as mx
 import numpy as np
 
 from .inference_parameters import InferenceParameters
+from .dist_minibatch_loop import DistributedMinibatchInferenceLoop
+from .minibatch_loop import MinibatchInferenceLoop
 from .logger import Logger
 from ..common.config import get_default_device, get_default_dtype
 from ..common.exceptions import InferenceError, SerializationError
@@ -50,10 +52,12 @@ class Inference(object):
     :type context: {mxnet.cpu or mxnet.gpu}
     :param logger: The logger to send logs to
     :type logger: :class:`inference.Logger`
+    :param rv_scaling: the scaling factor of random variables
+    :type rv_scaling: {Variable: scaling factor}
     """
 
     def __init__(self, inference_algorithm, constants=None,
-                 hybridize=False, dtype=None, context=None, logger=None):
+                 hybridize=False, dtype=None, context=None, logger=None, rv_scaling=None):
         self.dtype = dtype if dtype is not None else get_default_dtype()
         self.mxnet_context = context if context is not None else get_default_device()
         self._hybridize = hybridize
@@ -64,6 +68,15 @@ class Inference(object):
                                           context=self.mxnet_context)
         self._initialized = False
         self._logger = Logger() if logger is None else logger
+        self.rv_scaling = {v.uuid: s for v, s in rv_scaling.items()} \
+            if rv_scaling is not None else rv_scaling
+
+    def scale_if_minibatch(self, grad_loop):
+        if (isinstance(grad_loop, DistributedMinibatchInferenceLoop)) or (isinstance(grad_loop, MinibatchInferenceLoop)) :
+            rv_scaling = {} if self.rv_scaling is None else self.rv_scaling
+        else:
+            rv_scaling = {}
+        return rv_scaling
 
     def print_params(self):
         """
@@ -145,7 +158,6 @@ class Inference(object):
                 if not all(isinstance(d, type(d)) for d in data):
                     raise InferenceError("All items in the keywords must be of the same type. "
                                          "Either all shapes or all data objects.")
-
                 if isinstance(data[0], (tuple, list)):
                     data_shapes = {i: d for i, d in zip(self.observed_variable_UUIDs, data)}
                 elif isinstance(data[0], mx.nd.ndarray.NDArray):

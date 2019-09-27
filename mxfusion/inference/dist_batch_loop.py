@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
 
 import mxnet as mx
 from mxnet import gluon, autograd
-from .grad_loop import GradLoop
+from .dist_grad_loop import DistributedGradLoop
 
-class BatchInferenceLoop(GradLoop):
+class DistributedBatchInferenceLoop(DistributedGradLoop):
     """
     The class for the main loop for batch gradient-based optimization.
     """
@@ -45,20 +45,22 @@ class BatchInferenceLoop(GradLoop):
         :param logger: The logger to send logs to
         :type logger: :class:`inference.Logger`
         """
+        import horovod.mxnet as hvd
+
         if logger:
             logger.open()
 
-        trainer = mx.gluon.Trainer(param_dict,
-                                       optimizer=optimizer,
-                                       optimizer_params={'learning_rate': learning_rate})
+        trainer = hvd.DistributedTrainer(param_dict, optimizer=optimizer,optimizer_params={'learning_rate': learning_rate})
+        data = self.split_data(data=data)
 
         iter_step = max(max_iter // n_prints, 1)
-         
         for i in range(1, max_iter + 1):
             with autograd.record():
                 loss, loss_for_gradient = infr_executor(mx.nd.zeros(1, ctx=ctx), *data)
+                # stepping up the learning rate for distributed training
+                loss_for_gradient = loss_for_gradient * hvd.size()
             loss_for_gradient.backward()
-            
+
             if logger:
                 logger.log("loss", loss.asscalar(), i, newline=not i % iter_step, verbose=verbose)
 

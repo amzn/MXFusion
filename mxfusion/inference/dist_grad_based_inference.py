@@ -1,4 +1,4 @@
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License").
 #   You may not use this file except in compliance with the License.
@@ -12,14 +12,15 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-from .batch_loop import BatchInferenceLoop
+from .dist_batch_loop import DistributedBatchInferenceLoop
 from .inference import Inference
-from .minibatch_loop import MinibatchInferenceLoop
+from .dist_minibatch_loop import DistributedMinibatchInferenceLoop
 from ..util.inference import discover_shape_constants, init_outcomes
+from .dist_grad_loop import DistributedGradLoop
 
-class GradBasedInference(Inference):
+class DistributedGradBasedInference(Inference):
     """
-    The abstract class for gradient-based inference methods.
+    The abstract class for distributed gradient-based inference methods.
     An inference method consists of a few components: the applied inference algorithm, the model definition
     (optionally a definition of posterior approximation), the inference parameters.
 
@@ -44,19 +45,37 @@ class GradBasedInference(Inference):
     def __init__(self, inference_algorithm, grad_loop=None, constants=None,
                  hybridize=False, dtype=None, context=None, logger=None, rv_scaling=None):
         if grad_loop is None:
-            grad_loop = BatchInferenceLoop()
-        super(GradBasedInference, self).__init__(
+            grad_loop = DistributedBatchInferenceLoop()
+        if not (isinstance(grad_loop, DistributedGradLoop)):
+            raise TypeError("grad_loop must be a type of DistributedGradLoop.")
+
+        super(DistributedGradBasedInference, self).__init__(
             inference_algorithm=inference_algorithm, constants=constants,
             hybridize=hybridize, dtype=dtype, context=context, logger=logger)
         self._grad_loop = grad_loop
         self.rv_scaling = rv_scaling
 
+    def rescale(self, rv_scaling):
+        """
+        Return the rescaled scaling factor of random variables for SVI.
+        """
+        import horovod.mxnet as hvd
+        for _, variable in enumerate(
+                self.inference_algorithm.model.get_latent_variables(self.inference_algorithm.observed)):
+            if variable not in rv_scaling:
+                rv_scaling[variable.uuid] = 1 / hvd.size()
+
+        return rv_scaling
+
     def create_executor(self):
         """
         Return a MXNet Gluon block responsible for the execution of the inference method.
         """
-        from .minibatch_loop import MinibatchInferenceLoop
+        from mxfusion.inference import StochasticVariationalInference
         rv_scaling = self.scale_if_minibatch(self._grad_loop)
+        if isinstance(self.inference_algorithm, StochasticVariationalInference):
+            rv_scaling = self.rescale(rv_scaling=rv_scaling)
+
         infr = self._inference_algorithm.create_executor(
             data_def=self.observed_variable_UUIDs, params=self.params,
             var_ties=self.params.var_ties, rv_scaling=rv_scaling)
@@ -83,10 +102,10 @@ class GradBasedInference(Inference):
         """
         data = [kwargs[v] for v in self.observed_variable_names]
         self.initialize(**kwargs)
-    
+
         infr = self.create_executor()
 
-        if isinstance(self._grad_loop, MinibatchInferenceLoop):
+        if isinstance(self._grad_loop, DistributedMinibatchInferenceLoop):
             def update_shape_constants(data_batch):
                 data_shapes = {i: d.shape for i, d in zip(self.observed_variable_UUIDs,
                                                           data_batch)}
@@ -104,9 +123,10 @@ class GradBasedInference(Inference):
                 ctx=self.mxnet_context, optimizer=optimizer,
                 learning_rate=learning_rate, max_iter=max_iter, verbose=verbose, logger=self._logger)
 
-class GradTransferInference(GradBasedInference):
+
+class DistributedGradTransferInference(DistributedGradBasedInference):
     """
-    The abstract Inference method for transferring the outcome of one inference
+    The Inference method for transferring the outcome of one inference
     method to another.
 
     :param inference_algorithm: The applied inference algorithm
@@ -129,7 +149,7 @@ class GradTransferInference(GradBasedInference):
         self._var_tie = var_tie if var_tie is not None else {}
         self._inherited_params = infr_params
         self.train_params = train_params
-        super(GradTransferInference, self).__init__(
+        super(DistributedGradTransferInference, self).__init__(
             inference_algorithm=inference_algorithm,
             grad_loop=grad_loop, constants=constants,
             hybridize=hybridize, dtype=dtype, context=context)
