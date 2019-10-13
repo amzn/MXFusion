@@ -12,7 +12,6 @@
 #   permissions and limitations under the License.
 # ==============================================================================
 
-
 """This module contains Gaussian process modules.
 
 Submodules
@@ -21,13 +20,12 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
-    gp_regression
-    sparsegp_regression
-    svgp_regression
 """
 
-__all__ = ['gp_regression', 'sparsegp_regression', 'svgp_regression']
+__all__ = ['gp_regression', 'sparsegp_regression', 'svgp_regression', 'svgp_classification']
 
 from .gp_regression import GPRegression, GPRegressionSamplingPrediction
 from .sparsegp_regression import SparseGPRegression, SparseGPRegressionSamplingPrediction
 from .svgp_regression import SVGPRegression
+from .svgp_classification import SVGPClassification
+
