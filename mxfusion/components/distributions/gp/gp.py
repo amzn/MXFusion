@@ -13,8 +13,11 @@
 # ==============================================================================
 
 
+import mxnet as mx
 import numpy as np
+
 from ....common.config import get_default_MXNet_mode
+from ....runtime.distributions.multivariate_normal import MultivariateNormalRuntime
 from ...variables import Variable
 from ..distribution import Distribution
 
@@ -160,3 +163,31 @@ class GaussianProcess(Distribution):
         replicant._has_mean = self._has_mean
         replicant.kernel = self.kernel.replicate_self(attribute_map)
         return replicant
+
+    def get_multivariate_normal(self, X, rv_shape, jitter, **kernel_params):
+        """
+        Return p(f|x)
+
+        :param x: Input locations at which to get multivariate normal distribution
+        :type X: MXNet NDArray or MXNet Symbol
+        :param rv_shape: the shape of each sample.
+        :type rv_shape: tuple
+        :param jitter: Jitter to add to diagonal of covariance matrix
+        :type jitter: float
+        :param kernel_params: the set of kernel parameters, provided as keyword arguments.
+        :type kernel_params: {str: MXNet NDArray or MXNet Symbol}
+        :return: Multivariate normal distribution with mean and covariance defined by GP mean and covariance functions
+                 evaluated at the input locations
+        :rtype: MultivariateNormalRuntime
+        """
+
+        if self.has_mean:
+            mean = kernel_params['mean']
+        else:
+            mean = mx.nd.zeros((1,) + rv_shape, dtype='float64')
+
+        K = self.kernel.K(mx.nd, X, **kernel_params)
+        jitter_matrix = mx.nd.expand_dims(mx.nd.eye(X.shape[1], dtype=X.dtype), 0) * jitter
+        K = mx.nd.expand_dims(K + jitter_matrix, 1)
+        K = mx.nd.broadcast_axis(K, 1, rv_shape[0])
+        return MultivariateNormalRuntime(mean, K)

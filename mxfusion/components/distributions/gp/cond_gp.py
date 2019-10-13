@@ -13,9 +13,15 @@
 # ==============================================================================
 
 
+import mxnet as mx
 import numpy as np
+from mxfusion.components.variables import as_samples
+from mxfusion.components.variables.runtime_variable import broadcast_sample_dimension
+
 from ....common.config import get_default_MXNet_mode
 from ....common.exceptions import ModelSpecificationError
+from ....runtime.distributions.multivariate_normal import MultivariateNormalRuntime
+from ....runtime.distributions.normal import NormalRuntime
 from ...variables.variable import Variable
 from ..distribution import Distribution
 
@@ -55,12 +61,13 @@ class ConditionalGaussianProcess(Distribution):
     :param ctx: the mxnet context (default: None/current context).
     :type ctx: None or mxnet.cpu or mxnet.gpu
     """
+
     def __init__(self, X, X_cond, Y_cond, kernel, mean=None, mean_cond=None,
                  rand_gen=None, dtype=None, ctx=None):
         if (mean is None) and (mean_cond is not None):
             raise ModelSpecificationError("The argument mean and mean_cond need to be both specified.")
         inputs = [('X', X), ('X_cond', X_cond), ('Y_cond', Y_cond)] + \
-            [(k, v) for k, v in kernel.parameters.items()]
+                 [(k, v) for k, v in kernel.parameters.items()]
         input_names = [k for k, _ in inputs]
         if mean is not None:
             inputs.append(('mean', mean))
@@ -117,8 +124,8 @@ class ConditionalGaussianProcess(Distribution):
             X=X, X_cond=X_cond, Y_cond=Y_cond, kernel=kernel, mean=mean,
             mean_cond=mean_cond, rand_gen=rand_gen, dtype=dtype, ctx=ctx)
         gp.outputs = [('random_variable',
-                      Variable(value=gp, shape=X.shape[:-1] + (1,) if
-                               shape is None else shape))]
+                       Variable(value=gp, shape=X.shape[:-1] + (1,) if
+                       shape is None else shape))]
         return gp.random_variable
 
     def log_pdf_impl(self, X, X_cond, Y_cond, random_variable, F=None,
@@ -171,7 +178,7 @@ class ConditionalGaussianProcess(Distribution):
         logdet_l = F.linalg.sumlogdiag(F.abs(L))
 
         return (- logdet_l * D - F.sum(F.square(LinvY) + np.log(2. * np.pi),
-                axis=-1) / 2) * self.log_pdf_scaling
+                                       axis=-1) / 2) * self.log_pdf_scaling
 
     def draw_samples_impl(self, X, X_cond, Y_cond, rv_shape, num_samples=1,
                           F=None, **kernel_params):
@@ -232,3 +239,96 @@ class ConditionalGaussianProcess(Distribution):
         replicant._has_mean_cond = self._has_mean_cond
         replicant.kernel = self.kernel.replicate_self(attribute_map)
         return replicant
+
+    def marginalise_conditional_distribution(self, X, X_cond, q_u, n_outputs, jitter, diagonal_variance,
+                                             **kwargs):
+        """
+
+        :param X: Array of shape (n_samples, n_data, n_dimensions)
+        :type X: MXNet NDArray or MXNet Symbol
+        :param X_cond: Array of shape (1, n_conditional_data, n_dimensions)
+        :type X_cond: MXNet NDArray or MXNet Symbol
+        :param q_u: The variational distribution at X_cond. The mean is expected to have shape:
+                    (n_samples, n_outputs, n_conditional_data) and the covariance:
+                     (n_samples, n_outputs, n_conditional_data, n_conditional_data)
+        :type q_u: MultivariateNormalRuntime
+        :param n_outputs: Number of outputs of the GP
+        :type n_outputs: int
+        :param jitter: Level of jitter to add to diagonal of covariance matrices for numerical stability
+        :type jitter: float
+        :param diagonal_variance: Whether to return only the variance at X and not the full covariance matrix. If true
+                                  a NormalRuntime distribution is returned, if false a MultivariateNormalRuntime
+                                  distribution is returned
+        :type diagonal_variance: bool
+        :param kwargs: Dictionary containing kernel parameters and mean function evaluations if applicable
+        :type kwargs: {str: MXNet NDArray or MXNet Symbol}
+        :return: Predictive distribution at X, will be either a full multivariate normal or independent univariate
+                 normals depending on "diagonal_variance" input
+        :rtype: Union[NormalRuntime, MultivariateNormalRuntime]
+        """
+
+        # Variables are annotated with their shapes:
+        # P: is number of samples
+        # M is length of X_cond
+        # N is length of X
+        # D is number of output dimensions
+
+        F = mx.nd
+
+        M = X_cond.shape[-2]
+        P, N, _ = X.shape
+        D = q_u.mean.shape[1]
+        kern = self.kernel
+
+        Kuu = kern.K(F, X_cond, **kwargs)  # (1, M, M)
+
+        if jitter > 0.:
+            Kuu = Kuu + F.eye(M, dtype=X_cond.dtype) * jitter
+        L = F.linalg.potrf(Kuu)  # (1, M, M)
+        if 'mean_cond' in kwargs:
+            mean_cond = kwargs['mean_cond']
+            del kwargs['mean_cond']
+            q_u_mean = q_u.mean - mean_cond
+        else:
+            q_u_mean = q_u.mean  # (1, D, M)
+
+        LInvMu = mx.nd.linalg.trsm(L, q_u_mean, transpose=True, rightside=True)  # (1, D, M)
+        wv = mx.nd.linalg.trsm(L, LInvMu, rightside=True)  # (1, D, M)
+
+        X, X_cond_with_samples, wv, L_samples = broadcast_sample_dimension([X, X_cond, wv, L])
+        Kux = kern.K(F, X_cond_with_samples, X, **kwargs)  # (P, M, N)
+
+        predictive_mean = F.expand_dims(mx.nd.linalg.gemm2(wv, Kux, False, False), -1)  # (P, D, N)
+
+        LinvKux = F.linalg_trsm(L_samples, Kux)  # (P, M, N)
+        KuuInvKux = F.linalg_trsm(L_samples, LinvKux, transpose=True)  # (P, M, N)
+        if 'mean' in kwargs:
+            predictive_mean = predictive_mean + kwargs['mean']
+            del kwargs['mean']
+
+        predictive_mean = F.reshape(predictive_mean, predictive_mean.shape[:-1])  # (P, D, N)
+        if diagonal_variance:
+            Ktt = kern.Kdiag(F, X, **kwargs)  # (P, N, 1)
+            Ktt = F.expand_dims(Ktt, 1)  # (P, 1, N, 1)
+
+            # Reshape S matrix here to allow us to do matrix matrix multiply more efficiently across output dimensions
+            S_reshaped = q_u.covariance.reshape((q_u.covariance.shape[0], D * M, M))  # (1, DM, M)
+            S_reshaped = as_samples(F, S_reshaped, P)  # (P, DM, M)
+
+            tmp = F.linalg.gemm2(S_reshaped, KuuInvKux).reshape((P, D, M, X.shape[-2]))  # (P, D, M, N)
+            KuuInvKux = F.expand_dims(KuuInvKux, 1)
+            predictive_variance = Ktt - F.sum(F.square(LinvKux), axis=-2, keepdims=True) + \
+                F.sum(tmp * KuuInvKux, axis=-2)  # (P, D, N, 1)
+            return NormalRuntime(predictive_mean, predictive_variance)
+        else:
+            KuuInvKux_expanded = _add_output_dim(KuuInvKux, n_outputs)
+            Ktt = kern.K(F, X, **kwargs)
+            tmp = F.linalg.gemm2(q_u.covariance, KuuInvKux_expanded)
+            predictive_covariance = Ktt - F.linalg.syrk(LinvKux, True) + \
+                                    F.linalg.gemm2(KuuInvKux_expanded, tmp, True, False)
+            return MultivariateNormalRuntime(predictive_mean, predictive_covariance)
+
+
+def _add_output_dim(array, n_outputs):
+    array = mx.nd.expand_dims(array, 1)
+    return mx.nd.broadcast_axis(array, 1, n_outputs)

@@ -13,6 +13,7 @@
 # ==============================================================================
 
 
+import mxnet as mx
 from mxnet.ndarray.ndarray import NDArray
 from mxnet.symbol.symbol import Symbol
 
@@ -82,6 +83,17 @@ def get_num_samples(F, array):
     return array.shape[0]
 
 
+def get_variable_shape(F, array):
+    """
+    Get the number of samples in the provided array. If the array is not a set of samples, the return value will be one.
+
+    :returns: the number of samples.
+    :rtypes: int
+    """
+    # TODO: replace array.shape with F.shape_array
+    return array.shape[1:]
+
+
 def as_samples(F, array, num_samples):
     """
     Broadcast the variable as if it is a sampled variable. If the variable is already a sampled variable, it directly returns the data reference.
@@ -99,7 +111,7 @@ def as_samples(F, array, num_samples):
         return F.broadcast_axis(array, axis=0, size=num_samples)
 
 
-def arrays_as_samples(F, arrays):
+def broadcast_sample_dimension(arrays):
     """
     Broadcast the dimension of samples for a list of variables. If the number of samples of at least one of the variables is larger than one, all the variables in the list are broadcasted to have the same number of samples.
 
@@ -110,6 +122,7 @@ def arrays_as_samples(F, arrays):
     :returns: the list of variables after broadcasting
     :rtypes: [MXNet NDArray or MXNet Symbol or {str: MXNet NDArray or MXNet Symbol}]
     """
+    F = mx.nd
     num_samples = [max([get_num_samples(F, v) for v in a.values()]) if isinstance(a, dict) else get_num_samples(F, a) for a in arrays]
     max_num_samples = max(num_samples)
     if max_num_samples > 1:

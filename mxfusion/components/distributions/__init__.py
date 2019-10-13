@@ -34,13 +34,14 @@ Submodules
     wishart
     beta
     dirichlet
+    multivariate_normal
 """
 
 __all__ = ['bernoulli', 'categorical', 'distribution', 'normal', 'gamma', 'pointmass', 'random_gen',
-           'univariate', 'gp', 'wishart', 'beta', 'laplace', 'uniform', 'dirichlet']
+           'univariate', 'gp', 'wishart', 'beta', 'laplace', 'uniform', 'dirichlet', 'multivariate_normal']
 
 from .distribution import Distribution
-from .normal import Normal, MultivariateNormal, NormalMeanPrecision, MultivariateNormalMeanPrecision
+from .normal import Normal, NormalMeanPrecision
 from .gamma import Gamma, GammaMeanVariance
 from .pointmass import PointMass
 from .bernoulli import Bernoulli
@@ -51,3 +52,5 @@ from .beta import Beta
 from .dirichlet import Dirichlet
 from .uniform import Uniform
 from .laplace import Laplace
+from .sigmoid_bernoulli import SigmoidBernoulli
+from .multivariate_normal import MultivariateNormal, MultivariateNormalMeanPrecision

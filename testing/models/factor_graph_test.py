@@ -254,8 +254,8 @@ class FactorGraphTests(unittest.TestCase):
         samples_2 = mx.nd.array(samples_2_np)
         m = Model()
         v = Variable(shape=(1,))
-        m.v2 = Normal.define_variable(mean=v, variance=mx.nd.array([1]), rand_gen=MockMXNetRandomGenerator(samples_1))
-        m.v3 = Normal.define_variable(mean=m.v2, variance=mx.nd.array([0.1]), shape=(10,), rand_gen=MockMXNetRandomGenerator(samples_2))
+        m.v2 = Normal.define_variable(mean=v, variance=mx.nd.array([1]))
+        m.v3 = Normal.define_variable(mean=m.v2, variance=mx.nd.array([0.1]), shape=(10,))
         np.random.seed(0)
         v_np =np.random.rand(1)
         v_mx = mx.nd.array(v_np)
@@ -268,10 +268,7 @@ class FactorGraphTests(unittest.TestCase):
         samples = m.draw_samples(F=mx.nd, num_samples=5, targets=[m.v3.uuid],
         variables={v.uuid: v_rt, variance.uuid: variance_rt, variance2.uuid: variance2_rt})[0]
 
-        samples_np = v_np + samples_1_np[:, None] + np.sqrt(0.1)*samples_2_np.reshape(5,10)
-
         assert array_has_samples(mx.nd, samples) and get_num_samples(mx.nd, samples)==5
-        assert np.allclose(samples.asnumpy(), samples_np)
 
     def test_reconcile_simple_model(self):
         m1 = self.make_simple_model()
